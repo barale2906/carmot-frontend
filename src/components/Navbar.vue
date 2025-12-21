@@ -23,22 +23,18 @@
       </div>
 
       <div class="navbar-right">
-        <div class="user-info">
-          <div class="user-details">
-            <span class="user-name">{{ userName }}</span>
-            <span class="user-email">{{ userEmail }}</span>
-          </div>
-          <div class="user-avatar">
-            {{ userInitial }}
-          </div>
-        </div>
+        <UserMenu 
+          :user-name="userName"
+          :user-email="userEmail"
+        />
       </div>
     </div>
   </nav>
 </template>
 
 <script setup>
-import { inject, computed } from 'vue'
+import { inject } from 'vue'
+import UserMenu from './UserMenu.vue'
 
 const props = defineProps({
   pageTitle: {
@@ -60,10 +56,6 @@ const props = defineProps({
 })
 
 const toggleSidebar = inject('toggleSidebar', () => {})
-
-const userInitial = computed(() => {
-  return props.userName.charAt(0).toUpperCase()
-})
 </script>
 
 <style scoped>
@@ -147,46 +139,6 @@ const userInitial = computed(() => {
 .navbar-right {
   display: flex;
   align-items: center;
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.user-details {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  text-align: right;
-}
-
-.user-name {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #1e293b;
-  line-height: 1.2;
-}
-
-.user-email {
-  font-size: 0.75rem;
-  color: #64748b;
-  line-height: 1.2;
-}
-
-.user-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  font-size: 1rem;
-  flex-shrink: 0;
 }
 
 @media (max-width: 768px) {

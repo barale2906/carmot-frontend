@@ -15,11 +15,13 @@
 
 <script setup>
 import { ref, provide, computed, onMounted, onUnmounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import Navbar from '../components/Navbar.vue'
 import Sidebar from '../components/Sidebar.vue'
+import { authService } from '../services/authService'
 
 const route = useRoute()
+const router = useRouter()
 const sidebarOpen = ref(false)
 
 // Títulos dinámicos según la ruta (se puede mejorar con meta en las rutas)
@@ -29,7 +31,8 @@ const pageTitle = computed(() => {
     '/estudiantes': 'Estudiantes',
     '/cursos': 'Cursos y Técnicos',
     '/formularios': 'Formularios',
-    '/reportes': 'Reportes'
+    '/reportes': 'Reportes',
+    '/perfil': 'Perfil'
   }
   return titles[route.path] || 'Dashboard'
 })
@@ -38,9 +41,49 @@ const pageSubtitle = computed(() => {
   return 'Sistema de gestión - Centro de Capacitación CARMOT'
 })
 
-// Datos del usuario (luego vendrán del store/auth)
-const userName = ref('Administrador')
-const userEmail = ref('admin@carmot.com')
+// Datos del usuario
+const userName = ref('Usuario')
+const userEmail = ref('')
+const loadingUser = ref(true)
+
+// Obtener datos del usuario autenticado
+const fetchUserData = async () => {
+  if (!authService.isAuthenticated()) {
+    router.push('/')
+    return
+  }
+
+  try {
+    loadingUser.value = true
+    const userData = await authService.getUser()
+    
+    // Ajustar según la estructura de respuesta de la API
+    // Si la API devuelve un objeto con name y email, usar esos campos
+    if (typeof userData === 'string') {
+      // Si es un string, podría ser JSON parseado
+      try {
+        const parsed = JSON.parse(userData)
+        userName.value = parsed.name || parsed.nombre || 'Usuario'
+        userEmail.value = parsed.email || parsed.correo || ''
+      } catch {
+        // Si no se puede parsear, usar valores por defecto
+        userName.value = 'Usuario'
+        userEmail.value = ''
+      }
+    } else if (typeof userData === 'object') {
+      userName.value = userData.name || userData.nombre || userData.username || 'Usuario'
+      userEmail.value = userData.email || userData.correo || ''
+    }
+  } catch (error) {
+    console.error('Error al obtener datos del usuario:', error)
+    // Si hay error 401, redirigir al login
+    if (error.status === 401) {
+      router.push('/')
+    }
+  } finally {
+    loadingUser.value = false
+  }
+}
 
 const toggleSidebar = () => {
   sidebarOpen.value = !sidebarOpen.value
@@ -71,6 +114,7 @@ const handleEscape = (e) => {
 
 onMounted(() => {
   document.addEventListener('keydown', handleEscape)
+  fetchUserData()
 })
 
 onUnmounted(() => {

@@ -75,6 +75,22 @@ export const authService = {
    */
   getToken() {
     return localStorage.getItem('access_token')
+  },
+
+  /**
+   * Obtener información del usuario autenticado
+   * @returns {Promise} Datos del usuario
+   */
+  async getUser() {
+    try {
+      const response = await api.get('/user')
+      return response.data
+    } catch (error) {
+      throw {
+        message: error.response?.data?.message || 'Error al obtener información del usuario',
+        status: error.response?.status
+      }
+    }
   }
 }
 

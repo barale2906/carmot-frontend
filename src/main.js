@@ -4,6 +4,7 @@ import App from './App.vue'
 import Login from './views/Login.vue'
 import MainLayout from './layouts/MainLayout.vue'
 import Dashboard from './views/Dashboard.vue'
+import Profile from './views/Profile.vue'
 import './assets/styles/main.css'
 
 const routes = [
@@ -20,6 +21,17 @@ const routes = [
         path: '',
         name: 'Dashboard',
         component: Dashboard
+      }
+    ]
+  },
+  {
+    path: '/perfil',
+    component: MainLayout,
+    children: [
+      {
+        path: '',
+        name: 'Profile',
+        component: Profile
       }
     ]
   }
