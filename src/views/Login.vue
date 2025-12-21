@@ -23,29 +23,37 @@
 
         <form @submit.prevent="handleLogin" class="login-form">
           <div class="form-group">
-            <label for="usuario" class="form-label">Usuario</label>
+            <label for="email" class="form-label">Email</label>
             <input
-              id="usuario"
-              v-model="formData.usuario"
-              type="text"
+              id="email"
+              v-model="formData.email"
+              type="email"
               class="form-input"
-              placeholder="Ingresa tu usuario"
-              autocomplete="username"
+              :class="{ 'error': errors.email }"
+              placeholder="Ingresa tu email"
+              autocomplete="email"
               required
             />
+            <span v-if="errors.email" class="error-message">{{ errors.email[0] }}</span>
           </div>
 
           <div class="form-group">
-            <label for="contraseña" class="form-label">Contraseña</label>
+            <label for="password" class="form-label">Contraseña</label>
             <input
-              id="contraseña"
-              v-model="formData.contraseña"
+              id="password"
+              v-model="formData.password"
               type="password"
               class="form-input"
+              :class="{ 'error': errors.password }"
               placeholder="Ingresa tu contraseña"
               autocomplete="current-password"
               required
             />
+            <span v-if="errors.password" class="error-message">{{ errors.password[0] }}</span>
+          </div>
+          
+          <div v-if="errorMessage" class="error-alert">
+            {{ errorMessage }}
           </div>
 
           <button type="submit" class="login-button" :disabled="loading">
@@ -60,25 +68,46 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import Logo from '../components/Logo.vue'
+import { authService } from '../services/authService'
+
+const router = useRouter()
 
 const formData = ref({
-  usuario: '',
-  contraseña: ''
+  email: '',
+  password: ''
 })
 
 const loading = ref(false)
+const errors = ref({})
+const errorMessage = ref('')
 
 const handleLogin = async () => {
   if (loading.value) return
   
+  // Limpiar errores previos
+  errors.value = {}
+  errorMessage.value = ''
+  
   loading.value = true
   try {
-    // Lógica de autenticación con la API
-    console.log('Login attempt:', formData.value)
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    const response = await authService.login(formData.value.email, formData.value.password)
+    
+    // Login exitoso
+    console.log('Login exitoso:', response.message)
+    
+    // Redirigir al dashboard
+    router.push('/dashboard')
   } catch (error) {
     console.error('Error en login:', error)
+    
+    // Manejar errores de validación
+    if (error.errors) {
+      errors.value = error.errors
+    } else {
+      errorMessage.value = error.message || 'Error al iniciar sesión. Por favor, verifica tus credenciales.'
+    }
   } finally {
     loading.value = false
   }
@@ -270,6 +299,28 @@ const handleLogin = async () => {
 
 .form-input::placeholder {
   color: #94a3b8;
+}
+
+.form-input.error {
+  border-color: #ef4444;
+  background: #fef2f2;
+}
+
+.error-message {
+  display: block;
+  color: #ef4444;
+  font-size: 0.875rem;
+  margin-top: 4px;
+}
+
+.error-alert {
+  padding: 12px 16px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #dc2626;
+  font-size: 0.875rem;
+  margin-top: 8px;
 }
 
 .login-button {
