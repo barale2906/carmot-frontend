@@ -1,0 +1,34 @@
+# Dependencias (se instalan dentro del contenedor)
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build
+dist
+dist-ssr
+*.local
+
+# Git
+.git
+.gitignore
+
+# Entorno
+.env
+.env.*
+!.env.example
+
+# Editor e IDE
+.vscode
+.idea
+.DS_Store
+
+# Documentación y misc
+*.md
+!README.md
+docs
+
+# Logs
+logs
+*.log

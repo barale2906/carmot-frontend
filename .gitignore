@@ -1,3 +1,8 @@
+# Entorno
+.env
+.env.*
+!.env.example
+
 # Logs
 logs
 *.log
@@ -33,4 +38,7 @@ src/assets/images/
 *.gif
 *.webp
 *.ico
+
+/docs
+
 

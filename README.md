@@ -17,11 +17,41 @@ npm install
 
 ## 🛠️ Desarrollo
 
+### Sin Docker (requiere Node.js instalado)
+
 ```bash
 npm run dev
 ```
 
-La aplicación se abrirá en `http://localhost:3000`
+La aplicación se abrirá en `http://localhost:5173`
+
+### Con Docker (recomendado según la guía)
+
+No necesitas instalar Node.js en tu sistema. Todo corre dentro de contenedores.
+
+**Primera vez o tras cambios en Docker:**
+
+```bash
+make up
+```
+
+La primera vez el contenedor instalará las dependencias automáticamente. Si añades dependencias a `package.json`, ejecuta `make npm install` y reinicia con `make restart`.
+
+**Flujo diario (recomendado):**
+
+- **Fin del día:** `make stop` — detiene contenedores sin borrar datos.
+- **Inicio del día:** `make start` — arranca contenedores y muestra la URL.
+
+**Otros comandos:**
+
+```bash
+make npm install    # Instalar dependencias dentro del contenedor
+make vue            # Acceder al contenedor Vue (bash)
+make logs           # Ver logs del servidor de desarrollo
+make down           # Detener y eliminar contenedores (solo cuando haga falta)
+```
+
+**Acceso:** http://localhost:5173
 
 ## 🏗️ Build
 
@@ -53,4 +83,5 @@ carmot-frontend/
 ├── vite.config.js
 └── README.md
 ```
+
 

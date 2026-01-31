@@ -10,8 +10,10 @@ export default defineConfig({
     }
   },
   server: {
-    port: 3000,
+    host: '0.0.0.0',  // Necesario para Docker
+    port: 5173,
     open: true
   }
 })
+
 
