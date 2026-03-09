@@ -91,6 +91,107 @@ export const authService = {
         status: error.response?.status
       }
     }
+  },
+
+  /**
+   * Obtener los permisos del usuario autenticado
+   * @returns {Promise<Array>} Array de permisos disponibles
+   */
+  async getUserPermissions() {
+    try {
+      // Primero intentar obtener los permisos del endpoint específico
+      // Si no existe, extraerlos de la respuesta del usuario
+      const userData = await this.getUser()
+
+      if (Array.isArray(userData.permissions)) {
+        return userData.permissions
+      }
+
+      // Si es un objeto con un array de permisos dentro
+      if (userData.roles && Array.isArray(userData.roles)) {
+        // Extraer permisos de los roles si está disponible
+        return userData.roles.flatMap((role) => role.permissions || [])
+      }
+
+      return []
+    } catch (error) {
+      console.error('Error al obtener permisos:', error)
+      return []
+    }
+  },
+
+  /**
+   * Verificar si el usuario tiene un permiso específico
+   * @param {string|Array} permission - Permiso(s) a verificar
+   * @returns {Promise<boolean>}
+   */
+  async hasPermission(permission) {
+    try {
+      const permissions = await this.getUserPermissions()
+
+      if (Array.isArray(permission)) {
+        // Si es un array, verificar si tiene al menos uno
+        return permission.some((perm) => permissions.includes(perm))
+      }
+
+      return permissions.includes(permission)
+    } catch (error) {
+      console.error('Error al verificar permiso:', error)
+      return false
+    }
+  },
+
+  /**
+   * Verificar si el usuario tiene todos los permisos especificados
+   * @param {Array} permissions - Array de permisos a verificar
+   * @returns {Promise<boolean>}
+   */
+  async hasAllPermissions(permissions) {
+    try {
+      const userPermissions = await this.getUserPermissions()
+
+      return permissions.every((perm) => userPermissions.includes(perm))
+    } catch (error) {
+      console.error('Error al verificar permisos:', error)
+      return false
+    }
+  },
+
+  /**
+   * Obtener el rol del usuario autenticado
+   * @returns {Promise<string|null>}
+   */
+  async getUserRole() {
+    try {
+      const userData = await this.getUser()
+
+      if (userData.role) {
+        return userData.role
+      }
+
+      if (userData.roles && Array.isArray(userData.roles) && userData.roles.length > 0) {
+        return userData.roles[0].name || userData.roles[0]
+      }
+
+      return null
+    } catch (error) {
+      console.error('Error al obtener rol del usuario:', error)
+      return null
+    }
+  },
+
+  /**
+   * Verificar si el usuario es administrador
+   * @returns {Promise<boolean>}
+   */
+  async isAdmin() {
+    try {
+      const role = await this.getUserRole()
+      return role?.toLowerCase() === 'admin' || role?.toLowerCase() === 'administrador'
+    } catch (error) {
+      console.error('Error al verificar si es admin:', error)
+      return false
+    }
   }
 }
 

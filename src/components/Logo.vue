@@ -43,19 +43,14 @@ const props = defineProps({
   }
 })
 
-const logoPath = ref(null)
 const imageError = ref(false)
 
-// Importación estática optimizada para Vite
-try {
-  logoPath.value = new URL('../assets/images/logo.svg', import.meta.url).href
-} catch {
-  imageError.value = true
-}
+// Import estático: Vite resuelve la URL del asset en build y en dev
+import logoSrc from '@/assets/images/logo.svg'
+const logoPath = logoSrc
 
 const handleImageError = () => {
   imageError.value = true
-  logoPath.value = null
 }
 
 const imageStyle = computed(() => {

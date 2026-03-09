@@ -1,42 +1,41 @@
 <template>
-  <nav class="navbar">
-    <div class="navbar-content">
-      <div class="navbar-left">
-        <button 
-          class="menu-toggle"
-          @click="toggleSidebar"
-          aria-label="Toggle menu"
-        >
-          <svg class="car-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M5 11L6.5 6.5H17.5L19 11M5 11H3M5 11V18M19 11H21M19 11V18M7 18H9M15 18H17M3 15H21M9 6V4M15 6V4" 
-                  stroke="currentColor" 
-                  stroke-width="2" 
-                  stroke-linecap="round" 
-                  stroke-linejoin="round"/>
-          </svg>
-        </button>
-        
-        <div class="navbar-title">
-          <h1 class="page-title">{{ pageTitle }}</h1>
-          <p class="page-subtitle">{{ pageSubtitle }}</p>
-        </div>
-      </div>
-
-      <div class="navbar-right">
-        <UserMenu 
-          :user-name="userName"
-          :user-email="userEmail"
-        />
+  <header
+    class="fixed left-0 right-0 top-0 z-[1000] flex h-16 items-center justify-between border-b border-black/10 bg-white/95 px-4 shadow-sm backdrop-blur-sm sm:px-6"
+    role="banner"
+  >
+    <div class="flex flex-1 items-center gap-4">
+      <button
+        type="button"
+        class="flex size-10 shrink-0 items-center justify-center rounded-lg text-slate-700 transition hover:bg-black/5 hover:scale-105 active:scale-95"
+        :aria-label="sidebarOpen ? 'Cerrar menú' : 'Abrir menú'"
+        @click="toggleSidebar"
+      >
+        <NavIcon :name="sidebarOpen ? 'close' : 'menu'" class="size-6" />
+      </button>
+      <div class="flex min-w-0 flex-col">
+        <h1 class="truncate text-xl font-bold text-blue-900 sm:text-2xl">
+          {{ pageTitle }}
+        </h1>
+        <p class="truncate text-sm text-slate-500">
+          {{ pageSubtitle }}
+        </p>
       </div>
     </div>
-  </nav>
+    <div class="flex shrink-0 items-center">
+      <UserMenu
+        :user-name="userName"
+        :user-email="userEmail"
+      />
+    </div>
+  </header>
 </template>
 
 <script setup>
-import { inject } from 'vue'
-import UserMenu from './UserMenu.vue'
+import { inject, ref } from 'vue'
+import NavIcon from '@/components/icons/NavIcon.vue'
+import UserMenu from '@/components/UserMenu.vue'
 
-const props = defineProps({
+defineProps({
   pageTitle: {
     type: String,
     default: 'Dashboard'
@@ -55,100 +54,6 @@ const props = defineProps({
   }
 })
 
+const sidebarOpen = inject('sidebarOpen', ref(false))
 const toggleSidebar = inject('toggleSidebar', () => {})
 </script>
-
-<style scoped>
-.navbar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 64px;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-  z-index: 1000;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.navbar-content {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 100%;
-  padding: 0 24px;
-  max-width: 100%;
-}
-
-.navbar-left {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex: 1;
-}
-
-.menu-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  border-radius: 8px;
-  color: #1e293b;
-  transition: background-color 0.2s, transform 0.2s;
-}
-
-.menu-toggle:hover {
-  background: rgba(0, 0, 0, 0.05);
-  transform: scale(1.05);
-}
-
-.menu-toggle:active {
-  transform: scale(0.95);
-}
-
-.car-icon {
-  width: 24px;
-  height: 24px;
-}
-
-.navbar-title {
-  display: flex;
-  flex-direction: column;
-}
-
-.page-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #1e3a8a;
-  margin: 0;
-  line-height: 1.2;
-}
-
-.page-subtitle {
-  font-size: 0.875rem;
-  color: #64748b;
-  margin: 2px 0 0;
-  line-height: 1.2;
-}
-
-.navbar-right {
-  display: flex;
-  align-items: center;
-}
-
-@media (max-width: 768px) {
-  .navbar-content {
-    padding: 0 16px;
-  }
-  
-  .menu-toggle {
-    margin-right: 12px;
-  }
-}
-</style>
-
