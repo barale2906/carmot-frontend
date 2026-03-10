@@ -474,6 +474,9 @@ import FormSelect from '@/components/forms/FormSelect.vue'
 import NavIcon from '@/components/icons/NavIcon.vue'
 import ModalBase from '@/components/ModalBase.vue'
 import userService from '@/services/userService.js'
+import { useNotification } from '@/composables/useNotification'
+
+const { success: notifySuccess, error: notifyError } = useNotification()
 
 // ─── Estado principal ──────────────────────────────────────────────────────────
 const users = ref([])
@@ -648,13 +651,15 @@ async function submitForm() {
   formLoading.value = true
   try {
     if (editingUser.value) {
-      await userService.update(editingUser.value.id, payload)
+      await userService.update(editingUser.value.id, payload, { _silent: true })
+      notifySuccess(`El usuario "${form.name}" fue actualizado correctamente.`)
     } else {
       if (!form.password) {
         formError.value = 'La contraseña es obligatoria para crear un usuario.'
         return
       }
-      await userService.create(payload)
+      await userService.create(payload, { _silent: true })
+      notifySuccess(`El usuario "${form.name}" fue creado correctamente.`)
     }
     showFormModal.value = false
     await Promise.all([loadUsers(pagination.currentPage), loadStatistics()])
@@ -689,6 +694,7 @@ async function confirmInactivar() {
   actionError.value = ''
   try {
     await userService.inactivate(targetUser.value.id)
+    notifySuccess(`El usuario "${targetUser.value.name}" fue inactivado.`)
     showInactivarModal.value = false
     await Promise.all([loadUsers(pagination.currentPage), loadStatistics()])
   } catch (e) {
@@ -718,6 +724,7 @@ async function confirmRestaurar() {
   actionError.value = ''
   try {
     await userService.restore(targetUser.value.id)
+    notifySuccess(`El usuario "${targetUser.value.name}" fue restaurado.`)
     showRestaurarModal.value = false
     await Promise.all([loadUsers(pagination.currentPage), loadStatistics()])
   } catch (e) {

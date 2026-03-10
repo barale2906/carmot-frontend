@@ -235,7 +235,7 @@ const rolesHeader = [
 const PERMISOS_POR_ROL = {
   superusuario: new Set([
     'co_users', 'co_userCrear', 'co_userEditar', 'co_userInactivar', 'co_usersPerfil',
-    'co_poblaciones', 'co_sedes', 'co_sedeCrear', 'co_sedeEditar', 'co_sedeInactivar',
+    'co_poblaciones', 'co_poblacionInactivar', 'co_sedes', 'co_sedeCrear', 'co_sedeEditar', 'co_sedeInactivar',
     'co_areas', 'co_areaCrear', 'co_areaEditar', 'co_areaInactivar',
     'co_horarios', 'co_horarioCrear', 'co_horarioEditar', 'co_horarioInactivar',
     'crm_referidos', 'crm_referidoCrear', 'crm_referidoEditar', 'crm_referidoInactivar',
@@ -257,7 +257,7 @@ const PERMISOS_POR_ROL = {
     'fin_recibos_pago', 'fin_reciboPagoCrear', 'fin_reciboPagoEditar', 'fin_reciboPagoAnular', 'fin_reciboPagoCerrar', 'fin_reciboPagoReportes', 'fin_reciboPagoPDF'
   ]),
   financiero: new Set([
-    'co_usersPerfil', 'co_poblaciones', 'co_sedes', 'co_sedeCrear', 'co_sedeEditar', 'co_sedeInactivar',
+    'co_usersPerfil', 'co_poblaciones', 'co_poblacionInactivar', 'co_sedes', 'co_sedeCrear', 'co_sedeEditar', 'co_sedeInactivar',
     'co_areas', 'co_areaCrear', 'co_areaEditar', 'co_areaInactivar',
     'co_horarios', 'co_horarioCrear', 'co_horarioEditar', 'co_horarioInactivar',
     'crm_referidos', 'crm_referidoCrear', 'crm_referidoEditar', 'crm_referidoInactivar',
@@ -279,7 +279,7 @@ const PERMISOS_POR_ROL = {
     'fin_recibos_pago', 'fin_reciboPagoCrear', 'fin_reciboPagoEditar', 'fin_reciboPagoAnular', 'fin_reciboPagoCerrar', 'fin_reciboPagoReportes', 'fin_reciboPagoPDF'
   ]),
   coordinador: new Set([
-    'co_usersPerfil', 'co_poblaciones', 'co_sedes', 'co_sedeCrear', 'co_sedeEditar', 'co_sedeInactivar',
+    'co_usersPerfil', 'co_poblaciones', 'co_poblacionInactivar', 'co_sedes', 'co_sedeCrear', 'co_sedeEditar', 'co_sedeInactivar',
     'co_areas', 'co_areaCrear', 'co_areaEditar', 'co_areaInactivar',
     'co_horarios', 'co_horarioCrear', 'co_horarioEditar', 'co_horarioInactivar',
     'crm_referidos', 'crm_referidoCrear', 'crm_referidoEditar', 'crm_referidoInactivar',
@@ -338,6 +338,7 @@ const modulosConPermisos = reactive([
       { key: 'co_userInactivar', descripcion: 'Inactivar usuario' },
       { key: 'co_usersPerfil', descripcion: 'Ver perfil de usuario' },
       { key: 'co_poblaciones', descripcion: 'Ver poblaciones' },
+      { key: 'co_poblacionInactivar', descripcion: 'Activar / inactivar población' },
       { key: 'co_sedes', descripcion: 'Ver sedes' },
       { key: 'co_sedeCrear', descripcion: 'Crear sede' },
       { key: 'co_sedeEditar', descripcion: 'Editar sede' },

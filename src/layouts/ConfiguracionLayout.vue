@@ -18,6 +18,7 @@ import FormulariosNav from '@/components/forms/FormulariosNav.vue'
 
 const navItems = [
   { label: 'Usuarios', to: '/configuracion/usuarios' },
-  { label: 'Roles', to: '/configuracion/roles' }
+  { label: 'Roles', to: '/configuracion/roles' },
+  { label: 'Poblaciones', to: '/configuracion/poblaciones' }
 ]
 </script>

@@ -13,6 +13,7 @@ import FormulariosLayout from './layouts/FormulariosLayout.vue'
 import ConfiguracionLayout from './layouts/ConfiguracionLayout.vue'
 import UsuariosView from './views/configuracion/UsuariosView.vue'
 import RolesView from './views/configuracion/RolesView.vue'
+import PoblacionesView from './views/configuracion/PoblacionesView.vue'
 import './assets/styles/main.css'
 
 const routes = [
@@ -98,6 +99,11 @@ const routes = [
             path: 'roles',
             name: 'Roles',
             component: RolesView
+          },
+          {
+            path: 'poblaciones',
+            name: 'Poblaciones',
+            component: PoblacionesView
           }
         ]
       }

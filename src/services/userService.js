@@ -13,13 +13,13 @@ const userService = {
     return data
   },
 
-  async create(payload) {
-    const { data } = await api.post(BASE, payload)
+  async create(payload, config = {}) {
+    const { data } = await api.post(BASE, payload, config)
     return data
   },
 
-  async update(id, payload) {
-    const { data } = await api.put(`${BASE}/${id}`, payload)
+  async update(id, payload, config = {}) {
+    const { data } = await api.put(`${BASE}/${id}`, payload, config)
     return data
   },
 
