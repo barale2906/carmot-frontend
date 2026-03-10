@@ -16,16 +16,18 @@ const props = defineProps({
   variant: {
     type: String,
     default: 'operativo',
-    validator: (v) => ['operativo', 'mantenimiento', 'baja', 'disponible'].includes(v)
+    validator: (v) => ['operativo', 'mantenimiento', 'baja', 'disponible', 'activo', 'inactivo'].includes(v)
   }
 })
 
 const badgeClass = computed(() => {
   const map = {
-    operativo: 'bg-green-100 text-green-800',
-    mantenimiento: 'bg-amber-100 text-amber-800',
-    baja: 'bg-slate-100 text-slate-600',
-    disponible: 'bg-blue-100 text-blue-800'
+    operativo:    'bg-green-100 text-green-800',
+    activo:       'bg-green-100 text-green-800',
+    mantenimiento:'bg-amber-100 text-amber-800',
+    baja:         'bg-slate-100 text-slate-600',
+    inactivo:     'bg-slate-100 text-slate-600',
+    disponible:   'bg-blue-100 text-blue-800'
   }
   return map[props.variant] ?? map.operativo
 })

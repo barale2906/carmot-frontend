@@ -10,6 +10,9 @@ import ReciboPagoView from './views/ReciboPagoView.vue'
 import AsistenciaView from './views/AsistenciaView.vue'
 import ActivosView from './views/ActivosView.vue'
 import FormulariosLayout from './layouts/FormulariosLayout.vue'
+import ConfiguracionLayout from './layouts/ConfiguracionLayout.vue'
+import UsuariosView from './views/configuracion/UsuariosView.vue'
+import RolesView from './views/configuracion/RolesView.vue'
 import './assets/styles/main.css'
 
 const routes = [
@@ -73,6 +76,28 @@ const routes = [
             path: 'asistencia',
             name: 'Asistencia',
             component: AsistenciaView
+          }
+        ]
+      }
+    ]
+  },
+  {
+    path: '/configuracion',
+    component: MainLayout,
+    children: [
+      {
+        path: '',
+        component: ConfiguracionLayout,
+        children: [
+          {
+            path: 'usuarios',
+            name: 'Usuarios',
+            component: UsuariosView
+          },
+          {
+            path: 'roles',
+            name: 'Roles',
+            component: RolesView
           }
         ]
       }
