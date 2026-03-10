@@ -48,7 +48,7 @@ const props = defineProps({
   type: {
     type: String,
     default: 'text',
-    validator: (v) => ['text', 'email', 'number', 'tel', 'date', 'password'].includes(v)
+    validator: (v) => ['text', 'email', 'number', 'tel', 'date', 'time', 'password'].includes(v)
   },
   min: { type: [String, Number], default: undefined },
   max: { type: [String, Number], default: undefined },
