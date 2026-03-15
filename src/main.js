@@ -18,6 +18,11 @@ import PoblacionesView from './views/configuracion/PoblacionesView.vue'
 import SedesView from './views/configuracion/SedesView.vue'
 import AreasView from './views/configuracion/AreasView.vue'
 import HorariosView from './views/configuracion/HorariosView.vue'
+import AcademicoLayout from './layouts/AcademicoLayout.vue'
+import CursosView from './views/academico/CursosView.vue'
+import ModulosView from './views/academico/ModulosView.vue'
+import TopicosView from './views/academico/TopicosView.vue'
+import TemasView from './views/academico/TemasView.vue'
 import './assets/styles/main.css'
 
 const routes = [
@@ -81,6 +86,38 @@ const routes = [
             path: 'asistencia',
             name: 'Asistencia',
             component: AsistenciaView
+          }
+        ]
+      }
+    ]
+  },
+  {
+    path: '/academico/cursos',
+    component: MainLayout,
+    children: [
+      {
+        path: '',
+        component: AcademicoLayout,
+        children: [
+          {
+            path: '',
+            name: 'Cursos',
+            component: CursosView
+          },
+          {
+            path: 'modulos',
+            name: 'Modulos',
+            component: ModulosView
+          },
+          {
+            path: 'topicos',
+            name: 'Topicos',
+            component: TopicosView
+          },
+          {
+            path: 'temas',
+            name: 'Temas',
+            component: TemasView
           }
         ]
       }

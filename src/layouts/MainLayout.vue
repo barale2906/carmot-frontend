@@ -28,30 +28,38 @@ const route = useRoute()
 const router = useRouter()
 const sidebarOpen = ref(false)
 
-// Títulos dinámicos según la ruta (se puede mejorar con meta en las rutas)
+// Títulos dinámicos según la ruta — orden de más específico a más general
 const pageTitle = computed(() => {
-  // Obtener del meta de la ruta si está disponible
-  if (route.meta?.title) {
-    return route.meta.title
-  }
+  if (route.meta?.title) return route.meta.title
 
-  const titles = {
-    '/dashboard': 'Dashboard',
-    '/estudiantes': 'Estudiantes',
-    '/cursos': 'Cursos y Técnicos',
-    '/formularios': 'Formularios',
-    '/reportes': 'Reportes',
-    '/perfil': 'Perfil',
-    '/academico': 'Académico',
-    '/pendientes': 'Pendientes',
-    '/calendario': 'Calendario',
-    '/inventario': 'Inventario',
-    '/activos': 'Activos',
-    '/control-estudiantes': 'Control Estudiantes',
-    '/cartera': 'Cartera'
-  }
+  const path = route.path
 
-  return titles[route.path] || 'Dashboard'
+  // Rutas con prefijo (orden: más específico primero)
+  const prefixTitles = [
+    { prefix: '/academico/cursos',        title: 'Cursos' },
+    { prefix: '/academico',               title: 'Académico' },
+    { prefix: '/configuracion/sedes',     title: 'Sedes' },
+    { prefix: '/configuracion/usuarios',  title: 'Configuración' },
+    { prefix: '/configuracion/roles',     title: 'Configuración' },
+    { prefix: '/configuracion/poblaciones', title: 'Configuración' },
+    { prefix: '/configuracion/areas',     title: 'Configuración' },
+    { prefix: '/configuracion/horarios',  title: 'Configuración' },
+    { prefix: '/configuracion',           title: 'Configuración' },
+    { prefix: '/dashboard',               title: 'Dashboard' },
+    { prefix: '/estudiantes',             title: 'Estudiantes' },
+    { prefix: '/perfil',                  title: 'Perfil' },
+    { prefix: '/activos',                 title: 'Activos' },
+    { prefix: '/pendientes',              title: 'Pendientes' },
+    { prefix: '/calendario',              title: 'Calendario' },
+    { prefix: '/inventario',              title: 'Inventario' },
+    { prefix: '/control-estudiantes',     title: 'Control Estudiantes' },
+    { prefix: '/cartera',                 title: 'Cartera' },
+    { prefix: '/reportes',                title: 'Reportes' },
+    { prefix: '/formularios',             title: 'Formularios' }
+  ]
+
+  const match = prefixTitles.find(({ prefix }) => path === prefix || path.startsWith(prefix + '/'))
+  return match ? match.title : 'Dashboard'
 })
 
 const pageSubtitle = computed(() => {

@@ -1,0 +1,670 @@
+<template>
+  <div class="flex flex-col gap-6">
+
+    <!-- Estadísticas -->
+    <section aria-labelledby="stats-temas-heading">
+      <h2 id="stats-temas-heading" class="sr-only">Resumen de temas</h2>
+      <ul class="grid grid-cols-1 gap-4 sm:grid-cols-3" role="list">
+        <li role="listitem">
+          <StatCard
+            title="Total temas"
+            :value="stats.total"
+            description="Registrados en el sistema"
+            icon="people"
+            icon-variant="blue"
+          />
+        </li>
+        <li role="listitem">
+          <StatCard
+            title="Activos"
+            :value="stats.activos"
+            description="Disponibles para asignar"
+            icon="security"
+            icon-variant="blue"
+          />
+        </li>
+        <li role="listitem">
+          <StatCard
+            title="Eliminados"
+            :value="stats.eliminados"
+            description="En papelera (soft delete)"
+            icon="pendientes"
+            icon-variant="blue"
+          />
+        </li>
+      </ul>
+    </section>
+
+    <!-- Barra de filtros y acciones -->
+    <section aria-labelledby="filtros-temas-heading" class="rounded-[14px] border border-black/10 bg-white p-6">
+      <h2 id="filtros-temas-heading" class="sr-only">Filtros y acciones</h2>
+      <div class="flex flex-wrap items-end gap-4">
+        <div class="min-w-0 flex-1 sm:max-w-xs">
+          <FormInputSearch
+            v-model="filters.search"
+            label="Buscar:"
+            placeholder="Nombre o descripción..."
+            @input="onSearchInput"
+          />
+        </div>
+        <div class="w-full sm:w-[180px]">
+          <FormSelect
+            v-model="filters.status"
+            label="Estado:"
+            :options="statusOptions"
+          />
+        </div>
+        <div class="flex w-full items-end sm:w-auto">
+          <button
+            type="button"
+            class="flex h-9 items-center gap-2 rounded-lg bg-[#213360] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            @click="openCreate"
+          >
+            <NavIcon name="plus" class="size-4" />
+            Nuevo tema
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tabla de temas -->
+    <section aria-labelledby="listado-temas-heading">
+      <SectionHeader
+        id="listado-temas-heading"
+        title="Listado de temas"
+        description="Haz clic en el ícono de ojo para ver el detalle completo de cada tema."
+        class="mb-4"
+      />
+
+      <div v-if="loading" class="flex items-center justify-center rounded-[14px] border border-black/10 bg-white py-16">
+        <span class="text-sm text-slate-500">Cargando temas...</span>
+      </div>
+
+      <div v-else-if="error" class="rounded-[14px] border border-red-200 bg-red-50 p-6">
+        <p class="text-sm text-red-700">{{ error }}</p>
+        <button
+          type="button"
+          class="mt-3 text-sm font-medium text-red-700 underline"
+          @click="loadTemas(1)"
+        >
+          Reintentar
+        </button>
+      </div>
+
+      <DataTable
+        v-else
+        :columns="tableColumns"
+        :data="temas"
+        row-key="id"
+        aria-label="Listado de temas"
+      >
+        <template #cell="{ column, value, row }">
+          <template v-if="column.key === 'status'">
+            <StatusBadge
+              :label="row.status_text ?? (row.status ? 'Activo' : 'Inactivo')"
+              :variant="row.status ? 'activo' : 'inactivo'"
+            />
+          </template>
+          <template v-else-if="column.key === 'topicos_count'">
+            <span class="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+              {{ value ?? 0 }}
+            </span>
+          </template>
+          <template v-else-if="column.key === 'duracion'">
+            {{ value != null ? `${value} h` : '—' }}
+          </template>
+          <template v-else-if="column.key === 'created_at'">
+            {{ formatDate(value) }}
+          </template>
+          <template v-else>
+            {{ value ?? '—' }}
+          </template>
+        </template>
+
+        <template #actions="{ row }">
+          <button
+            type="button"
+            class="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            title="Ver detalle"
+            @click="openDetail(row)"
+          >
+            <NavIcon name="eye" class="size-4" />
+          </button>
+          <button
+            v-if="!row.deleted_at"
+            type="button"
+            class="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            title="Editar"
+            @click="openEdit(row)"
+          >
+            <NavIcon name="pencil" class="size-4" />
+          </button>
+          <button
+            v-if="!row.deleted_at"
+            type="button"
+            class="rounded p-1.5 text-slate-500 transition-colors hover:bg-red-100 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+            title="Eliminar"
+            @click="openEliminar(row)"
+          >
+            <NavIcon name="close" class="size-4" />
+          </button>
+          <button
+            v-else
+            type="button"
+            class="rounded p-1.5 text-slate-500 transition-colors hover:bg-green-100 hover:text-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+            title="Restaurar"
+            @click="openRestaurar(row)"
+          >
+            <NavIcon name="track_changes" class="size-4" />
+          </button>
+        </template>
+      </DataTable>
+
+      <!-- Paginación -->
+      <div
+        v-if="pagination.lastPage > 1"
+        class="mt-4 flex items-center justify-between rounded-[14px] border border-black/10 bg-white px-6 py-3"
+      >
+        <p class="text-sm text-slate-500">
+          Mostrando {{ pagination.from }}–{{ pagination.to }} de {{ pagination.total }} temas
+        </p>
+        <div class="flex gap-2">
+          <button
+            type="button"
+            :disabled="pagination.currentPage === 1"
+            class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            @click="goToPage(pagination.currentPage - 1)"
+          >
+            Anterior
+          </button>
+          <button
+            type="button"
+            :disabled="pagination.currentPage === pagination.lastPage"
+            class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            @click="goToPage(pagination.currentPage + 1)"
+          >
+            Siguiente
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Modal: Crear / Editar ────────────────────────────────────────────── -->
+    <ModalBase
+      v-model="showFormModal"
+      :title="editingTema ? 'Editar tema' : 'Nuevo tema'"
+      :description="editingTema
+        ? 'Modifica los datos del tema.'
+        : 'Completa los campos para crear un nuevo tema en el sistema.'"
+    >
+      <template #icon>
+        <span class="flex size-5 shrink-0 items-center justify-center text-[#213360]">
+          <NavIcon name="people" class="size-5" />
+        </span>
+      </template>
+
+      <form class="flex flex-col gap-4 pb-2" @submit.prevent="submitForm">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FormInput
+            v-model="form.nombre"
+            label="Nombre"
+            placeholder="Ej: Introducción a HTML"
+            :required="true"
+            span="full"
+          />
+          <FormTextarea
+            v-model="form.descripcion"
+            label="Descripción"
+            placeholder="Descripción del tema..."
+            :required="true"
+            :rows="3"
+          />
+          <FormInput
+            v-model="form.duracion"
+            label="Duración (horas)"
+            type="number"
+            placeholder="Ej: 2.5"
+            :required="true"
+            min="0.1"
+            max="999"
+            step="0.1"
+          />
+          <FormSelect
+            v-model="form.status"
+            label="Estado"
+            :options="statusFormOptions"
+          />
+        </div>
+
+        <div v-if="formError" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+          {{ formError }}
+        </div>
+        <div v-if="fieldErrors && Object.keys(fieldErrors).length" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+          <ul class="list-inside list-disc space-y-1">
+            <li v-for="(msgs, field) in fieldErrors" :key="field">
+              <strong>{{ field }}:</strong> {{ Array.isArray(msgs) ? msgs.join(', ') : msgs }}
+            </li>
+          </ul>
+        </div>
+      </form>
+
+      <template #footer>
+        <button
+          type="button"
+          class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          @click="showFormModal = false"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          :disabled="formLoading"
+          class="flex items-center gap-2 rounded-lg bg-[#213360] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          @click="submitForm"
+        >
+          <span v-if="formLoading">Guardando...</span>
+          <span v-else>{{ editingTema ? 'Guardar cambios' : 'Crear tema' }}</span>
+        </button>
+      </template>
+    </ModalBase>
+
+    <!-- ── Modal: Eliminar ─────────────────────────────────────────────────── -->
+    <ModalBase
+      v-model="showEliminarModal"
+      title="Eliminar tema"
+      description="Esta acción moverá el tema a la papelera. Podrás restaurarlo en cualquier momento."
+    >
+      <div class="pb-2">
+        <p class="text-sm text-slate-700">
+          ¿Estás seguro de que deseas eliminar
+          <strong>{{ targetTema?.nombre }}</strong>?
+        </p>
+        <div v-if="actionError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+          {{ actionError }}
+        </div>
+      </div>
+      <template #footer>
+        <button
+          type="button"
+          class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          @click="showEliminarModal = false"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          :disabled="actionLoading"
+          class="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-red-500"
+          @click="confirmEliminar"
+        >
+          {{ actionLoading ? 'Eliminando...' : 'Eliminar' }}
+        </button>
+      </template>
+    </ModalBase>
+
+    <!-- ── Modal: Restaurar ────────────────────────────────────────────────── -->
+    <ModalBase
+      v-model="showRestaurarModal"
+      title="Restaurar tema"
+      description="El tema volverá a estar disponible en el sistema."
+    >
+      <div class="pb-2">
+        <p class="text-sm text-slate-700">
+          ¿Deseas restaurar <strong>{{ targetTema?.nombre }}</strong>?
+        </p>
+        <div v-if="actionError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+          {{ actionError }}
+        </div>
+      </div>
+      <template #footer>
+        <button
+          type="button"
+          class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          @click="showRestaurarModal = false"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          :disabled="actionLoading"
+          class="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-green-500"
+          @click="confirmRestaurar"
+        >
+          {{ actionLoading ? 'Restaurando...' : 'Restaurar' }}
+        </button>
+      </template>
+    </ModalBase>
+
+    <!-- ── Modal: Detalle ──────────────────────────────────────────────────── -->
+    <ModalBase
+      v-model="showDetailModal"
+      title="Detalle del tema"
+    >
+      <template #icon>
+        <span class="flex size-5 shrink-0 items-center justify-center text-[#213360]">
+          <NavIcon name="people" class="size-5" />
+        </span>
+      </template>
+      <div v-if="detailTema" class="space-y-3 pb-4">
+        <dl class="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+          <div class="col-span-2">
+            <dt class="font-medium text-slate-500">Nombre</dt>
+            <dd class="mt-0.5 text-slate-900">{{ detailTema.nombre }}</dd>
+          </div>
+          <div class="col-span-2">
+            <dt class="font-medium text-slate-500">Descripción</dt>
+            <dd class="mt-0.5 text-slate-900">{{ detailTema.descripcion ?? '—' }}</dd>
+          </div>
+          <div>
+            <dt class="font-medium text-slate-500">Duración</dt>
+            <dd class="mt-0.5 text-slate-900">{{ detailTema.duracion != null ? `${detailTema.duracion} h` : '—' }}</dd>
+          </div>
+          <div>
+            <dt class="font-medium text-slate-500">Estado</dt>
+            <dd class="mt-0.5">
+              <StatusBadge
+                :label="detailTema.status_text ?? (detailTema.status ? 'Activo' : 'Inactivo')"
+                :variant="detailTema.status ? 'activo' : 'inactivo'"
+              />
+            </dd>
+          </div>
+          <div>
+            <dt class="font-medium text-slate-500">Tópicos vinculados</dt>
+            <dd class="mt-0.5 text-slate-900">{{ detailTema.topicos_count ?? detailTema.topicos?.length ?? 0 }}</dd>
+          </div>
+          <div>
+            <dt class="font-medium text-slate-500">Creado</dt>
+            <dd class="mt-0.5 text-slate-900">{{ formatDate(detailTema.created_at) }}</dd>
+          </div>
+          <div>
+            <dt class="font-medium text-slate-500">Actualizado</dt>
+            <dd class="mt-0.5 text-slate-900">{{ formatDate(detailTema.updated_at) }}</dd>
+          </div>
+          <div v-if="detailTema.topicos?.length" class="col-span-2">
+            <dt class="font-medium text-slate-500">Tópicos</dt>
+            <dd class="mt-1 flex flex-wrap gap-1">
+              <span
+                v-for="topico in detailTema.topicos"
+                :key="topico.id"
+                class="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800"
+              >
+                {{ topico.nombre }}
+              </span>
+            </dd>
+          </div>
+        </dl>
+      </div>
+    </ModalBase>
+
+  </div>
+</template>
+
+<script setup>
+import { ref, reactive, watch, onMounted } from 'vue'
+import StatCard from '@/components/dashboard/StatCard.vue'
+import DataTable from '@/components/activos/DataTable.vue'
+import SectionHeader from '@/components/activos/SectionHeader.vue'
+import StatusBadge from '@/components/activos/StatusBadge.vue'
+import FormInput from '@/components/forms/FormInput.vue'
+import FormTextarea from '@/components/forms/FormTextarea.vue'
+import FormInputSearch from '@/components/forms/FormInputSearch.vue'
+import FormSelect from '@/components/forms/FormSelect.vue'
+import NavIcon from '@/components/icons/NavIcon.vue'
+import ModalBase from '@/components/ModalBase.vue'
+import temaService from '@/services/temaService.js'
+import { useNotification } from '@/composables/useNotification'
+
+const { success: notifySuccess, error: notifyError } = useNotification()
+
+// ─── Estado principal ─────────────────────────────────────────────────────────
+const temas   = ref([])
+const loading = ref(false)
+const error   = ref('')
+
+const pagination = reactive({
+  currentPage: 1,
+  lastPage: 1,
+  total: 0,
+  from: 0,
+  to: 0,
+  perPage: 15
+})
+
+const stats = reactive({ total: 0, activos: 0, eliminados: 0 })
+
+const filters = reactive({ search: '', status: '' })
+
+let searchTimer = null
+
+// ─── Opciones de filtros/form ─────────────────────────────────────────────────
+const statusOptions = [
+  { value: '',  label: 'Todos' },
+  { value: '1', label: 'Activos' },
+  { value: '0', label: 'Inactivos' }
+]
+
+const statusFormOptions = [
+  { value: 1, label: 'Activo' },
+  { value: 0, label: 'Inactivo' }
+]
+
+// ─── Columnas de la tabla ─────────────────────────────────────────────────────
+const tableColumns = [
+  { key: 'nombre',        label: 'Nombre' },
+  { key: 'descripcion',   label: 'Descripción' },
+  { key: 'duracion',      label: 'Duración' },
+  { key: 'topicos_count', label: 'Tópicos' },
+  { key: 'status',        label: 'Estado' },
+  { key: 'created_at',    label: 'Creado' }
+]
+
+// ─── Watchers de filtros ──────────────────────────────────────────────────────
+watch(() => filters.status, () => loadTemas(1))
+
+// ─── Carga de datos ───────────────────────────────────────────────────────────
+async function loadTemas(page = 1) {
+  loading.value = true
+  error.value   = ''
+  try {
+    const params = {
+      page,
+      per_page: pagination.perPage,
+      with: 'topicos'
+    }
+    if (filters.search) params.search = filters.search
+    if (filters.status !== '') params.status = filters.status
+
+    const res = await temaService.getAll(params)
+    temas.value = res.data ?? []
+
+    if (res.meta) {
+      pagination.currentPage = res.meta.current_page
+      pagination.lastPage    = res.meta.last_page
+      pagination.total       = res.meta.total
+      pagination.from        = res.meta.from
+      pagination.to          = res.meta.to
+    }
+  } catch (e) {
+    error.value = e?.response?.data?.message ?? 'Error al cargar los temas.'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function loadStatistics() {
+  try {
+    const res = await temaService.getStatistics()
+    const totales = res.data?.totales ?? {}
+    stats.total     = totales.total     ?? 0
+    stats.activos   = totales.activos   ?? 0
+    stats.eliminados = totales.eliminados ?? 0
+  } catch {
+    // Informativo — no bloquea la vista
+  }
+}
+
+function onSearchInput() {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => loadTemas(1), 400)
+}
+
+function goToPage(page) {
+  if (page >= 1 && page <= pagination.lastPage) loadTemas(page)
+}
+
+// ─── Modal Crear / Editar ─────────────────────────────────────────────────────
+const showFormModal = ref(false)
+const editingTema   = ref(null)
+const formLoading   = ref(false)
+const formError     = ref('')
+const fieldErrors   = ref({})
+
+const form = reactive({
+  nombre:      '',
+  descripcion: '',
+  duracion:    '',
+  status:      1
+})
+
+function resetForm() {
+  form.nombre      = ''
+  form.descripcion = ''
+  form.duracion    = ''
+  form.status      = 1
+  formError.value  = ''
+  fieldErrors.value = {}
+}
+
+function openCreate() {
+  editingTema.value = null
+  resetForm()
+  showFormModal.value = true
+}
+
+function openEdit(tema) {
+  editingTema.value    = tema
+  form.nombre          = tema.nombre      ?? ''
+  form.descripcion     = tema.descripcion ?? ''
+  form.duracion        = tema.duracion    ?? ''
+  form.status          = tema.status      ?? 1
+  formError.value      = ''
+  fieldErrors.value    = {}
+  showFormModal.value  = true
+}
+
+async function submitForm() {
+  formError.value   = ''
+  fieldErrors.value = {}
+
+  const payload = {
+    nombre:      form.nombre,
+    descripcion: form.descripcion,
+    duracion:    parseFloat(form.duracion),
+    status:      Number(form.status)
+  }
+
+  formLoading.value = true
+  try {
+    if (editingTema.value) {
+      await temaService.update(editingTema.value.id, payload, { _silent: true })
+      notifySuccess(`El tema "${form.nombre}" fue actualizado correctamente.`)
+    } else {
+      await temaService.create(payload, { _silent: true })
+      notifySuccess(`El tema "${form.nombre}" fue creado correctamente.`)
+    }
+    showFormModal.value = false
+    await Promise.all([loadTemas(pagination.currentPage), loadStatistics()])
+  } catch (e) {
+    if (e?.response?.status === 422) {
+      fieldErrors.value = e.response.data?.errors ?? {}
+      formError.value   = e.response.data?.message ?? 'Verifica los campos del formulario.'
+    } else if (e?.response?.status === 403) {
+      formError.value = 'No tienes permisos para realizar esta acción.'
+    } else {
+      formError.value = e?.response?.data?.message ?? 'Ocurrió un error inesperado.'
+    }
+  } finally {
+    formLoading.value = false
+  }
+}
+
+// ─── Modal Eliminar ───────────────────────────────────────────────────────────
+const showEliminarModal = ref(false)
+const targetTema        = ref(null)
+const actionLoading     = ref(false)
+const actionError       = ref('')
+
+function openEliminar(tema) {
+  targetTema.value      = tema
+  actionError.value     = ''
+  showEliminarModal.value = true
+}
+
+async function confirmEliminar() {
+  actionLoading.value = true
+  actionError.value   = ''
+  try {
+    await temaService.delete(targetTema.value.id)
+    notifySuccess(`El tema "${targetTema.value.nombre}" fue eliminado.`)
+    showEliminarModal.value = false
+    await Promise.all([loadTemas(pagination.currentPage), loadStatistics()])
+  } catch (e) {
+    actionError.value = e?.response?.data?.message ?? 'Error al eliminar el tema.'
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+// ─── Modal Restaurar ──────────────────────────────────────────────────────────
+const showRestaurarModal = ref(false)
+
+function openRestaurar(tema) {
+  targetTema.value       = tema
+  actionError.value      = ''
+  showRestaurarModal.value = true
+}
+
+async function confirmRestaurar() {
+  actionLoading.value = true
+  actionError.value   = ''
+  try {
+    await temaService.restore(targetTema.value.id)
+    notifySuccess(`El tema "${targetTema.value.nombre}" fue restaurado.`)
+    showRestaurarModal.value = false
+    await Promise.all([loadTemas(pagination.currentPage), loadStatistics()])
+  } catch (e) {
+    actionError.value = e?.response?.data?.message ?? 'Error al restaurar el tema.'
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+// ─── Modal Detalle ────────────────────────────────────────────────────────────
+const showDetailModal = ref(false)
+const detailTema      = ref(null)
+
+async function openDetail(tema) {
+  detailTema.value    = tema
+  showDetailModal.value = true
+  try {
+    const res = await temaService.getById(tema.id, { with: 'topicos' })
+    detailTema.value  = res.data
+  } catch {
+    // Mantener datos del listado si falla
+  }
+}
+
+// ─── Utilidades ───────────────────────────────────────────────────────────────
+function formatDate(value) {
+  if (!value) return '—'
+  const d = new Date(value)
+  if (isNaN(d.getTime())) return value
+  return d.toLocaleDateString('es-CO', { day: 'numeric', month: 'numeric', year: 'numeric' })
+}
+
+// ─── Inicialización ───────────────────────────────────────────────────────────
+onMounted(() => {
+  loadTemas()
+  loadStatistics()
+})
+</script>
