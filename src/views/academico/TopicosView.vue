@@ -105,6 +105,11 @@
               :variant="row.status ? 'activo' : 'inactivo'"
             />
           </template>
+          <template v-else-if="column.key === 'temas_count'">
+            <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-800">
+              {{ value ?? row.temas?.length ?? 0 }}
+            </span>
+          </template>
           <template v-else-if="column.key === 'modulos_count'">
             <span class="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
               {{ value ?? 0 }}
@@ -529,6 +534,7 @@ const tableColumns = [
   { key: 'nombre',        label: 'Nombre' },
   { key: 'descripcion',   label: 'Descripción' },
   { key: 'duracion',      label: 'Duración' },
+  { key: 'temas_count',   label: 'Temas asignados' },
   { key: 'modulos_count', label: 'Módulos' },
   { key: 'status',        label: 'Estado' },
   { key: 'created_at',    label: 'Creado' }
@@ -545,7 +551,7 @@ async function loadTopicos(page = 1) {
     const params = {
       page,
       per_page: pagination.perPage,
-      with: 'modulos'
+      with: 'modulos,temas'
     }
     if (filters.search) params.search = filters.search
     if (filters.status !== '') params.status = filters.status

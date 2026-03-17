@@ -13,6 +13,11 @@ const moduloService = {
     return data
   },
 
+  async getArbol(id) {
+    const { data } = await api.get(`${BASE}/${id}/arbol`)
+    return data
+  },
+
   async create(payload, config = {}) {
     const { data } = await api.post(BASE, payload, config)
     return data
