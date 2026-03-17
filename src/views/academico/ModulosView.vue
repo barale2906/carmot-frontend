@@ -54,6 +54,13 @@
             :options="statusOptions"
           />
         </div>
+        <div class="w-full sm:w-[200px]">
+          <FormSelect
+            v-model="filters.curso_id"
+            label="Curso:"
+            :options="cursoFilterOptions"
+          />
+        </div>
         <div class="flex w-full items-end sm:w-auto">
           <button
             type="button"
@@ -490,6 +497,12 @@
             </dd>
           </div>
           <div>
+            <dt class="font-medium text-slate-500">Duración total</dt>
+            <dd class="mt-0.5 text-slate-900">
+              {{ detailModulo.duracion != null ? `${detailModulo.duracion}h` : '—' }}
+            </dd>
+          </div>
+          <div>
             <dt class="font-medium text-slate-500">Creado</dt>
             <dd class="mt-0.5 text-slate-900">{{ formatDate(detailModulo.created_at) }}</dd>
           </div>
@@ -525,18 +538,21 @@
               </div>
             </dd>
           </div>
-          <div v-if="detailModulo.topicos?.length" class="col-span-2">
-            <dt class="font-medium text-slate-500">Tópicos</dt>
-            <dd class="mt-1 flex flex-wrap gap-1">
-              <span
+          <div class="col-span-2">
+            <dt class="font-medium text-slate-500">Tópicos del módulo</dt>
+            <dd v-if="detailModulo.topicos?.length" class="mt-2 space-y-2">
+              <div
                 v-for="topico in detailModulo.topicos"
                 :key="topico.id"
-                class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800"
+                class="flex items-center justify-between rounded-lg border border-black/10 bg-slate-50 px-3 py-2 text-sm"
               >
-                {{ topico.nombre }}
-                <span v-if="topico.duracion != null" class="ml-0.5 text-emerald-600">({{ topico.duracion }}h)</span>
-              </span>
+                <span class="font-medium text-slate-900">{{ topico.nombre }}</span>
+                <span class="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">
+                  {{ topico.duracion != null ? `${topico.duracion}h` : '—' }}
+                </span>
+              </div>
             </dd>
+            <dd v-else class="mt-0.5 text-sm text-slate-400">Sin tópicos asignados</dd>
           </div>
         </dl>
       </div>
@@ -579,7 +595,7 @@ const pagination = reactive({
 
 const stats = reactive({ total: 0, activos: 0, eliminados: 0 })
 
-const filters = reactive({ search: '', status: '' })
+const filters = reactive({ search: '', status: '', curso_id: '' })
 
 let searchTimer = null
 
@@ -595,6 +611,13 @@ const statusFormOptions = [
   { value: 0, label: 'Inactivo' }
 ]
 
+// Cursos para el filtro (se cargan al montar)
+const cursosParaFiltro = ref([])
+const cursoFilterOptions = computed(() => [
+  { value: '', label: 'Todos los cursos' },
+  ...cursosParaFiltro.value.map((c) => ({ value: String(c.id), label: c.nombre }))
+])
+
 // ─── Columnas de la tabla ─────────────────────────────────────────────────────
 const tableColumns = [
   { key: 'nombre', label: 'Nombre' },
@@ -607,6 +630,7 @@ const tableColumns = [
 
 // ─── Watchers de filtros ──────────────────────────────────────────────────────
 watch(() => filters.status, () => loadModulos(1))
+watch(() => filters.curso_id, () => loadModulos(1))
 
 // ─── Carga de datos ───────────────────────────────────────────────────────────
 async function loadModulos(page = 1) {
@@ -620,6 +644,7 @@ async function loadModulos(page = 1) {
     }
     if (filters.search) params.search = filters.search
     if (filters.status !== '') params.status = filters.status
+    if (filters.curso_id) params.curso_id = filters.curso_id
 
     const res = await moduloService.getAll(params)
     modulos.value = res.data ?? []
@@ -930,8 +955,23 @@ function formatDate(value) {
   return d.toLocaleDateString('es-CO', { day: 'numeric', month: 'numeric', year: 'numeric' })
 }
 
+async function loadCursosParaFiltro() {
+  try {
+    const res = await cursoService.getAll({
+      per_page: 500,
+      status: 1,
+      sort_by: 'nombre',
+      sort_direction: 'asc'
+    })
+    cursosParaFiltro.value = res.data ?? []
+  } catch {
+    // No bloquea la vista
+  }
+}
+
 // ─── Inicialización ───────────────────────────────────────────────────────────
 onMounted(() => {
+  loadCursosParaFiltro()
   loadModulos()
   loadStatistics()
 })
