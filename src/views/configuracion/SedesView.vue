@@ -195,10 +195,11 @@
     <!-- ── Modal Crear / Editar sede ─────────────────────────────────────── -->
     <ModalBase
       v-model="showFormModal"
+      size="lg"
       :title="editingSede ? 'Editar sede' : 'Nueva sede'"
       :description="editingSede
-        ? 'Modifica los datos de la sede. Si actualizas los horarios, se reemplazarán todos los existentes.'
-        : 'Completa los campos para registrar una nueva sede. Los horarios son obligatorios.'"
+        ? 'Modifica los datos de la sede. Puedes regenerar los horarios automáticamente o conservar los personalizados.'
+        : 'Completa los campos para registrar una nueva sede. Los horarios se generan automáticamente o puedes definirlos manualmente.'"
     >
       <template #icon>
         <span class="flex size-5 shrink-0 items-center justify-center text-[#213360]">
@@ -206,7 +207,14 @@
         </span>
       </template>
 
-      <form class="flex flex-col gap-5 pb-2" @submit.prevent="submitForm">
+      <form class="relative flex flex-col gap-5 pb-2" @submit.prevent="submitForm">
+        <div
+          v-if="formLoading && !formDataReady"
+          class="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-white/80"
+        >
+          <span class="text-sm text-slate-600">Cargando datos de la sede...</span>
+        </div>
+        <div class="flex max-h-[min(70vh,600px)] flex-col gap-5 overflow-y-auto pr-1 -mr-1">
         <!-- Datos básicos -->
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormInput
@@ -261,7 +269,7 @@
 
         <!-- Áreas disponibles -->
         <div>
-          <p class="mb-2 text-sm font-medium text-slate-900">Áreas asociadas</p>
+          <p class="mb-2 text-sm font-medium text-slate-900">Áreas asociadas <span class="text-red-500" aria-hidden="true">*</span></p>
           <div v-if="availableAreas.length === 0" class="text-xs text-slate-400">
             No hay áreas disponibles.
           </div>
@@ -282,110 +290,71 @@
           </div>
         </div>
 
-        <!-- Horarios -->
-        <div>
-          <div class="mb-2 flex items-center justify-between">
-            <p class="text-sm font-medium text-slate-900">
-              Horarios <span class="text-red-500" aria-hidden="true">*</span>
-            </p>
-            <button
-              type="button"
-              class="flex items-center gap-1 rounded-lg bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              @click="addHorario"
-            >
-              <NavIcon name="plus" class="size-3" />
-              Agregar
-            </button>
+        <!-- Modo de horarios -->
+        <div class="rounded-lg border border-black/10 bg-slate-50 p-4">
+          <p class="mb-3 text-sm font-medium text-slate-900">Horarios</p>
+          <p
+            v-if="editingSede && form.horarios.length > 15 && !form.usarHorariosPersonalizados"
+            class="mb-2 text-xs text-slate-500"
+          >
+            Esta sede tiene {{ form.horarios.length }} horarios. Puedes cambiar a "Definir manualmente" para editarlos.
+          </p>
+          <div class="flex flex-col gap-3 sm:flex-row sm:gap-6">
+            <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+              <input
+                v-model="form.usarHorariosPersonalizados"
+                type="radio"
+                :value="false"
+                class="accent-[#213360]"
+              />
+              <span>
+                {{ editingSede ? 'Regenerar automáticamente' : 'Generar automáticamente' }}
+                <span class="block text-xs text-slate-500">Usa hora apertura y cierre para cada área</span>
+              </span>
+            </label>
+            <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+              <input
+                v-model="form.usarHorariosPersonalizados"
+                type="radio"
+                :value="true"
+                class="accent-[#213360]"
+              />
+              <span>
+                Definir horarios manualmente
+                <span class="block text-xs text-slate-500">Configura cada franja por área y día</span>
+              </span>
+            </label>
           </div>
+        </div>
 
-          <div class="flex flex-col gap-3">
-            <div
-              v-for="(horario, idx) in form.horarios"
-              :key="idx"
-              class="relative rounded-lg border border-black/10 bg-slate-50 p-3"
-            >
-              <button
-                v-if="form.horarios.length > 1"
-                type="button"
-                class="absolute right-2 top-2 rounded p-0.5 text-slate-400 hover:bg-red-100 hover:text-red-600 focus:outline-none"
-                title="Eliminar horario"
-                @click="removeHorario(idx)"
-              >
-                <NavIcon name="close" class="size-3.5" />
-              </button>
-
-              <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                <!-- Área -->
-                <div class="flex flex-col gap-1">
-                  <label class="text-xs font-medium text-slate-700">Área <span class="text-red-500">*</span></label>
-                  <select
-                    v-model="horario.area_id"
-                    class="w-full appearance-none rounded-lg border-0 bg-white px-2 py-1.5 text-xs text-slate-900 ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Seleccionar</option>
-                    <option v-for="a in availableAreas" :key="a.id" :value="a.id">{{ a.nombre }}</option>
-                  </select>
-                </div>
-
-                <!-- Día -->
-                <div class="flex flex-col gap-1">
-                  <label class="text-xs font-medium text-slate-700">Día <span class="text-red-500">*</span></label>
-                  <select
-                    v-model="horario.dia"
-                    class="w-full appearance-none rounded-lg border-0 bg-white px-2 py-1.5 text-xs text-slate-900 ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Seleccionar</option>
-                    <option v-for="d in DIAS" :key="d.value" :value="d.value">{{ d.label }}</option>
-                  </select>
-                </div>
-
-                <!-- Hora -->
-                <div class="flex flex-col gap-1">
-                  <label class="text-xs font-medium text-slate-700">Hora <span class="text-red-500">*</span></label>
-                  <input
-                    v-model="horario.hora"
-                    type="time"
-                    class="w-full rounded-lg border-0 bg-white px-2 py-1.5 text-xs text-slate-900 ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <!-- Tipo -->
-                <div class="flex flex-col gap-1">
-                  <label class="text-xs font-medium text-slate-700">Tipo</label>
-                  <select
-                    v-model="horario.tipo"
-                    class="w-full appearance-none rounded-lg border-0 bg-white px-2 py-1.5 text-xs text-slate-900 ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option :value="true">Sede</option>
-                    <option :value="false">Grupo</option>
-                  </select>
-                </div>
-
-                <!-- Período -->
-                <div class="flex flex-col gap-1">
-                  <label class="text-xs font-medium text-slate-700">Período</label>
-                  <select
-                    v-model="horario.periodo"
-                    class="w-full appearance-none rounded-lg border-0 bg-white px-2 py-1.5 text-xs text-slate-900 ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option :value="true">Inicio</option>
-                    <option :value="false">Fin</option>
-                  </select>
-                </div>
-
-                <!-- Grupo (solo si tipo = false) -->
-                <div v-if="horario.tipo === false" class="flex flex-col gap-1">
-                  <label class="text-xs font-medium text-slate-700">Nombre grupo</label>
-                  <input
-                    v-model="horario.grupo_nombre"
-                    type="text"
-                    placeholder="Ej: Inglés A1"
-                    class="w-full rounded-lg border-0 bg-white px-2 py-1.5 text-xs text-slate-900 ring-1 ring-black/10 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
+        <!-- Horarios personalizados (solo si modo manual) -->
+        <div v-if="form.usarHorariosPersonalizados">
+          <p v-if="form.areas.length === 0" class="text-xs text-amber-600">
+            Selecciona al menos un área arriba para poder definir horarios.
+          </p>
+          <template v-else>
+            <div class="mb-3">
+              <FormSelect
+                v-model="semanarioAreaId"
+                label="Área a editar"
+                placeholder="Selecciona un área"
+                :options="semanarioAreaOptions"
+              />
             </div>
-          </div>
+            <div v-if="semanarioAreaId != null && semanarioAreaId !== ''" class="mt-2">
+              <SemanarioSedes
+                :area-id="semanarioAreaId"
+                :area-nombre="semanarioAreaSeleccionada?.nombre ?? ''"
+                :hora-inicio="form.hora_inicio || '08:00'"
+                :hora-fin="form.hora_fin || '18:00'"
+                :horarios="horariosParaSemanarioActual"
+                @update:horarios="onSemanarioUpdateHorarios"
+              />
+            </div>
+            <p v-else class="text-sm text-slate-500">
+              Selecciona un área para ver y editar su semanario de horarios.
+            </p>
+          </template>
         </div>
 
         <!-- Errores -->
@@ -398,6 +367,7 @@
               <strong>{{ field }}:</strong> {{ Array.isArray(msgs) ? msgs.join(', ') : msgs }}
             </li>
           </ul>
+        </div>
         </div>
       </form>
 
@@ -415,7 +385,8 @@
           class="flex items-center gap-2 rounded-lg bg-[#213360] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-blue-500"
           @click="submitForm"
         >
-          <span v-if="formLoading">Guardando...</span>
+          <span v-if="formLoading && !formDataReady">Cargando...</span>
+          <span v-else-if="formLoading">Guardando...</span>
           <span v-else>{{ editingSede ? 'Guardar cambios' : 'Crear sede' }}</span>
         </button>
       </template>
@@ -589,6 +560,7 @@ import FormInputSearch from '@/components/forms/FormInputSearch.vue'
 import FormSelect from '@/components/forms/FormSelect.vue'
 import NavIcon from '@/components/icons/NavIcon.vue'
 import ModalBase from '@/components/ModalBase.vue'
+import SemanarioSedes from '@/components/configuracion/SemanarioSedes.vue'
 import sedeService from '@/services/sedeService.js'
 import areaService from '@/services/areaService.js'
 import { useNotification } from '@/composables/useNotification'
@@ -629,10 +601,65 @@ const filters = reactive({
 
 let searchTimer = null
 
+// ─── Formulario (declarado antes de computeds que lo usan) ──────────────────────
+const form = reactive({
+  nombre: '',
+  direccion: '',
+  telefono: '',
+  email: '',
+  hora_inicio: '',
+  hora_fin: '',
+  poblacion_id: '',
+  areas: [],
+  usarHorariosPersonalizados: false,
+  horarios: []
+})
+
 // ─── Opciones computadas ──────────────────────────────────────────────────────
 const poblacionOptions = computed(() =>
   availablePoblaciones.value.map((p) => ({ value: p.id, label: p.nombre }))
 )
+
+/** Áreas seleccionadas para la sede, usadas en el selector de horarios */
+const areasSeleccionadasParaHorarios = computed(() => {
+  const areas = Array.isArray(form.areas) ? form.areas : []
+  return (availableAreas.value ?? []).filter((a) => areas.includes(a.id))
+})
+
+// ─── Semanario de horarios ────────────────────────────────────────────────────
+const semanarioAreaId = ref(null)
+
+const semanarioAreaOptions = computed(() =>
+  (areasSeleccionadasParaHorarios.value ?? []).map((a) => ({
+    value: a.id,
+    label: a.nombre ?? String(a.id)
+  }))
+)
+
+const semanarioAreaSeleccionada = computed(() =>
+  availableAreas.value.find((a) => Number(a.id) === Number(semanarioAreaId.value))
+)
+
+const horariosParaSemanarioActual = computed(() => {
+  const areaId = semanarioAreaId.value
+  if (areaId == null || areaId === '') return []
+  const list = Array.isArray(form.horarios) ? form.horarios : []
+  return list.filter((h) => Number(h.area_id) === Number(areaId))
+})
+
+function onSemanarioUpdateHorarios(nuevosHorarios) {
+  const areaId = semanarioAreaId.value
+  if (areaId == null || areaId === '') return
+  const lista = Array.isArray(nuevosHorarios) ? nuevosHorarios : []
+  const otros = (form.horarios ?? []).filter((h) => Number(h.area_id) !== Number(areaId))
+  form.horarios = [...otros, ...lista.map((h) => ({
+    area_id: h.area_id,
+    dia: h.dia ?? '',
+    hora: h.hora ? (String(h.hora).length === 5 ? h.hora : `${String(h.hora).slice(0, 5)}:00`) : '',
+    tipo: h.tipo ?? true,
+    periodo: h.periodo ?? true
+  }))]
+}
 
 // ─── Columnas de la tabla ─────────────────────────────────────────────────────
 const tableColumns = [
@@ -646,6 +673,18 @@ const tableColumns = [
 ]
 
 watch(() => filters.poblacion_id, () => loadSedes(1))
+
+watch(
+  () => form.areas,
+  (areas) => {
+    const list = Array.isArray(areas) ? areas : []
+    const current = semanarioAreaId.value
+    if (current != null && current !== '' && !list.includes(current)) {
+      semanarioAreaId.value = list[0] ?? null
+    }
+  },
+  { deep: true }
+)
 
 // ─── Carga de datos ───────────────────────────────────────────────────────────
 async function loadSedes(page = 1) {
@@ -714,26 +753,13 @@ function goToPage(page) {
   if (page >= 1 && page <= pagination.lastPage) loadSedes(page)
 }
 
-// ─── Formulario ───────────────────────────────────────────────────────────────
+// ─── Formulario (modales y estado) ─────────────────────────────────────────────
 const showFormModal = ref(false)
 const editingSede = ref(null)
 const formLoading = ref(false)
+const formDataReady = ref(true)
 const formError = ref('')
 const fieldErrors = ref({})
-
-const HORARIO_EMPTY = () => ({ area_id: '', dia: '', hora: '', tipo: true, periodo: true, grupo_nombre: '' })
-
-const form = reactive({
-  nombre: '',
-  direccion: '',
-  telefono: '',
-  email: '',
-  hora_inicio: '',
-  hora_fin: '',
-  poblacion_id: '',
-  areas: [],
-  horarios: [HORARIO_EMPTY()]
-})
 
 function resetForm() {
   form.nombre = ''
@@ -744,7 +770,9 @@ function resetForm() {
   form.hora_fin = ''
   form.poblacion_id = ''
   form.areas = []
-  form.horarios = [HORARIO_EMPTY()]
+  form.usarHorariosPersonalizados = false
+  form.horarios = []
+  semanarioAreaId.value = null
   formError.value = ''
   fieldErrors.value = {}
 }
@@ -752,43 +780,69 @@ function resetForm() {
 function openCreate() {
   editingSede.value = null
   resetForm()
+  formDataReady.value = true
   showFormModal.value = true
+  loadAreas()
 }
 
-function openEdit(sede) {
+async function openEdit(sede) {
   editingSede.value = sede
-  form.nombre = sede.nombre ?? ''
-  form.direccion = sede.direccion ?? ''
-  form.telefono = sede.telefono ?? ''
-  form.email = sede.email ?? ''
-  form.hora_inicio = horaToTime(sede.hora_inicio)
-  form.hora_fin = horaToTime(sede.hora_fin)
-  form.poblacion_id = sede.poblacion_id ?? ''
-  form.areas = (sede.areas ?? []).map((a) => a.id)
-  form.horarios = (sede.horarios ?? []).map((h) => ({
-    area_id: h.area_id ?? '',
-    dia: h.dia ?? '',
-    hora: horaToTime(h.hora),
-    tipo: h.tipo ?? true,
-    periodo: h.periodo ?? true,
-    grupo_nombre: h.grupo_nombre ?? ''
-  }))
-  if (form.horarios.length === 0) form.horarios = [HORARIO_EMPTY()]
   formError.value = ''
   fieldErrors.value = {}
+  formLoading.value = true
+  formDataReady.value = false
   showFormModal.value = true
-}
-
-function addHorario() {
-  form.horarios.push(HORARIO_EMPTY())
-}
-
-function removeHorario(idx) {
-  form.horarios.splice(idx, 1)
+  loadAreas()
+  try {
+    const res = await sedeService.getById(sede.id, { with: 'poblacion,areas,horarios' })
+    const data = res.data ?? sede
+    form.nombre = data.nombre ?? ''
+    form.direccion = data.direccion ?? ''
+    form.telefono = data.telefono ?? ''
+    form.email = data.email ?? ''
+    form.hora_inicio = horaToTime(data.hora_inicio)
+    form.hora_fin = horaToTime(data.hora_fin)
+    form.poblacion_id = data.poblacion_id ?? ''
+    form.areas = (data.areas ?? []).map((a) => a.id)
+    const horarios = data.horarios ?? []
+    form.usarHorariosPersonalizados = horarios.length > 0 && horarios.length <= 15
+    form.horarios = horarios.map((h) => ({
+      area_id: h.area_id ?? '',
+      dia: h.dia ?? '',
+      hora: horaToTime(h.hora),
+      tipo: h.tipo ?? true,
+      periodo: h.periodo ?? true
+    }))
+    semanarioAreaId.value = form.areas[0] ?? null
+  } catch {
+    form.nombre = sede.nombre ?? ''
+    form.direccion = sede.direccion ?? ''
+    form.telefono = sede.telefono ?? ''
+    form.email = sede.email ?? ''
+    form.hora_inicio = horaToTime(sede.hora_inicio)
+    form.hora_fin = horaToTime(sede.hora_fin)
+    form.poblacion_id = sede.poblacion_id ?? ''
+    form.areas = (sede.areas ?? []).map((a) => a.id)
+    const horarios = sede.horarios ?? []
+    form.usarHorariosPersonalizados = horarios.length > 0 && horarios.length <= 15
+    form.horarios = horarios.length
+      ? horarios.map((h) => ({
+          area_id: h.area_id ?? '',
+          dia: h.dia ?? '',
+          hora: horaToTime(h.hora),
+          tipo: h.tipo ?? true,
+          periodo: h.periodo ?? true
+        }))
+      : []
+    semanarioAreaId.value = form.areas[0] ?? null
+  } finally {
+    formLoading.value = false
+    formDataReady.value = true
+  }
 }
 
 function buildPayload() {
-  return {
+  const payload = {
     nombre: form.nombre,
     direccion: form.direccion,
     telefono: form.telefono,
@@ -796,21 +850,39 @@ function buildPayload() {
     hora_inicio: timeToBackend(form.hora_inicio),
     hora_fin: timeToBackend(form.hora_fin),
     poblacion_id: form.poblacion_id || undefined,
-    areas: form.areas,
-    horarios: form.horarios.map((h) => ({
-      area_id: h.area_id || undefined,
-      dia: h.dia,
-      hora: timeToBackend(h.hora),
-      tipo: h.tipo,
-      periodo: h.periodo,
-      grupo_nombre: h.grupo_nombre || undefined
-    }))
+    areas: form.areas
   }
+  if (form.usarHorariosPersonalizados) {
+    const horariosValidos = form.horarios.filter(
+      (h) => h.area_id && form.areas.includes(h.area_id) && h.dia && h.hora
+    )
+    if (horariosValidos.length > 0) {
+      payload.horarios = horariosValidos.map((h) => ({
+        area_id: Number(h.area_id),
+        dia: h.dia,
+        hora: timeToBackend(h.hora),
+        tipo: h.tipo,
+        periodo: h.periodo
+      }))
+    }
+  } else if (editingSede.value) {
+    payload.horarios = []
+  }
+  return payload
 }
 
 async function submitForm() {
   formError.value = ''
   fieldErrors.value = {}
+  if (form.usarHorariosPersonalizados) {
+    const horariosValidos = form.horarios.filter(
+      (h) => h.area_id && form.areas.includes(h.area_id) && h.dia && h.hora
+    )
+    if (horariosValidos.length === 0) {
+      formError.value = 'Selecciona un área y configura al menos un horario en el semanario.'
+      return
+    }
+  }
   formLoading.value = true
   try {
     const payload = buildPayload()

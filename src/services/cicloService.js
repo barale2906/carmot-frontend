@@ -1,8 +1,13 @@
 import api from './api.js'
 
-const BASE = '/configuracion/horarios'
+const BASE = '/academico/ciclos'
 
-const horarioService = {
+/**
+ * Servicio para la gestión de ciclos académicos.
+ * Estructura basada en el patrón de cursoService/moduloService.
+ * Ajustar endpoints según la documentación del backend.
+ */
+const cicloService = {
   async getAll(params = {}) {
     const { data } = await api.get(BASE, { params })
     return data
@@ -23,18 +28,18 @@ const horarioService = {
     return data
   },
 
-  async inactivate(id) {
+  async delete(id) {
     const { data } = await api.delete(`${BASE}/${id}`)
     return data
   },
 
   async restore(id) {
-    const { data } = await api.post(`${BASE}/restore/${id}`)
+    const { data } = await api.post(`${BASE}/${id}/restore`)
     return data
   },
 
   async forceDelete(id) {
-    const { data } = await api.delete(`${BASE}/force/${id}`)
+    const { data } = await api.delete(`${BASE}/${id}/force-delete`)
     return data
   },
 
@@ -44,25 +49,14 @@ const horarioService = {
   },
 
   async getFilters() {
-    const { data } = await api.get(`${BASE}/filters/options`)
+    const { data } = await api.get(`${BASE}/filters`)
     return data
   },
 
   async getStatistics() {
     const { data } = await api.get(`${BASE}/statistics`)
     return data
-  },
-
-  /**
-   * Obtiene el semanario de ocupación para una sede y área.
-   * GET /api/configuracion/horarios/semanario?sede_id=1&area_id=1
-   */
-  async getSemanario(sedeId, areaId) {
-    const { data } = await api.get(`${BASE}/semanario`, {
-      params: { sede_id: sedeId, area_id: areaId }
-    })
-    return data
   }
 }
 
-export default horarioService
+export default cicloService

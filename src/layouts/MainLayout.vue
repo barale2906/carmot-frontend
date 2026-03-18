@@ -37,6 +37,7 @@ const pageTitle = computed(() => {
   // Rutas con prefijo (orden: más específico primero)
   const prefixTitles = [
     { prefix: '/academico/cursos',        title: 'Cursos' },
+    { prefix: '/academico/programaciones', title: 'Programaciones' },
     { prefix: '/academico',               title: 'Académico' },
     { prefix: '/configuracion/sedes',     title: 'Sedes' },
     { prefix: '/configuracion/usuarios',  title: 'Configuración' },

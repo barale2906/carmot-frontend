@@ -17,7 +17,10 @@
         @click.self="emit('update:modelValue', false)"
       >
         <div
-          class="relative w-full max-w-[500px] rounded-[10px] border border-black/10 bg-white shadow-xl"
+          :class="[
+            'relative w-full rounded-[10px] border border-black/10 bg-white shadow-xl',
+            sizeClass
+          ]"
           @click.stop
         >
           <button
@@ -64,13 +67,19 @@
 <script setup>
 import { computed } from 'vue'
 
-defineProps({
+const props = defineProps({
   modelValue: { type: Boolean, default: false },
   title: { type: String, default: '' },
-  description: { type: String, default: '' }
+  description: { type: String, default: '' },
+  size: { type: String, default: 'md' }
 })
 
 const emit = defineEmits(['update:modelValue'])
 
 const titleId = computed(() => `modal-title-${Math.random().toString(36).slice(2, 9)}`)
+
+const sizeClass = computed(() => {
+  const sizes = { sm: 'max-w-[400px]', md: 'max-w-[500px]', lg: 'max-w-[640px]' }
+  return sizes[props.size] ?? sizes.md
+})
 </script>
