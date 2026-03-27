@@ -248,6 +248,7 @@
       :description="editingGrupo
         ? 'Modifica los datos del grupo.'
         : 'Completa los campos para crear un nuevo grupo.'"
+      size="xl"
     >
       <template #icon>
         <span class="flex size-5 shrink-0 items-center justify-center text-[#213360]">
@@ -256,6 +257,7 @@
       </template>
 
       <form class="flex flex-col gap-4 pb-2" @submit.prevent="submitForm">
+        <div class="max-h-[70vh] overflow-y-auto pr-1 flex flex-col gap-4">
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormSelect
             v-model="form.sede_id"
@@ -283,24 +285,11 @@
             :required="true"
             maxlength="255"
           />
-          <FormInput
-            v-model="form.inscritos"
-            label="Inscritos"
-            type="number"
-            placeholder="0"
-            min="0"
-            max="50"
-          />
           <FormSelect
             v-model="form.jornada"
             label="Jornada"
             :options="jornadaFormOptions"
             :required="true"
-          />
-          <FormSelect
-            v-model="form.status"
-            label="Estado"
-            :options="statusFormOptions"
           />
         </div>
 
@@ -352,7 +341,7 @@
                 class="flex flex-wrap items-center gap-2 rounded-lg border border-black/10 bg-slate-50 px-3 py-2"
               >
                 <span class="text-sm font-medium text-slate-900">
-                  {{ getAreaNombre(h.area_id) }} · {{ capitalizar(h.dia) }} {{ formatHoraCorta(h.hora) }}
+                  {{ getAreaNombre(h.area_id, h.area_nombre) }} · {{ capitalizar(h.dia) }} {{ formatHoraCorta(h.hora) }}
                 </span>
                 <label class="flex items-center gap-1 text-sm text-slate-600">
                   <input
@@ -386,6 +375,7 @@
               <strong>{{ field }}:</strong> {{ Array.isArray(msgs) ? msgs.join(', ') : msgs }}
             </li>
           </ul>
+        </div>
         </div>
       </form>
 
@@ -587,10 +577,6 @@ const JORNADAS = [
 ]
 
 const jornadaFormOptions = JORNADAS
-const statusFormOptions = [
-  { value: 1, label: 'Activo' },
-  { value: 0, label: 'Inactivo' }
-]
 
 
 const grupos = ref([])
@@ -779,9 +765,7 @@ const form = reactive({
   modulo_id: null,
   profesor_id: null,
   nombre: '',
-  inscritos: 0,
   jornada: 0,
-  status: 1,
   horarios: []
 })
 
@@ -835,8 +819,10 @@ function onSemanarioAreaChange() {
 function onSemanarioSelectSlot({ dia, hora, duracion_horas }) {
   const areaId = semanarioAreaId.value
   if (!areaId) return
+  const area = areas.value.find((a) => a.id === Number(areaId))
   form.horarios.push({
     area_id: Number(areaId),
+    area_nombre: area?.nombre ?? null,
     dia,
     hora: String(hora).slice(0, 5),
     duracion_horas: duracion_horas ?? 1,
@@ -854,7 +840,8 @@ function onSemanarioRemoveSlot({ dia, hora }) {
   if (idx !== -1) form.horarios.splice(idx, 1)
 }
 
-function getAreaNombre(areaId) {
+function getAreaNombre(areaId, areaNombre) {
+  if (areaNombre) return areaNombre
   return areas.value.find((a) => a.id === areaId)?.nombre ?? `Área #${areaId}`
 }
 
@@ -877,9 +864,7 @@ function resetForm() {
   form.modulo_id = null
   form.profesor_id = null
   form.nombre = ''
-  form.inscritos = 0
   form.jornada = 0
-  form.status = 1
   form.horarios = []
   semanarioAreaId.value = null
   semanarioData.value = null
@@ -905,16 +890,15 @@ async function openEdit(grupo) {
   form.modulo_id = grupo.modulo_id ?? grupo.modulo?.id ?? null
   form.profesor_id = grupo.profesor_id ?? grupo.profesor?.id ?? null
   form.nombre = grupo.nombre ?? ''
-  form.inscritos = grupo.inscritos ?? 0
   form.jornada = grupo.jornada ?? 0
-  form.status = grupo.status ?? 1
 
   try {
-    const res = await grupoService.getById(grupo.id, { with: 'sede,modulo,profesor,horarios' })
+    const res = await grupoService.getById(grupo.id, { with: 'sede,modulo,profesor,horarios.area' })
     const data = res.data ?? {}
     const horarios = data.horarios ?? []
     form.horarios = horarios.map((h) => ({
       area_id: h.area_id ?? h.area?.id ?? null,
+      area_nombre: h.area?.nombre ?? null,
       dia: h.dia ?? 'lunes',
       hora: (h.hora || '08:00').slice(0, 5),
       duracion_horas: h.duracion_horas ?? 1,
@@ -927,43 +911,51 @@ async function openEdit(grupo) {
   showFormModal.value = true
 }
 
-function buildPayload() {
-  const payload = {
+function buildGrupoPayload() {
+  return {
     sede_id: Number(form.sede_id) || null,
     modulo_id: Number(form.modulo_id) || null,
     profesor_id: Number(form.profesor_id) || null,
     nombre: String(form.nombre || '').trim(),
-    inscritos: Number(form.inscritos) || 0,
+    inscritos: 0,
     jornada: Number(form.jornada) ?? 0,
-    status: Number(form.status) ?? 1
+    status: 1
   }
-  const validHorarios = form.horarios.filter((h) => h.area_id && h.dia && h.hora)
-  if (validHorarios.length) {
-    payload.horarios = validHorarios.map((h) => ({
-      area_id: Number(h.area_id),
-      dia: h.dia,
-      hora: String(h.hora).length === 5 ? h.hora : `${h.hora}:00`,
-      duracion_horas: Number(h.duracion_horas) || 1,
-      status: Number(h.status) ?? 1
-    }))
-  }
-  return payload
+}
+
+function buildHorariosPayload() {
+  const valid = form.horarios.filter((h) => h.area_id && h.dia && h.hora)
+  return valid.map((h) => ({
+    area_id: Number(h.area_id),
+    dia: h.dia,
+    hora: String(h.hora).slice(0, 5),
+    duracion_horas: Number(h.duracion_horas) || 1,
+  }))
 }
 
 async function submitForm() {
   formError.value = ''
   fieldErrors.value = {}
-
-  const payload = buildPayload()
   formLoading.value = true
+
   try {
+    const grupoPayload = buildGrupoPayload()
+    const horariosPayload = buildHorariosPayload()
+
     if (editingGrupo.value) {
-      await grupoService.update(editingGrupo.value.id, payload, { _silent: true })
+      const grupoId = editingGrupo.value.id
+      await grupoService.update(grupoId, grupoPayload, { _silent: true })
+      await grupoService.updateHorarios(grupoId, { horarios: horariosPayload }, { _silent: true })
       notifySuccess(`El grupo "${form.nombre}" fue actualizado correctamente.`)
     } else {
-      await grupoService.create(payload, { _silent: true })
+      const res = await grupoService.create(grupoPayload, { _silent: true })
+      const nuevoId = res.data?.id
+      if (nuevoId && horariosPayload.length) {
+        await grupoService.updateHorarios(nuevoId, { horarios: horariosPayload }, { _silent: true })
+      }
       notifySuccess(`El grupo "${form.nombre}" fue creado correctamente.`)
     }
+
     showFormModal.value = false
     await Promise.all([loadGrupos(pagination.currentPage), loadStatistics()])
   } catch (e) {
@@ -1037,7 +1029,7 @@ async function openDetail(grupo) {
   detailGrupo.value = grupo
   showDetailModal.value = true
   try {
-    const res = await grupoService.getById(grupo.id, { with: 'sede,modulo,profesor,horarios' })
+    const res = await grupoService.getById(grupo.id, { with: 'sede,modulo,profesor,horarios.area' })
     detailGrupo.value = res.data
   } catch {
     // Mantener datos del listado

@@ -79,7 +79,13 @@ const emit = defineEmits(['update:modelValue'])
 const titleId = computed(() => `modal-title-${Math.random().toString(36).slice(2, 9)}`)
 
 const sizeClass = computed(() => {
-  const sizes = { sm: 'max-w-[400px]', md: 'max-w-[500px]', lg: 'max-w-[640px]' }
+  const sizes = {
+    sm: 'max-w-[400px]',
+    md: 'max-w-[500px]',
+    lg: 'max-w-[640px]',
+    xl: 'max-w-[960px]',
+    '2xl': 'max-w-[1200px]'
+  }
   return sizes[props.size] ?? sizes.md
 })
 </script>
