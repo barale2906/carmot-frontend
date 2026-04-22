@@ -20,12 +20,18 @@ import AreasView from './views/configuracion/AreasView.vue'
 import HorariosView from './views/configuracion/HorariosView.vue'
 import AcademicoLayout from './layouts/AcademicoLayout.vue'
 import ProgramacionesLayout from './layouts/ProgramacionesLayout.vue'
+import FinancieroLayout from './layouts/FinancieroLayout.vue'
 import CursosView from './views/academico/CursosView.vue'
 import ModulosView from './views/academico/ModulosView.vue'
 import TopicosView from './views/academico/TopicosView.vue'
 import TemasView from './views/academico/TemasView.vue'
 import CiclosView from './views/academico/CiclosView.vue'
 import GruposView from './views/academico/GruposView.vue'
+import ConceptoPagoView from './views/financiero/ConceptoPagoView.vue'
+import TipoProductoView from './views/financiero/TipoProductoView.vue'
+import ProductoView from './views/financiero/ProductoView.vue'
+import ListaPrecioView from './views/financiero/ListaPrecioView.vue'
+import MatriculaView from './views/academico/MatriculaView.vue'
 import './assets/styles/main.css'
 
 const routes = [
@@ -144,6 +150,51 @@ const routes = [
             name: 'Grupos',
             component: GruposView
           }
+        ]
+      }
+    ]
+  },
+  {
+    path: '/academico/matriculas',
+    component: MainLayout,
+    children: [
+      {
+        path: '',
+        name: 'Matriculas',
+        component: MatriculaView
+      }
+    ]
+  },
+  {
+    path: '/financiero',
+    component: MainLayout,
+    children: [
+      {
+        path: '',
+        component: FinancieroLayout,
+        children: [
+          {
+            path: 'tipos-producto',
+            name: 'TiposProducto',
+            component: TipoProductoView
+          },
+          {
+            path: 'productos',
+            name: 'ProductosLp',
+            component: ProductoView
+          },
+          {
+            path: 'listas-precios',
+            name: 'ListasPrecios',
+            component: ListaPrecioView
+          },
+          {
+            path: 'conceptos-pago',
+            name: 'ConceptosPago',
+            component: ConceptoPagoView
+          }
+          // Próximo módulo:
+          // { path: 'recibos-pago', name: 'RecibosPago', component: RecibosPagoView },
         ]
       }
     ]

@@ -84,7 +84,9 @@ const sizeClass = computed(() => {
     md: 'max-w-[500px]',
     lg: 'max-w-[640px]',
     xl: 'max-w-[960px]',
-    '2xl': 'max-w-[1200px]'
+    '2xl': 'max-w-[1200px]',
+    /** Casi todo el ancho útil de la ventana (respeta el padding del overlay). */
+    full: 'w-full max-w-[calc(100vw-2rem)]'
   }
   return sizes[props.size] ?? sizes.md
 })

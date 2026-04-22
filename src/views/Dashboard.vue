@@ -172,7 +172,7 @@ const quickAccess = [
   {
     title: 'Nueva matrícula',
     description: 'Registrar nuevo estudiante',
-    to: '/estudiantes',
+    to: '/academico/matriculas?action=create',
     icon: 'estudiantes',
     iconVariant: 'blue'
   },
