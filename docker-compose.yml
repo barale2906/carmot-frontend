@@ -5,12 +5,17 @@ services:
       dockerfile: docker/vue.Dockerfile
     volumes:
       - .:/app
+      # Evita mezclar node_modules host/contenedor (fallos ENOTEMPTY en npm ci, binarios Rollup, etc.)
+      - vue_node_modules:/app/node_modules
     working_dir: /app
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
     ports:
       - "5173:5173"
     networks:
       - carmot
+
+volumes:
+  vue_node_modules:
 
 networks:
   carmot:

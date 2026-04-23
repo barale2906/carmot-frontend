@@ -6,7 +6,7 @@ GREEN = \033[0;32m
 YELLOW = \033[0;33m
 NC = \033[0m
 
-.PHONY: up down stop start restart show-urls npm vue day-end day-start
+.PHONY: up down stop start restart show-urls npm vue day-end day-start build-staging
 
 up:
 	@echo -e '$(GREEN)=> Iniciando contenedores Docker$(NC)'
@@ -37,6 +37,11 @@ show-urls:
 
 day-end: stop
 day-start: start
+
+# Build de staging (dist/ en el host). Requiere .env.staging
+build-staging:
+	@echo -e '$(GREEN)=> Build staging (Vite) dentro de Docker$(NC)'
+	docker compose run --rm --no-deps vue sh -c "npm ci && npm run build:staging"
 
 # Instalar dependencias dentro del contenedor
 npm:
