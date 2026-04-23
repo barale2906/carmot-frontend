@@ -44,6 +44,7 @@
             v-model="filters.search"
             label="Buscar:"
             placeholder="Nombre del área..."
+            help="Filtra áreas por nombre."
             @input="onSearchInput"
           />
         </div>
@@ -52,6 +53,7 @@
             v-model="filters.sede_id"
             label="Sede:"
             placeholder="Todas las sedes"
+            help="Filtra áreas vinculadas a una sede."
             :options="sedeOptions"
           />
         </div>
@@ -205,12 +207,16 @@
             v-model="form.nombre"
             label="Nombre del área"
             placeholder="Ej: Idiomas, Sistemas..."
+            help="Nombre del espacio o taller para horarios y sedes."
             :required="true"
             span="full"
           />
 
           <div class="flex flex-col gap-2">
-            <label class="text-sm font-medium text-slate-900">Estado</label>
+            <div class="flex flex-wrap items-center gap-1">
+              <label class="text-sm font-medium text-slate-900">Estado</label>
+              <FormFieldHelp text="Activa: disponible para asignar a sedes; inactiva: oculta en nuevas configuraciones." />
+            </div>
             <div class="flex gap-3">
               <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
                 <input v-model="form.status" type="radio" :value="1" class="accent-[#213360]" />
@@ -226,7 +232,10 @@
 
         <!-- Sedes asociadas -->
         <div>
-          <p class="mb-2 text-sm font-medium text-slate-900">Sedes asociadas <span class="text-xs font-normal text-slate-400">(opcional)</span></p>
+          <div class="mb-2 flex flex-wrap items-center gap-1">
+            <p class="text-sm font-medium text-slate-900">Sedes asociadas <span class="text-xs font-normal text-slate-400">(opcional)</span></p>
+            <FormFieldHelp text="Sedes donde esta área puede usarse para horarios y grupos." />
+          </div>
           <div v-if="availableSedes.length === 0" class="text-xs text-slate-400">
             No hay sedes disponibles.
           </div>
@@ -408,6 +417,7 @@ import StatusBadge from '@/components/activos/StatusBadge.vue'
 import FormInput from '@/components/forms/FormInput.vue'
 import FormInputSearch from '@/components/forms/FormInputSearch.vue'
 import FormSelect from '@/components/forms/FormSelect.vue'
+import FormFieldHelp from '@/components/forms/FormFieldHelp.vue'
 import NavIcon from '@/components/icons/NavIcon.vue'
 import ModalBase from '@/components/ModalBase.vue'
 import areaService from '@/services/areaService.js'

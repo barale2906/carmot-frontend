@@ -44,6 +44,7 @@
             v-model="filters.search"
             label="Buscar:"
             placeholder="Nombre del grupo..."
+            help="Filtra grupos por nombre."
             @input="onSearchInput"
           />
         </div>
@@ -51,6 +52,7 @@
           <FormSelect
             v-model="filters.status"
             label="Estado:"
+            help="Activo o inactivo en el listado."
             :options="filterStatusOptions"
           />
         </div>
@@ -58,6 +60,7 @@
           <FormSelect
             v-model="filters.sede_id"
             label="Sede:"
+            help="Filtra por sede donde se dicta el grupo."
             :options="filterSedeOptions"
           />
         </div>
@@ -65,6 +68,7 @@
           <FormSelect
             v-model="filters.modulo_id"
             label="Módulo:"
+            help="Filtra grupos de un módulo del plan."
             :options="filterModuloOptions"
           />
         </div>
@@ -72,6 +76,7 @@
           <FormSelect
             v-model="filters.jornada"
             label="Jornada:"
+            help="Mañana, tarde, noche u otra jornada configurada."
             :options="filterJornadaOptions"
           />
         </div>
@@ -262,18 +267,21 @@
           <FormSelect
             v-model="form.sede_id"
             label="Sede"
+            help="Sede física donde se imparte el grupo."
             :options="formSedeOptions"
             :required="true"
           />
           <FormSelect
             v-model="form.modulo_id"
             label="Módulo"
+            help="Módulo del plan al que pertenece este grupo."
             :options="formModuloOptions"
             :required="true"
           />
           <FormSelect
             v-model="form.profesor_id"
             label="Profesor"
+            help="Docente principal asignado al grupo."
             :options="formProfesorOptions"
             :required="true"
           />
@@ -282,12 +290,14 @@
             label="Nombre"
             placeholder="Ej: Grupo A"
             hint="Máximo 255 caracteres. Debe ser único."
+            help="Nombre del grupo en horarios y matrícula."
             :required="true"
             maxlength="255"
           />
           <FormSelect
             v-model="form.jornada"
             label="Jornada"
+            help="Franja horaria del grupo."
             :options="jornadaFormOptions"
             :required="true"
           />
@@ -296,7 +306,10 @@
         <!-- Horarios: Semanario de disponibilidad -->
         <div class="flex flex-col gap-4">
           <div>
-            <label class="text-sm font-medium text-slate-900">Horarios</label>
+            <div class="flex flex-wrap items-center gap-1">
+              <label class="text-sm font-medium text-slate-900">Horarios</label>
+              <FormFieldHelp text="Bloques semanales en el área elegida; clic para asignar al grupo." />
+            </div>
             <p class="text-xs text-slate-500 mt-0.5">
               Selecciona sede y área para ver la disponibilidad. Haz clic en los slots disponibles para asignarlos al grupo.
             </p>
@@ -308,6 +321,7 @@
               v-model="semanarioAreaId"
               label="Área para consultar disponibilidad"
               placeholder="Selecciona un área"
+              help="Área de la sede cuyo calendario de uso muestra huecos libres."
               :options="formAreaOptions"
               @update:model-value="onSemanarioAreaChange"
             />
@@ -558,6 +572,7 @@ import StatusBadge from '@/components/activos/StatusBadge.vue'
 import FormInput from '@/components/forms/FormInput.vue'
 import FormInputSearch from '@/components/forms/FormInputSearch.vue'
 import FormSelect from '@/components/forms/FormSelect.vue'
+import FormFieldHelp from '@/components/forms/FormFieldHelp.vue'
 import NavIcon from '@/components/icons/NavIcon.vue'
 import ModalBase from '@/components/ModalBase.vue'
 import grupoService from '@/services/grupoService.js'

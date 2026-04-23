@@ -44,11 +44,17 @@
               v-model="filters.search"
               label="Buscar:"
               placeholder="Nombre o código..."
+              help="Filtra el listado por nombre o código de lista; no modifica datos."
               @input="onSearchInput"
             />
           </div>
           <div class="w-full sm:w-[200px]">
-            <FormSelect v-model="filters.status" label="Estado:" :options="statusFilterOptions" />
+            <FormSelect
+              v-model="filters.status"
+              label="Estado:"
+              help="Filtra por estado del ciclo de vida (borrador, activa, etc.)."
+              :options="statusFilterOptions"
+            />
           </div>
           <div class="flex w-full items-end gap-2 sm:w-auto">
             <button
@@ -252,6 +258,7 @@
               placeholder="Ej: Lista 2026 - Primer Semestre"
               :required="true"
               maxlength="255"
+              help="Nombre con el que se identifica la lista en pantallas y reportes."
               :error="fieldErrors.nombre?.[0]"
             />
             <FormInput
@@ -260,6 +267,7 @@
               placeholder="Ej: LP-2026-S1"
               hint="Opcional. Único, máximo 100 caracteres."
               maxlength="100"
+              help="Código corto opcional para búsquedas; no puede repetirse entre listas."
               :error="fieldErrors.codigo?.[0]"
             />
             <FormInput
@@ -267,6 +275,7 @@
               label="Fecha inicio *"
               type="date"
               :required="true"
+              help="Desde qué fecha el sistema puede considerar vigente esta lista."
               :error="fieldErrors.fecha_inicio?.[0]"
             />
             <FormInput
@@ -275,6 +284,7 @@
               type="date"
               :required="true"
               hint="Debe ser igual o posterior a la fecha inicio."
+              help="Último día de vigencia; después ya no aplica en procesos nuevos."
               :error="fieldErrors.fecha_fin?.[0]"
             />
           </div>
@@ -284,6 +294,7 @@
             label="Descripción"
             placeholder="Descripción opcional de la lista..."
             :rows="2"
+            help="Notas internas opcionales; no afectan precios ni reglas de negocio."
             :error="fieldErrors.descripcion?.[0]"
           />
 
@@ -293,6 +304,7 @@
               label="Poblaciones * (regiones que aplica)"
               search-placeholder="Buscar región..."
               hint="Selecciona las regiones geográficas para las que aplica esta lista. Al editar, se reemplazan completamente."
+              help="Municipios o regiones donde esta lista puede usarse; obligatorio para el sistema."
               :required="true"
               :options="poblacionesOptions"
               :error="fieldErrors.poblaciones?.[0] ?? fieldErrors['poblaciones.0']?.[0]"
@@ -368,6 +380,7 @@
                 label="Buscar por nombre o código"
                 placeholder="Ej: curso, MOD-…"
                 maxlength="120"
+                help="Filtra la lista del catálogo LP sin cambiar los productos registrados."
               />
             </div>
             <div
@@ -441,14 +454,45 @@
               <tr class="border-b border-slate-200 text-xs font-semibold uppercase tracking-wide text-slate-600">
                 <th scope="col" class="whitespace-nowrap px-2 py-2.5 w-10">#</th>
                 <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[10rem]">Producto</th>
-                <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[7.5rem]" title="Valor total = matrícula + total financiado. Solo se ajustan matrícula y total al salir de cada campo.">
-                  Valor total *
+                <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[7.5rem]">
+                  <span class="inline-flex items-center gap-0.5">
+                    <span>Valor total *</span>
+                    <FormFieldHelp
+                      compact
+                      text="Precio de contado del ítem: debe coincidir con matrícula + total financiado cuando aplica."
+                    />
+                  </span>
                 </th>
-                <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[6.5rem]">Matr. *</th>
-                <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[7.5rem]">Total fin. *</th>
-                <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[5rem]">Cuotas *</th>
-                <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[6.5rem]">Cuota ref.</th>
-                <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[8rem]">Obs.</th>
+                <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[6.5rem]">
+                  <span class="inline-flex items-center gap-0.5">
+                    <span>Matr. *</span>
+                    <FormFieldHelp compact text="Parte inicial cobrada por separado del financiado." />
+                  </span>
+                </th>
+                <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[7.5rem]">
+                  <span class="inline-flex items-center gap-0.5">
+                    <span>Total fin. *</span>
+                    <FormFieldHelp compact text="Monto a fraccionar en cuotas (solo productos financiables)." />
+                  </span>
+                </th>
+                <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[5rem]">
+                  <span class="inline-flex items-center gap-0.5">
+                    <span>Cuotas *</span>
+                    <FormFieldHelp compact text="Cantidad de pagos programados para el total financiado." />
+                  </span>
+                </th>
+                <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[6.5rem]">
+                  <span class="inline-flex items-center gap-0.5">
+                    <span>Cuota ref.</span>
+                    <FormFieldHelp compact text="Vista previa del valor de cada cuota; el backend puede redondear." />
+                  </span>
+                </th>
+                <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[8rem]">
+                  <span class="inline-flex items-center gap-0.5">
+                    <span>Obs.</span>
+                    <FormFieldHelp compact text="Comentarios opcionales solo para esta línea de precio." />
+                  </span>
+                </th>
                 <th scope="col" class="whitespace-nowrap px-2 py-2.5 w-20 text-right">Acción</th>
               </tr>
             </thead>
@@ -568,11 +612,13 @@
               placeholder="Tipo"
               :options="tiposProductoOptions"
               span="full"
+              help="Define reglas del ítem (p. ej. si admite financiación) según el catálogo."
             />
             <FormSelect
               v-model="quickRefTipo"
               label="Referencia *"
               :options="referenciaTipoOptions"
+              help="Indica si el producto se enlaza a un curso o a un módulo del plan."
             />
             <FormSelect
               v-if="quickRefTipo === 'curso'"
@@ -581,6 +627,7 @@
               placeholder="Seleccione curso"
               :options="cursosOptions"
               span="full"
+              help="Curso académico al que quedará asociado el nuevo producto LP."
             />
             <FormSelect
               v-else
@@ -589,6 +636,7 @@
               placeholder="Seleccione módulo"
               :options="modulosOptions"
               span="full"
+              help="Módulo del plan al que quedará asociado el nuevo producto LP."
             />
             <FormInput
               v-model="quickNombre"
@@ -596,6 +644,7 @@
               label="Nombre del producto *"
               placeholder="Ej: Inglés Avanzado - Matrícula"
               maxlength="255"
+              help="Nombre que verán usuarios y reportes para este producto en el catálogo."
             />
             <div class="sm:col-span-2 flex flex-wrap gap-2">
               <button
@@ -757,15 +806,60 @@
             <table class="w-full min-w-[960px] border-collapse text-left text-sm" aria-label="Formulario nuevo descuento">
               <thead class="bg-slate-50">
                 <tr class="border-b border-slate-200 text-xs font-semibold uppercase tracking-wide text-slate-600">
-                  <th scope="col" class="whitespace-nowrap px-2 py-2 min-w-[10rem]">Nombre *</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2 min-w-[6.5rem]">Tipo *</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2 min-w-[6.5rem]">Valor *</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2 min-w-[7rem]">Aplicación *</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2 min-w-[8rem]">Activación *</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2 min-w-[7rem]">Días / código *</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2 min-w-[6.5rem]">Desde *</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2 min-w-[6.5rem]">Hasta *</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2 w-16 text-center" title="Permite acumulación con otros descuentos">Acum.</th>
+                  <th scope="col" class="whitespace-nowrap px-2 py-2 min-w-[10rem]">
+                    <span class="inline-flex items-center gap-0.5">
+                      <span>Nombre *</span>
+                      <FormFieldHelp compact text="Nombre visible del descuento en listas y cobros." />
+                    </span>
+                  </th>
+                  <th scope="col" class="whitespace-nowrap px-2 py-2 min-w-[6.5rem]">
+                    <span class="inline-flex items-center gap-0.5">
+                      <span>Tipo *</span>
+                      <FormFieldHelp compact text="Porcentaje o valor fijo según cómo se calcule el descuento." />
+                    </span>
+                  </th>
+                  <th scope="col" class="whitespace-nowrap px-2 py-2 min-w-[6.5rem]">
+                    <span class="inline-flex items-center gap-0.5">
+                      <span>Valor *</span>
+                      <FormFieldHelp compact text="Magnitud del descuento (coherente con el tipo elegido)." />
+                    </span>
+                  </th>
+                  <th scope="col" class="whitespace-nowrap px-2 py-2 min-w-[7rem]">
+                    <span class="inline-flex items-center gap-0.5">
+                      <span>Aplicación *</span>
+                      <FormFieldHelp compact text="Sobre qué importe del cobro se aplica la rebaja." />
+                    </span>
+                  </th>
+                  <th scope="col" class="whitespace-nowrap px-2 py-2 min-w-[8rem]">
+                    <span class="inline-flex items-center gap-0.5">
+                      <span>Activación *</span>
+                      <FormFieldHelp compact text="Condición para que el descuento sea válido (anticipado, código, etc.)." />
+                    </span>
+                  </th>
+                  <th scope="col" class="whitespace-nowrap px-2 py-2 min-w-[7rem]">
+                    <span class="inline-flex items-center gap-0.5">
+                      <span>Días / código *</span>
+                      <FormFieldHelp compact text="Días de anticipo o código promocional, según el tipo de activación." />
+                    </span>
+                  </th>
+                  <th scope="col" class="whitespace-nowrap px-2 py-2 min-w-[6.5rem]">
+                    <span class="inline-flex items-center gap-0.5">
+                      <span>Desde *</span>
+                      <FormFieldHelp compact text="Fecha inicial en que el descuento puede aplicarse." />
+                    </span>
+                  </th>
+                  <th scope="col" class="whitespace-nowrap px-2 py-2 min-w-[6.5rem]">
+                    <span class="inline-flex items-center gap-0.5">
+                      <span>Hasta *</span>
+                      <FormFieldHelp compact text="Último día en que el descuento sigue vigente." />
+                    </span>
+                  </th>
+                  <th scope="col" class="whitespace-nowrap px-2 py-2 w-16 text-center">
+                    <span class="inline-flex items-center justify-center gap-0.5">
+                      <span>Acum.</span>
+                      <FormFieldHelp compact text="Si puede combinarse con otros descuentos en el mismo cobro." />
+                    </span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -827,6 +921,7 @@
               label="Alcance del descuento sobre productos LP *"
               :options="descuentoAlcanceProductosSelectOptions"
               span="full"
+              help="Todos los productos de la lista o solo algunos que marques abajo."
             />
             <p class="-mt-1 text-xs text-slate-500">{{ textoHintAlcanceDescuento }}</p>
             <template v-if="descuentoDraft.descuentoAlcanceProductos === 'seleccion'">
@@ -836,6 +931,7 @@
                 span="full"
                 label="Productos de esta lista *"
                 search-placeholder="Buscar producto…"
+                help="Solo los ítems con precio en esta lista a los que aplica el descuento."
                 :options="descuentoProductoCheckboxOptions"
               />
               <p
@@ -1192,6 +1288,7 @@
           :options="productosDisponiblesOptions"
           :required="true"
           span="full"
+          help="Producto del catálogo LP al que asignas precio en esta lista."
           :error="precioFieldErrors.producto_id?.[0]"
         />
         <p v-if="productosLoading" class="mt-1 text-xs text-slate-400">Cargando productos...</p>
@@ -1222,6 +1319,7 @@
           min="0"
           placeholder="0"
           hint="Fijo al definirlo: matrícula + total financiado. Al salir se reparte en esos dos campos (financiable)."
+          help="Importe total del ítem; en financiables debe cuadrar con matrícula + total financiado."
           :required="true"
           :error="precioFieldErrors.precio_contado?.[0]"
           @blur="onBlurPrecioFormContado"
@@ -1233,6 +1331,7 @@
           min="0"
           placeholder="0"
           hint="Máximo igual al valor total. Si es financiable: al salir se recalcula el total financiado (valor total − matrícula)."
+          help="Pago inicial separado del monto sujeto a cuotas."
           :required="true"
           :error="precioFieldErrors.matricula?.[0]"
           @blur="onBlurPrecioFormMatricula"
@@ -1247,6 +1346,7 @@
             min="0"
             placeholder="0"
             hint="No mayor al valor total − matrícula. Al salir se ajusta la matrícula para cuadrar el valor total (no se cambia el valor total)."
+            help="Monto repartido en cuotas (valor total menos matrícula)."
             :required="true"
             :error="precioFieldErrors.precio_total?.[0]"
             @blur="onBlurPrecioFormPrecioTotal"
@@ -1259,6 +1359,7 @@
             step="1"
             placeholder="Ej: 6"
             hint="Entero ≥ 1 (no se admite 0 ni negativos)."
+            help="En cuántos pagos se divide el total financiado."
             :required="true"
             :error="precioFieldErrors.numero_cuotas?.[0]"
           />
@@ -1279,7 +1380,10 @@
           </p>
           <!-- Valor cuota calculado (read-only) -->
           <div class="flex flex-col gap-2 sm:col-span-2">
-            <label class="text-sm font-medium text-slate-900">Valor cuota <span class="text-slate-400 font-normal">(calculado)</span></label>
+            <div class="flex flex-wrap items-center gap-1">
+              <label class="text-sm font-medium text-slate-900">Valor cuota <span class="text-slate-400 font-normal">(calculado)</span></label>
+              <FormFieldHelp text="Importe orientativo por cuota; el servidor puede ajustar redondeos." />
+            </div>
             <div class="rounded-lg border-0 bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-900">
               {{ valorCuotaCalculado !== null ? formatCOP(valorCuotaCalculado) : '—' }}
             </div>
@@ -1293,6 +1397,7 @@
         label="Observaciones"
         placeholder="Notas sobre este precio..."
         :rows="2"
+        help="Notas internas opcionales sobre este precio en la lista."
         :error="precioFieldErrors.observaciones?.[0]"
       />
 
@@ -1429,6 +1534,7 @@ import FormInputSearch from '@/components/forms/FormInputSearch.vue'
 import FormSelect     from '@/components/forms/FormSelect.vue'
 import FormTextarea   from '@/components/forms/FormTextarea.vue'
 import FormCheckboxGroup from '@/components/forms/FormCheckboxGroup.vue'
+import FormFieldHelp  from '@/components/forms/FormFieldHelp.vue'
 import NavIcon        from '@/components/icons/NavIcon.vue'
 import ModalBase      from '@/components/ModalBase.vue'
 import listaPrecioService  from '@/services/listaPrecioService.js'

@@ -1,12 +1,15 @@
 <template>
   <div class="flex flex-col gap-2" :class="fieldClass">
-    <label
-      v-if="label"
-      :for="inputId"
-      class="text-sm font-medium text-slate-900"
-    >
-      {{ label }}
-    </label>
+    <div v-if="label" class="flex flex-wrap items-center gap-1">
+      <label
+        :for="inputId"
+        class="text-sm font-medium text-slate-900"
+      >
+        {{ label }}
+      </label>
+      <FormFieldHelp v-if="help" :text="help" />
+    </div>
+    <span v-if="help" :id="`${inputId}-help`" class="sr-only">{{ help }}</span>
     <div class="relative">
       <span
         class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
@@ -22,7 +25,7 @@
         :required="required"
         :disabled="disabled"
         class="w-full rounded-lg border-0 bg-[#f3f3f5] py-2 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 disabled:opacity-50"
-        :aria-describedby="hint ? `${inputId}-hint` : undefined"
+        :aria-describedby="ariaDescribedBy"
         v-bind="$attrs"
         @input="emit('update:modelValue', ($event.target && $event.target.value) ?? '')"
       />
@@ -40,6 +43,7 @@
 <script setup>
 import { computed } from 'vue'
 import NavIcon from '@/components/icons/NavIcon.vue'
+import FormFieldHelp from '@/components/forms/FormFieldHelp.vue'
 
 defineOptions({ inheritAttrs: false })
 
@@ -48,6 +52,7 @@ const props = defineProps({
   label: { type: String, default: '' },
   placeholder: { type: String, default: 'Buscar...' },
   hint: { type: String, default: '' },
+  help: { type: String, default: '' },
   required: { type: Boolean, default: false },
   disabled: { type: Boolean, default: false },
   span: { type: String, default: 'half', validator: (v) => ['half', 'full'].includes(v) }
@@ -56,6 +61,13 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue'])
 
 const inputId = computed(() => `search-${Math.random().toString(36).slice(2, 9)}`)
+
+const ariaDescribedBy = computed(() => {
+  const ids = []
+  if (props.hint) ids.push(`${inputId.value}-hint`)
+  if (props.help) ids.push(`${inputId.value}-help`)
+  return ids.length ? ids.join(' ') : undefined
+})
 
 const fieldClass = computed(() =>
   props.span === 'full' ? 'md:col-span-2' : ''

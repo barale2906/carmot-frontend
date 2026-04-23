@@ -18,6 +18,7 @@
               v-model="filters.sede"
               label="Sede:"
               placeholder="Sede"
+              help="Filtra activos por sede."
               :options="sedeOptions"
             />
           </div>
@@ -26,6 +27,7 @@
               v-model="filters.area"
               label="Área:"
               placeholder="Área"
+              help="Filtra por área o taller dentro de la sede."
               :options="areaOptions"
             />
           </div>
@@ -34,6 +36,7 @@
               v-model="filters.buscar"
               label="Buscar:"
               placeholder="Buscar por nombre o código..."
+              help="Busca activos por nombre o código interno."
             />
           </div>
           <div class="w-full sm:w-auto">

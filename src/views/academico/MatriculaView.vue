@@ -40,13 +40,16 @@
       <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <FormInputSearch
           v-model="filters.search"
+          label="Buscar"
           placeholder="Buscar por estudiante, curso o ciclo..."
+          help="Filtra matrículas por estudiante, curso o ciclo en la tabla."
           span="full"
           class="lg:col-span-2"
         />
         <FormSelect
           v-model="filters.status"
-          label=""
+          label="Estado"
+          help="Activo, inactivo o anulado en el listado."
           :options="[
             { value: '', label: 'Todos los estados' },
             { value: '1', label: 'Activo' },
@@ -56,14 +59,16 @@
         />
         <FormSelect
           v-model="filters.curso_id"
-          label=""
+          label="Curso"
+          help="Limita las matrículas a un curso concreto."
           :options="[{ value: '', label: 'Todos los cursos' }, ...cursosOptions]"
         />
       </div>
       <div class="flex flex-wrap items-center gap-3">
         <FormSelect
           v-model="filters.ciclo_id"
-          label=""
+          label="Ciclo"
+          help="Limita las matrículas a un ciclo académico."
           :options="[{ value: '', label: 'Todos los ciclos' }, ...ciclosOptions]"
         />
         <label class="inline-flex cursor-pointer items-center gap-2 text-sm text-slate-600">
@@ -312,12 +317,14 @@
               label="Sede (para consulta de precio)"
               :options="[{ value: '', label: 'Seleccionar sede...' }, ...sedesOptions]"
               hint="La sede define la región para calcular el precio vigente."
+              help="Sede usada solo para buscar el precio de lista vigente por región."
               @update:model-value="onSedeChange"
             />
             <FormSelect
               v-model="form.curso_id"
               label="Curso *"
               :options="[{ value: '', label: 'Seleccionar curso...' }, ...cursosFormOptions]"
+              help="Programa al que se inscribe el estudiante."
               :error="fieldErrors.curso_id?.[0]"
               required
               @update:model-value="onCursoChange"
@@ -329,6 +336,7 @@
               :error="fieldErrors.ciclo_id?.[0]"
               :disabled="!form.curso_id"
               hint="Filtra automáticamente por sede y curso seleccionados."
+              help="Cohorte académica concreta dentro del curso."
               required
               @update:model-value="onCicloChange"
             />
@@ -343,9 +351,12 @@
           <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
             <!-- Búsqueda de estudiante -->
             <div class="flex flex-col gap-2 md:col-span-2">
-              <label class="text-sm font-medium text-slate-900">
-                Estudiante *
-              </label>
+              <div class="flex flex-wrap items-center gap-1">
+                <label class="text-sm font-medium text-slate-900">
+                  Estudiante *
+                </label>
+                <FormFieldHelp text="Persona que queda matriculada; búscala por nombre o documento." />
+              </div>
               <div class="relative">
                 <input
                   v-model="estudianteSearch"
@@ -390,6 +401,7 @@
               v-model="form.comercial_id"
               label="Asesor comercial *"
               :options="[{ value: '', label: 'Seleccionar asesor...' }, ...comercialesOptions]"
+              help="Responsable comercial asociado a la venta o seguimiento."
               :error="fieldErrors.comercial_id?.[0]"
               required
             />
@@ -399,6 +411,7 @@
               :options="[{ value: '', label: 'Seleccionar usuario...' }, ...comercialesOptions]"
               :error="fieldErrors.matriculado_por_id?.[0]"
               hint="Por defecto: usuario con sesión activa."
+              help="Usuario del sistema que registra la matrícula en el acto."
               required
             />
           </div>
@@ -495,11 +508,13 @@
               min="0"
               :error="fieldErrors.monto?.[0]"
               hint="Puede ajustar el monto sugerido."
+              help="Valor total acordado con el estudiante para esta matrícula."
               required
             />
             <FormSelect
               v-model="form.status"
               label="Estado inicial"
+              help="Activo inscribe al ciclo; inactivo deja la matrícula sin efecto inmediato."
               :options="[
                 { value: '1', label: 'Activo (inscribe al ciclo)' },
                 { value: '0', label: 'Inactivo' },
@@ -518,6 +533,7 @@
               v-model="form.fecha_matricula"
               label="Fecha de matrícula *"
               type="date"
+              help="Día en que se formaliza el registro de la matrícula."
               :error="fieldErrors.fecha_matricula?.[0]"
               required
             />
@@ -528,25 +544,23 @@
               :min="form.fecha_matricula"
               :error="fieldErrors.fecha_inicio?.[0]"
               hint="Debe ser igual o posterior a la fecha de matrícula."
+              help="Primer día de clases previsto para el estudiante."
               required
             />
           </div>
         </fieldset>
 
-        <!-- Observaciones -->
-        <div class="flex flex-col gap-2">
-          <label class="text-sm font-medium text-slate-900">Observaciones</label>
-          <textarea
-            v-model="form.observaciones"
-            rows="3"
-            maxlength="5000"
-            placeholder="Notas adicionales sobre la matrícula..."
-            class="w-full rounded-lg border-0 bg-[#f3f3f5] px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-          />
-          <p v-if="fieldErrors.observaciones?.[0]" class="text-xs text-red-600">
-            {{ fieldErrors.observaciones[0] }}
-          </p>
-        </div>
+        <FormTextarea
+          v-model="form.observaciones"
+          label="Observaciones"
+          placeholder="Notas adicionales sobre la matrícula..."
+          :rows="3"
+          maxlength="5000"
+          help="Notas internas opcionales; no alteran el precio ni el estado por sí solas."
+        />
+        <p v-if="fieldErrors.observaciones?.[0]" class="text-xs text-red-600">
+          {{ fieldErrors.observaciones[0] }}
+        </p>
       </form>
 
       <template #footer>
@@ -583,30 +597,35 @@
           <FormSelect
             v-model="form.curso_id"
             label="Curso"
+            help="Programa académico de la matrícula."
             :options="[{ value: '', label: 'Seleccionar curso...' }, ...cursosFormOptions]"
             :error="fieldErrors.curso_id?.[0]"
           />
           <FormSelect
             v-model="form.ciclo_id"
             label="Ciclo"
+            help="Cohorte o periodo dentro del curso."
             :options="[{ value: '', label: 'Seleccionar ciclo...' }, ...editCiclosOptions]"
             :error="fieldErrors.ciclo_id?.[0]"
           />
           <FormSelect
             v-model="form.estudiante_id"
             label="Estudiante"
+            help="Persona matriculada."
             :options="[{ value: '', label: 'Seleccionar estudiante...' }, ...estudiantesOptions]"
             :error="fieldErrors.estudiante_id?.[0]"
           />
           <FormSelect
             v-model="form.comercial_id"
             label="Asesor comercial"
+            help="Asesor asociado a la operación."
             :options="[{ value: '', label: 'Seleccionar asesor...' }, ...comercialesOptions]"
             :error="fieldErrors.comercial_id?.[0]"
           />
           <FormSelect
             v-model="form.matriculado_por_id"
             label="Registrado por"
+            help="Usuario que registró la matrícula."
             :options="[{ value: '', label: 'Seleccionar usuario...' }, ...comercialesOptions]"
             :error="fieldErrors.matriculado_por_id?.[0]"
           />
@@ -616,12 +635,14 @@
             type="number"
             step="0.01"
             min="0"
+            help="Valor acordado de la matrícula."
             :error="fieldErrors.monto?.[0]"
           />
           <FormInput
             v-model="form.fecha_matricula"
             label="Fecha de matrícula"
             type="date"
+            help="Fecha de formalización del registro."
             :error="fieldErrors.fecha_matricula?.[0]"
           />
           <FormInput
@@ -629,11 +650,13 @@
             label="Fecha de inicio de clases"
             type="date"
             :min="form.fecha_matricula"
+            help="Inicio previsto de clases."
             :error="fieldErrors.fecha_inicio?.[0]"
           />
           <FormSelect
             v-model="form.status"
             label="Estado"
+            help="Activo, inactivo o anulado según política institucional."
             :options="[
               { value: '0', label: 'Inactivo' },
               { value: '1', label: 'Activo' },
@@ -643,18 +666,17 @@
           />
         </div>
 
-        <div class="flex flex-col gap-2 md:col-span-2">
-          <label class="text-sm font-medium text-slate-900">Observaciones</label>
-          <textarea
-            v-model="form.observaciones"
-            rows="3"
-            maxlength="5000"
-            class="w-full rounded-lg border-0 bg-[#f3f3f5] px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-          />
-          <p v-if="fieldErrors.observaciones?.[0]" class="text-xs text-red-600">
-            {{ fieldErrors.observaciones[0] }}
-          </p>
-        </div>
+        <FormTextarea
+          v-model="form.observaciones"
+          label="Observaciones"
+          placeholder="Notas adicionales sobre la matrícula..."
+          :rows="3"
+          maxlength="5000"
+          help="Notas internas opcionales sobre esta matrícula."
+        />
+        <p v-if="fieldErrors.observaciones?.[0]" class="text-xs text-red-600">
+          {{ fieldErrors.observaciones[0] }}
+        </p>
       </form>
 
       <template #footer>
@@ -800,7 +822,9 @@ import DataTable from '@/components/activos/DataTable.vue'
 import ModalBase from '@/components/ModalBase.vue'
 import FormInput from '@/components/forms/FormInput.vue'
 import FormSelect from '@/components/forms/FormSelect.vue'
+import FormTextarea from '@/components/forms/FormTextarea.vue'
 import FormInputSearch from '@/components/forms/FormInputSearch.vue'
+import FormFieldHelp from '@/components/forms/FormFieldHelp.vue'
 import StatCard from '@/components/dashboard/StatCard.vue'
 import StatusBadge from '@/components/activos/StatusBadge.vue'
 import NavIcon from '@/components/icons/NavIcon.vue'

@@ -44,6 +44,7 @@
             v-model="filters.search"
             label="Buscar:"
             placeholder="Nombre del módulo..."
+            help="Filtra módulos por nombre."
             @input="onSearchInput"
           />
         </div>
@@ -51,6 +52,7 @@
           <FormSelect
             v-model="filters.status"
             label="Estado:"
+            help="Activo o inactivo en el catálogo."
             :options="statusOptions"
           />
         </div>
@@ -58,6 +60,7 @@
           <FormSelect
             v-model="filters.curso_id"
             label="Curso:"
+            help="Filtra módulos asociados a un curso."
             :options="cursoFilterOptions"
           />
         </div>
@@ -224,6 +227,7 @@
             label="Nombre"
             placeholder="Ej: Módulo de Matemáticas"
             hint="Máximo 255 caracteres. Debe ser único."
+            help="Nombre del módulo en el plan y en productos LP."
             :required="true"
             maxlength="255"
             span="full"
@@ -231,6 +235,7 @@
           <FormSelect
             v-model="form.status"
             label="Estado"
+            help="Activo: usable en cursos; inactivo: restringido."
             :options="statusFormOptions"
           />
           <FormInput
@@ -239,6 +244,7 @@
             type="number"
             placeholder="0"
             hint="Se precarga con la suma de los tópicos. Puedes editarla manualmente."
+            help="Carga horaria total del módulo (referencia o manual)."
             min="0"
             step="0.1"
           />
@@ -246,7 +252,10 @@
 
         <!-- Selector de cursos -->
         <div class="flex flex-col gap-2">
-          <label class="text-sm font-medium text-slate-900">Cursos</label>
+          <div class="flex flex-wrap items-center gap-1">
+            <label class="text-sm font-medium text-slate-900">Cursos</label>
+            <FormFieldHelp text="Cursos que incluyen este módulo en su malla." />
+          </div>
 
           <!-- Dropdown para agregar cursos -->
           <div class="relative">
@@ -570,6 +579,7 @@ import StatusBadge from '@/components/activos/StatusBadge.vue'
 import FormInput from '@/components/forms/FormInput.vue'
 import FormInputSearch from '@/components/forms/FormInputSearch.vue'
 import FormSelect from '@/components/forms/FormSelect.vue'
+import FormFieldHelp from '@/components/forms/FormFieldHelp.vue'
 import NavIcon from '@/components/icons/NavIcon.vue'
 import ModalBase from '@/components/ModalBase.vue'
 import moduloService from '@/services/moduloService.js'

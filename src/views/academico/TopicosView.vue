@@ -44,6 +44,7 @@
             v-model="filters.search"
             label="Buscar:"
             placeholder="Nombre o descripción..."
+            help="Filtra tópicos por nombre o descripción."
             @input="onSearchInput"
           />
         </div>
@@ -51,6 +52,7 @@
           <FormSelect
             v-model="filters.status"
             label="Estado:"
+            help="Activo o inactivo en el catálogo."
             :options="statusOptions"
           />
         </div>
@@ -214,6 +216,7 @@
             v-model="form.nombre"
             label="Nombre"
             placeholder="Ej: Fundamentos de Programación"
+            help="Nombre del bloque temático dentro del plan."
             :required="true"
             span="full"
           />
@@ -221,6 +224,7 @@
             v-model="form.descripcion"
             label="Descripción"
             placeholder="Descripción del tópico..."
+            help="Resumen del contenido o alcance del tópico."
             :required="true"
             :rows="3"
           />
@@ -230,6 +234,7 @@
             type="number"
             placeholder="Calculada automáticamente al asignar temas"
             :hint="form.temaIds.length ? 'La duración se calculará sumando la duración de los temas seleccionados.' : ''"
+            help="Horas totales; con temas asignados se calcula sola."
             :disabled="form.temaIds.length > 0"
             min="0"
             max="999"
@@ -238,13 +243,17 @@
           <FormSelect
             v-model="form.status"
             label="Estado"
+            help="Activo: usable en módulos; inactivo: oculto en nuevas asignaciones."
             :options="statusFormOptions"
           />
         </div>
 
         <!-- Selector de temas -->
         <div class="flex flex-col gap-2">
-          <label class="text-sm font-medium text-slate-900">Temas</label>
+          <div class="flex flex-wrap items-center gap-1">
+            <label class="text-sm font-medium text-slate-900">Temas</label>
+            <FormFieldHelp text="Temas que componen este tópico y su carga horaria." />
+          </div>
 
           <!-- Dropdown para agregar temas -->
           <div class="relative">
@@ -489,6 +498,7 @@ import FormInput from '@/components/forms/FormInput.vue'
 import FormTextarea from '@/components/forms/FormTextarea.vue'
 import FormInputSearch from '@/components/forms/FormInputSearch.vue'
 import FormSelect from '@/components/forms/FormSelect.vue'
+import FormFieldHelp from '@/components/forms/FormFieldHelp.vue'
 import NavIcon from '@/components/icons/NavIcon.vue'
 import ModalBase from '@/components/ModalBase.vue'
 import topicoService from '@/services/topicoService.js'

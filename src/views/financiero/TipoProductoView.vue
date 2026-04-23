@@ -34,13 +34,29 @@
         <h2 id="filtros-tipos-heading" class="sr-only">Filtros y acciones</h2>
         <div class="flex flex-wrap items-end gap-4">
           <div class="min-w-0 flex-1 sm:max-w-xs">
-            <FormInputSearch v-model="filters.search" label="Buscar:" placeholder="Nombre, código o descripción..." @input="onSearchInput" />
+            <FormInputSearch
+              v-model="filters.search"
+              label="Buscar:"
+              placeholder="Nombre, código o descripción..."
+              help="Filtra tipos de producto por texto."
+              @input="onSearchInput"
+            />
           </div>
           <div class="w-full sm:w-[180px]">
-            <FormSelect v-model="filters.status" label="Estado:" :options="statusOptions" />
+            <FormSelect
+              v-model="filters.status"
+              label="Estado:"
+              help="Activo o inactivo en el catálogo de tipos."
+              :options="statusOptions"
+            />
           </div>
           <div class="w-full sm:w-[200px]">
-            <FormSelect v-model="filters.es_financiable" label="Financiabilidad:" :options="financiableOptions" />
+            <FormSelect
+              v-model="filters.es_financiable"
+              label="Financiabilidad:"
+              help="Filtra si el tipo admite productos en cuotas."
+              :options="financiableOptions"
+            />
           </div>
           <div class="flex w-full items-end gap-2 sm:w-auto">
             <button
@@ -182,6 +198,7 @@
           label="Nombre *"
           placeholder="Ej: Matrícula de Curso"
           hint="Máximo 255 caracteres."
+          help="Nombre del tipo en pantallas y al asignar productos LP."
           :required="true"
           maxlength="255"
           :error="fieldErrors.nombre?.[0]"
@@ -191,6 +208,7 @@
           label="Código *"
           placeholder="Ej: MAT-CURSO"
           hint="Único. Máximo 50 caracteres."
+          help="Identificador único del tipo para datos e integraciones."
           :required="true"
           maxlength="50"
           :error="fieldErrors.codigo?.[0]"
@@ -200,7 +218,10 @@
       <!-- Financiable + Estado -->
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div class="flex flex-col gap-2">
-          <label class="text-sm font-medium text-slate-900">Financiable</label>
+          <div class="flex flex-wrap items-center gap-1">
+            <label class="text-sm font-medium text-slate-900">Financiable</label>
+            <FormFieldHelp text="Si está marcado, los productos de este tipo pueden llevar precio en cuotas en listas LP." />
+          </div>
           <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-black/10 bg-slate-50 px-4 py-3 text-sm transition-colors hover:bg-slate-100">
             <input
               v-model="form.es_financiable"
@@ -217,6 +238,7 @@
           label="Estado"
           :options="[{ value: 1, label: 'Activo' }, { value: 0, label: 'Inactivo' }]"
           hint="Los tipos inactivos no aparecen en selectores de productos."
+          help="Controla si el tipo se ofrece al crear o editar productos."
         />
       </div>
 
@@ -225,6 +247,7 @@
         label="Descripción"
         placeholder="Descripción opcional del tipo de producto..."
         hint="Máximo 1000 caracteres."
+        help="Texto opcional para aclarar el uso de este tipo en la institución."
         :rows="3"
         :error="fieldErrors.descripcion?.[0]"
       />
@@ -328,6 +351,7 @@ import FormInput from '@/components/forms/FormInput.vue'
 import FormInputSearch from '@/components/forms/FormInputSearch.vue'
 import FormSelect from '@/components/forms/FormSelect.vue'
 import FormTextarea from '@/components/forms/FormTextarea.vue'
+import FormFieldHelp from '@/components/forms/FormFieldHelp.vue'
 import NavIcon from '@/components/icons/NavIcon.vue'
 import ModalBase from '@/components/ModalBase.vue'
 import tipoProductoService from '@/services/tipoProductoService.js'

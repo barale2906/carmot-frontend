@@ -16,6 +16,7 @@
                 label="Número de matrícula"
                 placeholder="TBC-001"
                 hint="Consecutivo automático según tipo"
+                help="Identificador único de la matrícula en el centro."
                 required
                 span="full"
               />
@@ -23,6 +24,7 @@
                 v-model="form.sede"
                 label="Sede"
                 placeholder="Selecciona una sede"
+                help="Sede donde cursará o se registra el estudiante."
                 :options="opcionesSede"
                 required
               />
@@ -30,74 +32,75 @@
                 v-model="form.fechaMatricula"
                 label="Fecha de matrícula"
                 type="date"
+                help="Fecha en que se firma o registra esta matrícula."
                 required
               />
             </FormSection>
 
             <FormSection title="Información personal">
-              <FormInput v-model="form.nombres" label="Nombres" placeholder="Nombres completos" required />
-              <FormInput v-model="form.apellidos" label="Apellidos" placeholder="Apellidos completos" required />
-              <FormSelect v-model="form.tipoIdentificacion" label="Tipo de identificación" placeholder="Selecciona tipo" :options="opcionesTipoDoc" required />
-              <FormInput v-model="form.numeroDocumento" label="Número de documento" placeholder="Número de documento" required />
-              <FormSelect v-model="form.departamentoExpedicion" label="Departamento de expedición" placeholder="Selecciona departamento" :options="opcionesDepartamento" required />
-              <FormSelect v-model="form.ciudadExpedicion" label="Ciudad de expedición" placeholder="Selecciona ciudad" :options="opcionesCiudad" required />
-              <FormInput v-model="form.fechaNacimiento" label="Fecha de nacimiento" type="date" required />
-              <FormSelect v-model="form.genero" label="Género" placeholder="Selecciona género" :options="opcionesGenero" required />
-              <FormSelect v-model="form.estadoCivil" label="Estado civil" placeholder="Selecciona estado civil" :options="opcionesEstadoCivil" required />
-              <FormSelect v-model="form.grupoSanguineo" label="Grupo sanguíneo RH" placeholder="Selecciona grupo sanguíneo" :options="opcionesGrupoSanguineo" required />
+              <FormInput v-model="form.nombres" label="Nombres" placeholder="Nombres completos" help="Nombres de pila del estudiante." required />
+              <FormInput v-model="form.apellidos" label="Apellidos" placeholder="Apellidos completos" help="Apellidos según documento." required />
+              <FormSelect v-model="form.tipoIdentificacion" label="Tipo de identificación" placeholder="Selecciona tipo" help="CC, TI, CE u otro tipo válido." :options="opcionesTipoDoc" required />
+              <FormInput v-model="form.numeroDocumento" label="Número de documento" placeholder="Número de documento" help="Número impreso en el documento de identidad." required />
+              <FormSelect v-model="form.departamentoExpedicion" label="Departamento de expedición" placeholder="Selecciona departamento" help="Departamento donde se expidió el documento." :options="opcionesDepartamento" required />
+              <FormSelect v-model="form.ciudadExpedicion" label="Ciudad de expedición" placeholder="Selecciona ciudad" help="Ciudad o municipio de expedición del documento." :options="opcionesCiudad" required />
+              <FormInput v-model="form.fechaNacimiento" label="Fecha de nacimiento" type="date" help="Fecha de nacimiento del estudiante." required />
+              <FormSelect v-model="form.genero" label="Género" placeholder="Selecciona género" help="Autoidentificación de género registrada." :options="opcionesGenero" required />
+              <FormSelect v-model="form.estadoCivil" label="Estado civil" placeholder="Selecciona estado civil" help="Estado civil declarado." :options="opcionesEstadoCivil" required />
+              <FormSelect v-model="form.grupoSanguineo" label="Grupo sanguíneo RH" placeholder="Selecciona grupo sanguíneo" help="Grupo y factor RH para emergencias." :options="opcionesGrupoSanguineo" required />
             </FormSection>
 
             <FormSection title="Información de contacto">
-              <FormInput v-model="form.direccion" label="Dirección" placeholder="Dirección de residencia" required span="full" />
-              <FormInput v-model="form.lugarOrigen" label="Lugar de origen" placeholder="Ciudad/Municipio de origen" required />
-              <FormInput v-model="form.celular" label="Celular" type="tel" placeholder="3001234567" required />
-              <FormInput v-model="form.telefonoFijo" label="Teléfono fijo" type="tel" placeholder="78074234" />
-              <FormInput v-model="form.correo" label="Correo electrónico" type="email" placeholder="correo@ejemplo.com" required span="full" />
+              <FormInput v-model="form.direccion" label="Dirección" placeholder="Dirección de residencia" help="Dirección y barrio de residencia actual." required span="full" />
+              <FormInput v-model="form.lugarOrigen" label="Lugar de origen" placeholder="Ciudad/Municipio de origen" help="Ciudad o municipio de procedencia." required />
+              <FormInput v-model="form.celular" label="Celular" type="tel" placeholder="3001234567" help="Número móvil principal de contacto." required />
+              <FormInput v-model="form.telefonoFijo" label="Teléfono fijo" type="tel" placeholder="78074234" help="Teléfono fijo opcional de contacto." />
+              <FormInput v-model="form.correo" label="Correo electrónico" type="email" placeholder="correo@ejemplo.com" help="Correo para comunicaciones institucionales." required span="full" />
             </FormSection>
 
             <FormSection title="Información académica y socioeconómica">
-              <FormSelect v-model="form.nivelEducacion" label="Nivel de educación" placeholder="Selecciona nivel" :options="opcionesNivelEducacion" required />
-              <FormInput v-model="form.ocupacion" label="Ocupación" placeholder="Ocupación actual" required />
-              <FormInput v-model="form.empresa" label="Empresa donde trabaja" placeholder="Nombre de la empresa" />
-              <FormSelect v-model="form.estrato" label="Estrato" placeholder="Selecciona estrato" :options="opcionesEstrato" required />
-              <FormSelect v-model="form.regimenSalud" label="Régimen de salud" placeholder="Selecciona régimen" :options="opcionesRegimenSalud" required />
+              <FormSelect v-model="form.nivelEducacion" label="Nivel de educación" placeholder="Selecciona nivel" help="Último grado o título alcanzado." :options="opcionesNivelEducacion" required />
+              <FormInput v-model="form.ocupacion" label="Ocupación" placeholder="Ocupación actual" help="Actividad laboral o dedicación actual." required />
+              <FormInput v-model="form.empresa" label="Empresa donde trabaja" placeholder="Nombre de la empresa" help="Lugar de trabajo si aplica." />
+              <FormSelect v-model="form.estrato" label="Estrato" placeholder="Selecciona estrato" help="Estrato socioeconómico de vivienda." :options="opcionesEstrato" required />
+              <FormSelect v-model="form.regimenSalud" label="Régimen de salud" placeholder="Selecciona régimen" help="EPS o régimen contributivo/subsidiado." :options="opcionesRegimenSalud" required />
             </FormSection>
 
             <FormSection title="Información médica">
-              <FormSelect v-model="form.enfermedadPrioritaria" label="¿Sufre alguna enfermedad de atención prioritaria?" placeholder="Selecciona opción" :options="opcionesSiNo" required />
-              <FormSelect v-model="form.discapacidad" label="¿Tiene alguna discapacidad?" placeholder="Selecciona opción" :options="opcionesSiNo" required />
+              <FormSelect v-model="form.enfermedadPrioritaria" label="¿Sufre alguna enfermedad de atención prioritaria?" placeholder="Selecciona opción" help="Condiciones que requieren seguimiento médico prioritario." :options="opcionesSiNo" required />
+              <FormSelect v-model="form.discapacidad" label="¿Tiene alguna discapacidad?" placeholder="Selecciona opción" help="Declaración para apoyos de inclusión." :options="opcionesSiNo" required />
             </FormSection>
 
             <FormSection title="Información del curso">
-              <FormSelect v-model="form.curso" label="Curso/Técnica" placeholder="Selecciona un curso" :options="opcionesCurso" required />
-              <FormSelect v-model="form.horario" label="Horario" placeholder="Selecciona horario" :options="opcionesHorario" required />
-              <FormInput v-model="form.fechaIniciacion" label="Fecha de iniciación de clase" type="date" required />
-              <FormSelect v-model="form.conocimientoCurso" label="¿Tiene conocimiento del curso que va a realizar?" placeholder="Selecciona opción" :options="opcionesSiNo" required />
-              <FormSelect v-model="form.comoSeEntero" label="¿Cómo se enteró del curso/técnico?" placeholder="Selecciona opción" :options="opcionesComoSeEntero" required />
-              <FormInput v-model="form.valorCuota" label="Valor costo" placeholder="$0" />
+              <FormSelect v-model="form.curso" label="Curso/Técnica" placeholder="Selecciona un curso" help="Programa al que se matricula." :options="opcionesCurso" required />
+              <FormSelect v-model="form.horario" label="Horario" placeholder="Selecciona horario" help="Jornada o franja del grupo elegido." :options="opcionesHorario" required />
+              <FormInput v-model="form.fechaIniciacion" label="Fecha de iniciación de clase" type="date" help="Fecha prevista de inicio de clases." required />
+              <FormSelect v-model="form.conocimientoCurso" label="¿Tiene conocimiento del curso que va a realizar?" placeholder="Selecciona opción" help="Experiencia previa en la temática del programa." :options="opcionesSiNo" required />
+              <FormSelect v-model="form.comoSeEntero" label="¿Cómo se enteró del curso/técnico?" placeholder="Selecciona opción" help="Canal de captación o referido." :options="opcionesComoSeEntero" required />
+              <FormInput v-model="form.valorCuota" label="Valor costo" placeholder="$0" help="Valor de referencia o cuota informada en matrícula." />
             </FormSection>
 
             <FormSection title="Overol/Botas">
               <p class="mb-2 text-sm text-slate-500 md:col-span-2">
                 (No aplica para soldadura)
               </p>
-              <FormSelect v-model="form.tallaOverol" label="Talla Overol" placeholder="Selecciona talla" :options="opcionesTalla" />
-              <FormInput v-model="form.tallaBotas" label="Talla Botas" placeholder="Ej: 38" />
+              <FormSelect v-model="form.tallaOverol" label="Talla Overol" placeholder="Selecciona talla" help="Talla de dotación de overol." :options="opcionesTalla" />
+              <FormInput v-model="form.tallaBotas" label="Talla Botas" placeholder="Ej: 38" help="Talla de calzado de seguridad si aplica." />
             </FormSection>
 
             <FormSection title="Persona de contacto en caso de emergencia">
-              <FormInput v-model="form.contactoNombre" label="Nombre completo de persona de contacto" placeholder="Nombre completo" required span="full" />
-              <FormInput v-model="form.contactoTelefono" label="Teléfono persona de contacto" type="tel" placeholder="3001234567" required />
-              <FormInput v-model="form.contactoCorreo" label="Correo electrónico persona de contacto" type="email" placeholder="contacto@ejemplo.com" />
+              <FormInput v-model="form.contactoNombre" label="Nombre completo de persona de contacto" placeholder="Nombre completo" help="Familiar o acudiente a contactar en urgencias." required span="full" />
+              <FormInput v-model="form.contactoTelefono" label="Teléfono persona de contacto" type="tel" placeholder="3001234567" help="Teléfono del contacto de emergencia." required />
+              <FormInput v-model="form.contactoCorreo" label="Correo electrónico persona de contacto" type="email" placeholder="contacto@ejemplo.com" help="Correo opcional del contacto de emergencia." />
             </FormSection>
 
             <FormSection title="Aprobaciones y documentos">
-              <FormSelect v-model="form.aprobacionImagen" label="Aprobación uso de imagen" placeholder="Selecciona opción" :options="opcionesSiNo" required />
-              <FormInput v-model="form.nombreAsistente" label="Nombre asistente (Quien realiza la matrícula)" placeholder="Nombre del asistente" required />
+              <FormSelect v-model="form.aprobacionImagen" label="Aprobación uso de imagen" placeholder="Selecciona opción" help="Autorización para fotos o video en actividades." :options="opcionesSiNo" required />
+              <FormInput v-model="form.nombreAsistente" label="Nombre asistente (Quien realiza la matrícula)" placeholder="Nombre del asistente" help="Persona que diligencia el formulario si no es el estudiante." required />
             </FormSection>
 
             <FormSection title="Multiculturalidad">
-              <FormSelect v-model="form.caracterizacionEspecial" label="Caracterización especial" placeholder="Selecciona una opción" :options="opcionesCaracterizacion" span="full" />
+              <FormSelect v-model="form.caracterizacionEspecial" label="Caracterización especial" placeholder="Selecciona una opción" help="Etnia, comunidad u otra caracterización para políticas de inclusión." :options="opcionesCaracterizacion" span="full" />
               <p class="text-sm text-slate-500 md:col-span-2">
                 Información de cara a la inclusión integral del estudiante.
               </p>
@@ -110,6 +113,7 @@
                 description="Captura o sube la foto del estudiante"
                 upload-label="Subir foto"
                 accept="image/*"
+                help="Foto tipo documento para carnet o expediente."
               />
               <FormFileUpload
                 v-model="form.huellaEstudiante"
@@ -117,13 +121,16 @@
                 description="Captura o sube la huella del estudiante"
                 upload-label="Subir archivo"
                 accept="image/*"
+                help="Archivo o captura de huella si el proceso lo exige."
               />
             </FormSection>
 
             <FormSection title="Observaciones" layout="custom">
               <FormTextarea
                 v-model="form.observaciones"
+                label="Observaciones"
                 placeholder="Notas adicionales sobre la matrícula"
+                help="Notas libres para secretaría o bienestar."
                 :rows="4"
               />
             </FormSection>

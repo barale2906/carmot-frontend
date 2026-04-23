@@ -18,6 +18,7 @@
         label="Referencia de consignación"
         placeholder="Ej: 57456456"
         hint="Digita la referencia de la consignación"
+        help="Número o código que aparece en el comprobante bancario."
         required
       />
       <FormInput
@@ -25,6 +26,7 @@
         label="Fecha de consignación"
         type="date"
         :hint="fechaAutomaticaHint"
+        help="Día en que se hizo la consignación a la cuenta institucional."
         required
       />
     </div>

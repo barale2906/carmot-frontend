@@ -34,16 +34,37 @@
         <h2 id="filtros-productos-heading" class="sr-only">Filtros y acciones</h2>
         <div class="flex flex-wrap items-end gap-4">
           <div class="min-w-0 flex-1 sm:max-w-xs">
-            <FormInputSearch v-model="filters.search" label="Buscar:" placeholder="Nombre, código o descripción..." @input="onSearchInput" />
+            <FormInputSearch
+              v-model="filters.search"
+              label="Buscar:"
+              placeholder="Nombre, código o descripción..."
+              help="Filtra productos del catálogo por texto libre."
+              @input="onSearchInput"
+            />
           </div>
           <div class="w-full sm:w-[200px]">
-            <FormSelect v-model="filters.tipo_producto_id" label="Tipo:" :options="tiposFilterOptions" />
+            <FormSelect
+              v-model="filters.tipo_producto_id"
+              label="Tipo:"
+              help="Filtra por categoría de producto LP."
+              :options="tiposFilterOptions"
+            />
           </div>
           <div class="w-full sm:w-[180px]">
-            <FormSelect v-model="filters.referencia_tipo" label="Referencia:" :options="referenciaTipoFilterOptions" />
+            <FormSelect
+              v-model="filters.referencia_tipo"
+              label="Referencia:"
+              help="Filtra si el producto está ligado a curso o módulo."
+              :options="referenciaTipoFilterOptions"
+            />
           </div>
           <div class="w-full sm:w-[160px]">
-            <FormSelect v-model="filters.status" label="Estado:" :options="statusOptions" />
+            <FormSelect
+              v-model="filters.status"
+              label="Estado:"
+              help="Activo o inactivo en el catálogo."
+              :options="statusOptions"
+            />
           </div>
           <div class="flex w-full items-end gap-2 sm:w-auto">
             <button
@@ -181,6 +202,7 @@
             :options="tiposOptions"
             :required="true"
             hint="Categoría del producto. Determina si puede financiarse en cuotas."
+            help="Tipo que define reglas como financiación en listas de precios."
             :error="fieldErrors.tipo_producto_id?.[0]"
           />
           <!-- Indicador de financiabilidad -->
@@ -201,6 +223,7 @@
             label="Nombre *"
             placeholder="Ej: Inglés Avanzado - Matrícula"
             hint="Máximo 255 caracteres."
+            help="Nombre visible del producto en listas de precios y cobros."
             :required="true"
             maxlength="255"
             :error="fieldErrors.nombre?.[0]"
@@ -210,6 +233,7 @@
             label="Código"
             placeholder="Ej: PROD-ING-ADV"
             hint="Opcional. Único. Máximo 100 caracteres."
+            help="Código interno opcional para búsquedas e integraciones."
             maxlength="100"
             :error="fieldErrors.codigo?.[0]"
           />
@@ -227,6 +251,7 @@
             label="Tipo de referencia"
             :options="referenciaTipoOptions"
             hint="Selecciona 'Curso' o 'Módulo' para habilitar el selector."
+            help="Indica si el producto se enlaza a un curso o a un módulo."
             :error="fieldErrors.referencia_tipo?.[0]"
           />
 
@@ -239,6 +264,7 @@
               label="Curso *"
               :options="cursosOptions"
               hint="Curso académico al que se vincula este producto."
+              help="Curso del plan al que pertenece este ítem tarificable."
               :required="true"
               :error="fieldErrors.referencia_id?.[0]"
             />
@@ -253,6 +279,7 @@
               label="Módulo *"
               :options="modulosOptions"
               hint="Módulo académico al que se vincula este producto."
+              help="Módulo del plan al que pertenece este ítem tarificable."
               :required="true"
               :error="fieldErrors.referencia_id?.[0]"
             />
@@ -270,12 +297,14 @@
           label="Descripción"
           placeholder="Descripción opcional del producto..."
           :rows="2"
+          help="Detalle opcional para quienes gestionan el catálogo."
           :error="fieldErrors.descripcion?.[0]"
         />
 
         <FormSelect
           v-model="form.status"
           label="Estado"
+          help="Activo: disponible en selectores; inactivo: oculto en altas nuevas."
           :options="[{ value: 1, label: 'Activo' }, { value: 0, label: 'Inactivo' }]"
         />
 

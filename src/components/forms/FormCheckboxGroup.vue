@@ -1,9 +1,13 @@
 <template>
   <div class="flex flex-col gap-2" :class="fieldClass">
-    <label v-if="label" class="text-sm font-medium text-slate-900">
-      {{ label }}
-      <span v-if="required" class="text-red-500" aria-hidden="true">*</span>
-    </label>
+    <div v-if="label" class="flex flex-wrap items-center gap-1">
+      <span :id="`${groupId}-label`" class="text-sm font-medium text-slate-900">
+        {{ label }}
+        <span v-if="required" class="text-red-500" aria-hidden="true">*</span>
+      </span>
+      <FormFieldHelp v-if="help" :text="help" />
+    </div>
+    <span v-if="help" :id="`${groupId}-help`" class="sr-only">{{ help }}</span>
 
     <slot name="before-search" />
 
@@ -58,11 +62,13 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import FormFieldHelp from '@/components/forms/FormFieldHelp.vue'
 
 const props = defineProps({
   modelValue:        { type: Array,  default: () => [] },
   label:             { type: String, default: '' },
   hint:              { type: String, default: '' },
+  help:              { type: String, default: '' },
   error:             { type: String, default: '' },
   required:          { type: Boolean, default: false },
   searchPlaceholder: { type: String, default: 'Buscar...' },
@@ -75,6 +81,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue'])
+
+const groupId = computed(() => `cbg-${Math.random().toString(36).slice(2, 9)}`)
 
 const filterText = ref('')
 

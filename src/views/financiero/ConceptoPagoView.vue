@@ -38,20 +38,42 @@
               v-model="filters.search"
               label="Buscar:"
               placeholder="Nombre del concepto..."
+              help="Busca por nombre del concepto en el listado actual."
               @input="onSearchInput"
             />
           </div>
 
           <div class="w-full sm:w-[200px]">
-            <FormSelect v-model="filters.tipo" label="Tipo:" :options="tiposFilterOptions" />
+            <FormSelect
+              v-model="filters.tipo"
+              label="Tipo:"
+              help="Filtra por categoría contable del concepto."
+              :options="tiposFilterOptions"
+            />
           </div>
 
           <div class="w-full sm:w-[140px]">
-            <FormInput v-model="filters.valor_min" label="Valor mín:" type="number" placeholder="0" min="0" @change="loadConceptos(1)" />
+            <FormInput
+              v-model="filters.valor_min"
+              label="Valor mín:"
+              type="number"
+              placeholder="0"
+              min="0"
+              help="Límite inferior del valor base en pesos."
+              @change="loadConceptos(1)"
+            />
           </div>
 
           <div class="w-full sm:w-[140px]">
-            <FormInput v-model="filters.valor_max" label="Valor máx:" type="number" placeholder="..." min="0" @change="loadConceptos(1)" />
+            <FormInput
+              v-model="filters.valor_max"
+              label="Valor máx:"
+              type="number"
+              placeholder="..."
+              min="0"
+              help="Límite superior del valor base en pesos."
+              @change="loadConceptos(1)"
+            />
           </div>
 
           <div class="flex w-full items-end gap-2 sm:w-auto">
@@ -213,6 +235,7 @@
         label="Nombre *"
         placeholder="Ej: Matrícula Semestral"
         hint="Máximo 255 caracteres."
+        help="Nombre del concepto tal como aparece al armar cobros y recibos."
         :required="true"
         maxlength="255"
         :error="fieldErrors.nombre?.[0]"
@@ -224,6 +247,7 @@
         :options="tiposOptions"
         :required="true"
         hint="Categoría contable del concepto de cobro."
+        help="Clasificación del cobro para reportes y reglas del sistema."
         :error="fieldErrors.tipo?.[0]"
       />
 
@@ -233,6 +257,7 @@
         type="number"
         placeholder="Ej: 1500000"
         hint="Valor en pesos. Máximo 2 decimales. Se usa como sugerencia al crear recibos."
+        help="Monto de referencia en pesos para este concepto (sugerido en recibos)."
         step="0.01"
         min="0"
         :required="true"

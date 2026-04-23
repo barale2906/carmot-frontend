@@ -33,13 +33,29 @@
         <h2 id="filtros-ciclos-heading" class="sr-only">Filtros y acciones</h2>
         <div class="flex flex-wrap items-end gap-4">
           <div class="min-w-0 flex-1 sm:max-w-xs">
-            <FormInputSearch v-model="filters.search" label="Buscar:" placeholder="Nombre del ciclo..." @input="onSearchInput" />
+            <FormInputSearch
+              v-model="filters.search"
+              label="Buscar:"
+              placeholder="Nombre del ciclo..."
+              help="Filtra ciclos por nombre en el listado."
+              @input="onSearchInput"
+            />
           </div>
           <div class="w-full sm:w-[180px]">
-            <FormSelect v-model="filters.status" label="Estado:" :options="statusOptions" />
+            <FormSelect
+              v-model="filters.status"
+              label="Estado:"
+              help="Activo o inactivo en el catálogo de ciclos."
+              :options="statusOptions"
+            />
           </div>
           <div class="w-full sm:w-[200px]">
-            <FormSelect v-model="filters.sede_id" label="Sede:" :options="filterSedeOptions" />
+            <FormSelect
+              v-model="filters.sede_id"
+              label="Sede:"
+              help="Filtra ciclos dictados en una sede."
+              :options="filterSedeOptions"
+            />
           </div>
           <div class="flex w-full items-end gap-2 sm:w-auto">
             <button v-if="viewTrashed" type="button" class="flex h-9 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="toggleTrashed">
@@ -140,6 +156,7 @@
             label="Nombre"
             placeholder="Ej: Ciclo Inglés 2026-A"
             hint="Máximo 255 caracteres. Debe ser único."
+            help="Nombre visible del ciclo académico."
             :required="true"
             maxlength="255"
           />
@@ -148,14 +165,27 @@
             label="Descripción"
             placeholder="Descripción opcional del ciclo..."
             hint="Máximo 1000 caracteres."
+            help="Detalle opcional para coordinación y reportes."
             :rows="2"
           />
         </div>
 
         <!-- ── Sede y Curso ───────────────────────────────────────────────── -->
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FormSelect v-model="form.sede_id" label="Sede *" :options="formSedeOptions" :required="true" />
-          <FormSelect v-model="form.curso_id" label="Curso *" :options="formCursoOptions" :required="true" />
+          <FormSelect
+            v-model="form.sede_id"
+            label="Sede *"
+            help="Sede donde se imparte el ciclo."
+            :options="formSedeOptions"
+            :required="true"
+          />
+          <FormSelect
+            v-model="form.curso_id"
+            label="Curso *"
+            help="Programa académico base del ciclo."
+            :options="formCursoOptions"
+            :required="true"
+          />
         </div>
 
         <!-- ── Módulos del curso con selección de grupos ──────────────────── -->
@@ -267,9 +297,18 @@
 
         <!-- ── Fechas ─────────────────────────────────────────────────────── -->
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FormInput v-model="form.fecha_inicio" label="Fecha inicio *" type="date" :required="true" />
+          <FormInput
+            v-model="form.fecha_inicio"
+            label="Fecha inicio *"
+            type="date"
+            help="Primer día académico del ciclo."
+            :required="true"
+          />
           <div class="flex flex-col gap-2">
-            <label class="text-sm font-medium text-slate-900">Fecha fin</label>
+            <div class="flex flex-wrap items-center gap-1">
+              <label class="text-sm font-medium text-slate-900">Fecha fin</label>
+              <FormFieldHelp text="Fin del ciclo: manual o calculada sumando duraciones de módulos según grupos." />
+            </div>
             <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
               <input
                 v-model="form.fecha_fin_automatica"
@@ -278,15 +317,34 @@
               />
               Calcular automáticamente según grupos
             </label>
-            <FormInput v-if="!form.fecha_fin_automatica" v-model="form.fecha_fin" label="" type="date" />
+            <FormInput
+              v-if="!form.fecha_fin_automatica"
+              v-model="form.fecha_fin"
+              label="Fecha fin manual"
+              type="date"
+              help="Último día del ciclo si no usas cálculo automático."
+            />
             <p v-else class="text-xs text-slate-500">El sistema sumará la duración de cada módulo según el orden de los grupos asignados.</p>
           </div>
         </div>
 
         <!-- ── Inscritos y Estado ─────────────────────────────────────────── -->
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FormInput v-model="form.inscritos" label="Inscritos" type="number" placeholder="0" min="0" hint="Número de estudiantes inscritos (opcional)." />
-          <FormSelect v-model="form.status" label="Estado" :options="[{ value: 1, label: 'Activo' }, { value: 2, label: 'Inactivo' }]" />
+          <FormInput
+            v-model="form.inscritos"
+            label="Inscritos"
+            type="number"
+            placeholder="0"
+            min="0"
+            hint="Número de estudiantes inscritos (opcional)."
+            help="Conteo orientativo de cupos ocupados (opcional)."
+          />
+          <FormSelect
+            v-model="form.status"
+            label="Estado"
+            help="Activo: visible para matrículas; inactivo: restringido."
+            :options="[{ value: 1, label: 'Activo' }, { value: 2, label: 'Inactivo' }]"
+          />
         </div>
 
         <!-- Errores -->
@@ -509,6 +567,7 @@ import FormInput from '@/components/forms/FormInput.vue'
 import FormTextarea from '@/components/forms/FormTextarea.vue'
 import FormInputSearch from '@/components/forms/FormInputSearch.vue'
 import FormSelect from '@/components/forms/FormSelect.vue'
+import FormFieldHelp from '@/components/forms/FormFieldHelp.vue'
 import NavIcon from '@/components/icons/NavIcon.vue'
 import ModalBase from '@/components/ModalBase.vue'
 import cicloService from '@/services/cicloService.js'

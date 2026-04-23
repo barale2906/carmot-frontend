@@ -44,6 +44,7 @@
             v-model="filters.search"
             label="Buscar:"
             placeholder="Nombre o descripción..."
+            help="Filtra temas por nombre o descripción."
             @input="onSearchInput"
           />
         </div>
@@ -51,6 +52,7 @@
           <FormSelect
             v-model="filters.status"
             label="Estado:"
+            help="Activo o inactivo en el catálogo de temas."
             :options="statusOptions"
           />
         </div>
@@ -209,6 +211,7 @@
             v-model="form.nombre"
             label="Nombre"
             placeholder="Ej: Introducción a HTML"
+            help="Nombre de la unidad mínima de contenido."
             :required="true"
             span="full"
           />
@@ -216,6 +219,7 @@
             v-model="form.descripcion"
             label="Descripción"
             placeholder="Descripción del tema..."
+            help="Detalle del tema para instructores y planificación."
             :required="true"
             :rows="3"
           />
@@ -224,6 +228,7 @@
             label="Duración (horas)"
             type="number"
             placeholder="Ej: 2.5"
+            help="Carga horaria asignada a este tema."
             :required="true"
             min="0.1"
             max="999"
@@ -232,6 +237,7 @@
           <FormSelect
             v-model="form.status"
             label="Estado"
+            help="Activo: asignable a tópicos; inactivo: restringido."
             :options="statusFormOptions"
           />
         </div>

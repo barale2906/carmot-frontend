@@ -44,6 +44,7 @@
             v-model="filters.search"
             label="Buscar:"
             placeholder="Nombre del curso..."
+            help="Filtra cursos por nombre."
             @input="onSearchInput"
           />
         </div>
@@ -51,6 +52,7 @@
           <FormSelect
             v-model="filters.status"
             label="Estado:"
+            help="Activo, inactivo o en papelera según el listado."
             :options="statusOptions"
           />
         </div>
@@ -58,6 +60,7 @@
           <FormSelect
             v-model="filters.tipo"
             label="Tipo:"
+            help="Técnico laboral u otro tipo configurado."
             :options="tipoOptions"
           />
         </div>
@@ -260,6 +263,7 @@
             label="Nombre"
             placeholder="Ej: Técnico en Soldadura"
             hint="Máximo 255 caracteres. Debe ser único."
+            help="Nombre del programa en matrícula y académico."
             :required="true"
             maxlength="255"
             span="full"
@@ -268,18 +272,23 @@
             v-model="form.tipo"
             label="Tipo"
             :options="tipoFormOptions"
+            help="Clasificación del curso (técnico, práctico, etc.)."
             :required="true"
           />
           <FormSelect
             v-model="form.status"
             label="Estado"
+            help="Activo u otro estado según política de oferta."
             :options="statusFormOptions"
           />
         </div>
 
         <!-- Selector de módulos (combobox: escribe para filtrar) -->
         <div class="flex flex-col gap-2">
-          <label class="text-sm font-medium text-slate-900">Módulos</label>
+          <div class="flex flex-wrap items-center gap-1">
+            <label class="text-sm font-medium text-slate-900">Módulos</label>
+            <FormFieldHelp text="Módulos que conforman el curso y su duración agregada." />
+          </div>
 
           <div
             class="relative"
@@ -400,6 +409,7 @@
               :hint="form.moduloIds.length
                 ? `Suma de módulos: ${duracionCalculada}h. Puedes ajustar el valor manualmente.`
                 : 'Obligatorio cuando no hay módulos. Mayor o igual a 0.'"
+              help="Horas totales del curso; con módulos suele ser la suma de ellos."
               min="0"
               step="0.1"
             />
@@ -688,6 +698,7 @@ import StatusBadge from '@/components/activos/StatusBadge.vue'
 import FormInput from '@/components/forms/FormInput.vue'
 import FormInputSearch from '@/components/forms/FormInputSearch.vue'
 import FormSelect from '@/components/forms/FormSelect.vue'
+import FormFieldHelp from '@/components/forms/FormFieldHelp.vue'
 import NavIcon from '@/components/icons/NavIcon.vue'
 import ModalBase from '@/components/ModalBase.vue'
 import cursoService from '@/services/cursoService.js'

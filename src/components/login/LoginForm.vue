@@ -18,9 +18,12 @@
 
     <div class="flex flex-col gap-4">
       <div class="flex flex-col gap-2">
-        <label for="login-email" class="text-sm font-medium leading-[14px] text-[#0a0a0a]">
-          Usuario
-        </label>
+        <div class="flex flex-wrap items-center gap-1">
+          <label for="login-email" class="text-sm font-medium leading-[14px] text-[#0a0a0a]">
+            Usuario
+          </label>
+          <FormFieldHelp text="Correo institucional o usuario asignado para entrar al sistema." />
+        </div>
         <input
           id="login-email"
           v-model="localEmail"
@@ -44,9 +47,12 @@
       </div>
 
       <div class="flex flex-col gap-2">
-        <label for="login-password" class="text-sm font-medium leading-[14px] text-[#0a0a0a]">
-          Contraseña
-        </label>
+        <div class="flex flex-wrap items-center gap-1">
+          <label for="login-password" class="text-sm font-medium leading-[14px] text-[#0a0a0a]">
+            Contraseña
+          </label>
+          <FormFieldHelp text="Clave personal; no la compartas ni la guardes en equipos públicos." />
+        </div>
         <input
           id="login-password"
           v-model="localPassword"
@@ -96,6 +102,7 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
+import FormFieldHelp from '@/components/forms/FormFieldHelp.vue'
 
 const props = defineProps({
   email: { type: String, default: '' },

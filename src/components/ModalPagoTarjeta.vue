@@ -17,6 +17,7 @@
         v-model="porcentajeRecargo"
         label="Porcentaje de recargo (%)"
         placeholder="Selecciona porcentaje"
+        help="Recargo que suma el procesador por pago con tarjeta."
         :options="opcionesPorcentaje"
         required
       />

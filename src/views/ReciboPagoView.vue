@@ -33,17 +33,20 @@
             v-model="form.estudiante"
             label="Estudiante"
             placeholder="Selecciona estudiante"
+            help="Estudiante al que se registra el pago."
             :options="opcionesEstudiantes"
             required
           />
           <FormInput
             v-model="form.documento"
             label="Documento"
+            help="Documento del estudiante (se completa al elegirlo)."
             disabled
           />
           <FormInput
             v-model="form.numeroRecibo"
             label="Número de recibo"
+            help="Consecutivo del recibo (asignado por el sistema)."
             disabled
             required
           />
@@ -53,6 +56,7 @@
             v-model="form.cursoTecnico"
             label="Selecciona el curso/técnico"
             placeholder="Selecciona el programa"
+            help="Programa al que corresponde este cobro."
             :options="opcionesCursos"
             required
             span="full"
@@ -130,6 +134,7 @@
           v-model="form.conceptoPago"
           label="Concepto de pago"
           placeholder="Selecciona concepto"
+          help="Tipo de cobro (matrícula, mensualidad, etc.)."
           :options="opcionesConcepto"
           required
         />
@@ -137,18 +142,21 @@
           v-model="form.fechaPago"
           label="Fecha de pago"
           type="date"
+          help="Día en que se recibió el dinero."
           required
         />
         <FormInput
           v-model="form.valorBase"
           label="Valor base"
           placeholder="0"
+          help="Importe antes de descuentos y recargos."
           required
         />
         <FormSelect
           v-model="form.metodoPago"
           label="Método de pago"
           placeholder="Selecciona método"
+          help="Medio por el cual pagó el estudiante."
           :options="opcionesMetodoPago"
           required
         />
@@ -223,10 +231,12 @@
             v-model="form.porcentajeDescuento"
             label="Porcentaje de descuento (%)"
             placeholder="Ej: 40, 70"
+            help="Porcentaje o base para calcular la rebaja según el tipo elegido."
           />
           <FormInput
             v-model="form.descuentoAplicado"
             label="Descuento aplicado"
+            help="Monto de descuento resultante (solo lectura)."
             disabled
             span="full"
           />
@@ -241,6 +251,7 @@
         <FormInput
           v-model="form.valorTotal"
           label="Valor total a pagar"
+          help="Total final del recibo tras descuentos y ajustes."
           disabled
           span="full"
         />
@@ -252,6 +263,7 @@
           v-model="form.responsable"
           label="Nombre del responsable"
           placeholder="Nombre completo del responsable"
+          help="Persona que elabora o valida el recibo."
           required
           span="full"
         />
@@ -260,7 +272,9 @@
       <FormSection title="Observaciones adicionales" layout="custom">
         <FormTextarea
           v-model="form.observaciones"
+          label="Observaciones"
           placeholder="Notas adicionales sobre el pago (opcional)"
+          help="Comentarios opcionales en el recibo o para tesorería."
           :rows="3"
         />
       </FormSection>

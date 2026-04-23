@@ -44,6 +44,7 @@
             v-model="filters.search"
             label="Buscar:"
             placeholder="Sede, área, día..."
+            help="Filtra franjas por sede, área o día."
             @input="onSearchInput"
           />
         </div>
@@ -52,6 +53,7 @@
             v-model="filters.sede_id"
             label="Sede:"
             placeholder="Todas las sedes"
+            help="Filtra horarios de una sede."
             :options="sedeOptions"
           />
         </div>
@@ -60,6 +62,7 @@
             v-model="filters.area_id"
             label="Área:"
             placeholder="Todas las áreas"
+            help="Filtra por área o taller."
             :options="areaOptions"
           />
         </div>
@@ -68,6 +71,7 @@
             v-model="filters.dia"
             label="Día:"
             placeholder="Todos los días"
+            help="Filtra por día de la semana."
             :options="diaOptions"
           />
         </div>
@@ -241,6 +245,7 @@
             v-model="form.sede_id"
             label="Sede"
             placeholder="Seleccione sede"
+            help="Sede donde aplica esta franja horaria."
             :options="sedeOptions"
             :required="true"
             span="full"
@@ -249,6 +254,7 @@
             v-model="form.area_id"
             label="Área"
             placeholder="Seleccione área"
+            help="Área o espacio dentro de la sede."
             :options="areaOptions"
             :required="true"
           />
@@ -256,6 +262,7 @@
             v-model="form.dia"
             label="Día"
             placeholder="Seleccione día"
+            help="Día de la semana de la franja."
             :options="diaOptions"
             :required="true"
           />
@@ -263,11 +270,15 @@
             v-model="form.hora"
             label="Hora"
             type="time"
+            help="Hora exacta de inicio o fin según el período."
             :required="true"
           />
 
           <div class="flex flex-col gap-2">
-            <label class="text-sm font-medium text-slate-900">Tipo</label>
+            <div class="flex flex-wrap items-center gap-1">
+              <label class="text-sm font-medium text-slate-900">Tipo</label>
+              <FormFieldHelp text="Sede: uso general del espacio; Grupo: ligado a un grupo concreto." />
+            </div>
             <div class="flex gap-3">
               <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
                 <input v-model="form.tipo" type="radio" :value="true" class="accent-[#213360]" />
@@ -281,7 +292,10 @@
           </div>
 
           <div class="flex flex-col gap-2">
-            <label class="text-sm font-medium text-slate-900">Período</label>
+            <div class="flex flex-wrap items-center gap-1">
+              <label class="text-sm font-medium text-slate-900">Período</label>
+              <FormFieldHelp text="Inicio o fin del bloque horario en el calendario." />
+            </div>
             <div class="flex gap-3">
               <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
                 <input v-model="form.periodo" type="radio" :value="true" class="accent-[#213360]" />
@@ -300,6 +314,7 @@
               v-model="form.grupo_nombre"
               label="Nombre del grupo"
               placeholder="Ej: Inglés Básico A1"
+              help="Identificador del grupo cuando el horario es de tipo Grupo."
               span="full"
             />
           </template>
@@ -479,6 +494,7 @@ import StatusBadge from '@/components/activos/StatusBadge.vue'
 import FormInput from '@/components/forms/FormInput.vue'
 import FormInputSearch from '@/components/forms/FormInputSearch.vue'
 import FormSelect from '@/components/forms/FormSelect.vue'
+import FormFieldHelp from '@/components/forms/FormFieldHelp.vue'
 import NavIcon from '@/components/icons/NavIcon.vue'
 import ModalBase from '@/components/ModalBase.vue'
 import horarioService from '@/services/horarioService.js'

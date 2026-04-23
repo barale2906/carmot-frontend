@@ -55,6 +55,7 @@
             v-model="filters.search"
             label="Buscar:"
             placeholder="Nombre del municipio..."
+            help="Filtra municipios por nombre."
             @input="onSearchInput"
           />
         </div>
@@ -63,6 +64,7 @@
             v-model="filters.provincia"
             label="Departamento:"
             placeholder="Todos los departamentos"
+            help="Filtra por departamento (provincia)."
             :options="provinciaOptions"
             @change="onFilterChange"
           />
@@ -72,6 +74,7 @@
             v-model="filters.status"
             label="Estado:"
             placeholder="Todos"
+            help="Activo o inactivo en el catálogo maestro."
             :options="statusOptions"
             @change="onFilterChange"
           />

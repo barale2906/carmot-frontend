@@ -1,9 +1,13 @@
 <template>
   <div class="flex flex-col gap-2" :class="fieldClass">
-    <label v-if="label" class="text-sm font-medium text-slate-900">
-      {{ label }}
-      <span v-if="required" class="text-red-500" aria-hidden="true">*</span>
-    </label>
+    <div v-if="label" class="flex flex-wrap items-center gap-1">
+      <span class="text-sm font-medium text-slate-900">
+        {{ label }}
+        <span v-if="required" class="text-red-500" aria-hidden="true">*</span>
+      </span>
+      <FormFieldHelp v-if="help" :text="help" />
+    </div>
+    <span v-if="help" :id="`${inputId}-help`" class="sr-only">{{ help }}</span>
     <div
       class="flex min-h-[120px] flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-200 bg-slate-50/50 px-4 py-6 transition-colors hover:border-slate-300 hover:bg-slate-50"
       :class="{ 'border-blue-300 bg-blue-50/50': hasFile }"
@@ -24,6 +28,7 @@
         class="sr-only"
         :accept="accept"
         :disabled="disabled"
+        :aria-describedby="ariaDescribedBy"
         v-bind="$attrs"
         @change="handleChange"
       />
@@ -35,14 +40,15 @@
         {{ uploadLabel }}
       </button>
     </div>
-    <p v-if="hint" class="text-xs text-slate-500">
+    <p v-if="hint" :id="`${inputId}-hint`" class="text-xs text-slate-500">
       {{ hint }}
     </p>
   </div>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
+import FormFieldHelp from '@/components/forms/FormFieldHelp.vue'
 
 defineOptions({ inheritAttrs: false })
 
@@ -52,6 +58,7 @@ const props = defineProps({
   description: { type: String, default: 'Captura o sube el archivo' },
   uploadLabel: { type: String, default: 'Subir archivo' },
   hint: { type: String, default: '' },
+  help: { type: String, default: '' },
   required: { type: Boolean, default: false },
   disabled: { type: Boolean, default: false },
   accept: { type: String, default: 'image/*' },
@@ -62,6 +69,13 @@ const emit = defineEmits(['update:modelValue'])
 
 const inputId = computed(() => `file-${Math.random().toString(36).slice(2, 9)}`)
 const fieldClass = computed(() => (props.span === 'full' ? 'md:col-span-2' : ''))
+
+const ariaDescribedBy = computed(() => {
+  const ids = []
+  if (props.hint) ids.push(`${inputId.value}-hint`)
+  if (props.help) ids.push(`${inputId.value}-help`)
+  return ids.length ? ids.join(' ') : undefined
+})
 const hasFile = computed(() => !!props.modelValue)
 
 function triggerFileInput() {

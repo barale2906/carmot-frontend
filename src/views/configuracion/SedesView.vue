@@ -44,6 +44,7 @@
             v-model="filters.search"
             label="Buscar:"
             placeholder="Nombre, email, dirección..."
+            help="Filtra sedes por texto en nombre, correo o dirección."
             @input="onSearchInput"
           />
         </div>
@@ -52,6 +53,7 @@
             v-model="filters.poblacion_id"
             label="Ciudad:"
             placeholder="Todas las ciudades"
+            help="Filtra sedes ubicadas en un municipio."
             :options="poblacionOptions"
           />
         </div>
@@ -221,6 +223,7 @@
             v-model="form.nombre"
             label="Nombre de la sede"
             placeholder="Ej: Sede Norte"
+            help="Nombre comercial o interno de la sede."
             :required="true"
             span="full"
           />
@@ -228,6 +231,7 @@
             v-model="form.direccion"
             label="Dirección"
             placeholder="Ej: Calle 10 # 20-30"
+            help="Ubicación física para contacto y mapas."
             :required="true"
             span="full"
           />
@@ -236,6 +240,7 @@
             label="Teléfono"
             type="tel"
             placeholder="Ej: 3001234567"
+            help="Teléfono principal de contacto de la sede."
             :required="true"
           />
           <FormInput
@@ -243,24 +248,28 @@
             label="Correo electrónico"
             type="email"
             placeholder="sede@carmot.com"
+            help="Correo de la sede para notificaciones y comunicación."
             :required="true"
           />
           <FormInput
             v-model="form.hora_inicio"
             label="Hora apertura"
             type="time"
+            help="Hora en que abre la sede al público (base para horarios)."
             :required="true"
           />
           <FormInput
             v-model="form.hora_fin"
             label="Hora cierre"
             type="time"
+            help="Hora de cierre diario de la sede."
             :required="true"
           />
           <FormSelect
             v-model="form.poblacion_id"
             label="Ciudad"
             placeholder="Seleccione ciudad"
+            help="Municipio donde está la sede."
             :options="poblacionOptions"
             :required="true"
             span="full"
@@ -269,7 +278,10 @@
 
         <!-- Áreas disponibles -->
         <div>
-          <p class="mb-2 text-sm font-medium text-slate-900">Áreas asociadas <span class="text-red-500" aria-hidden="true">*</span></p>
+          <div class="mb-2 flex flex-wrap items-center gap-1">
+            <p class="text-sm font-medium text-slate-900">Áreas asociadas <span class="text-red-500" aria-hidden="true">*</span></p>
+            <FormFieldHelp text="Espacios o talleres disponibles en esta sede para horarios y grupos." />
+          </div>
           <div v-if="availableAreas.length === 0" class="text-xs text-slate-400">
             No hay áreas disponibles.
           </div>
@@ -292,7 +304,10 @@
 
         <!-- Modo de horarios -->
         <div class="rounded-lg border border-black/10 bg-slate-50 p-4">
-          <p class="mb-3 text-sm font-medium text-slate-900">Horarios</p>
+          <div class="mb-3 flex flex-wrap items-center gap-1">
+            <p class="text-sm font-medium text-slate-900">Horarios</p>
+            <FormFieldHelp text="Automático según apertura/cierre por área, o edición manual por franjas." />
+          </div>
           <p
             v-if="editingSede && form.horarios.length > 15 && !form.usarHorariosPersonalizados"
             class="mb-2 text-xs text-slate-500"
@@ -338,6 +353,7 @@
                 v-model="semanarioAreaId"
                 label="Área a editar"
                 placeholder="Selecciona un área"
+                help="Área cuyo calendario semanal editas en modo manual."
                 :options="semanarioAreaOptions"
               />
             </div>
@@ -558,6 +574,7 @@ import StatusBadge from '@/components/activos/StatusBadge.vue'
 import FormInput from '@/components/forms/FormInput.vue'
 import FormInputSearch from '@/components/forms/FormInputSearch.vue'
 import FormSelect from '@/components/forms/FormSelect.vue'
+import FormFieldHelp from '@/components/forms/FormFieldHelp.vue'
 import NavIcon from '@/components/icons/NavIcon.vue'
 import ModalBase from '@/components/ModalBase.vue'
 import SemanarioSedes from '@/components/configuracion/SemanarioSedes.vue'

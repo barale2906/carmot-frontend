@@ -44,6 +44,7 @@
             v-model="filters.search"
             label="Buscar:"
             placeholder="Nombre, email o documento..."
+            help="Filtra usuarios por nombre, correo o documento."
             @input="onSearchInput"
           />
         </div>
@@ -52,6 +53,7 @@
             v-model="filters.rol"
             label="Rol:"
             placeholder="Todos los roles"
+            help="Filtra por rol asignado en el sistema."
             :options="rolOptions"
           />
         </div>
@@ -59,6 +61,7 @@
           <FormSelect
             v-model="filters.estado"
             label="Estado:"
+            help="Activo o inactivo en el listado."
             :options="estadoOptions"
           />
         </div>
@@ -218,6 +221,7 @@
             v-model="form.name"
             label="Nombre completo"
             placeholder="Ej: María López"
+            help="Nombre que verá el usuario y en reportes."
             :required="true"
             span="full"
           />
@@ -226,18 +230,23 @@
             label="Correo electrónico"
             type="email"
             placeholder="correo@ejemplo.com"
+            help="Correo único para iniciar sesión y notificaciones."
             :required="true"
           />
           <FormInput
             v-model="form.documento"
             label="Documento"
             placeholder="Número de documento"
+            help="Identificación oficial del usuario."
             :required="true"
           />
           <div class="flex flex-col gap-2">
-            <label class="text-sm font-medium text-slate-900">
-              Rol <span class="text-red-500" aria-hidden="true">*</span>
-            </label>
+            <div class="flex flex-wrap items-center gap-1">
+              <label class="text-sm font-medium text-slate-900">
+                Rol <span class="text-red-500" aria-hidden="true">*</span>
+              </label>
+              <FormFieldHelp text="Permisos y menús que tendrá el usuario en la aplicación." />
+            </div>
             <select
               v-model="form.rol"
               class="w-full appearance-none rounded-lg border-0 bg-[#f3f3f5] px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -261,12 +270,14 @@
               placeholder="Mín. 8 caracteres"
               :required="true"
               :hint="'Al menos 8 caracteres, mayúscula, número y símbolo.'"
+              help="Clave de acceso inicial del usuario."
             />
             <FormInput
               v-model="form.password_confirmation"
               label="Confirmar contraseña"
               type="password"
               placeholder="Repite la contraseña"
+              help="Debe coincidir exactamente con la contraseña."
               :required="true"
             />
           </template>
@@ -282,12 +293,14 @@
               label="Nueva contraseña"
               type="password"
               placeholder="Dejar vacío para no cambiar"
+              help="Solo completa si deseas cambiar la clave actual."
             />
             <FormInput
               v-model="form.password_confirmation"
               label="Confirmar contraseña"
               type="password"
               placeholder="Repite la contraseña"
+              help="Repite la nueva contraseña si la cambias."
             />
           </template>
         </div>
@@ -471,6 +484,7 @@ import StatusBadge from '@/components/activos/StatusBadge.vue'
 import FormInput from '@/components/forms/FormInput.vue'
 import FormInputSearch from '@/components/forms/FormInputSearch.vue'
 import FormSelect from '@/components/forms/FormSelect.vue'
+import FormFieldHelp from '@/components/forms/FormFieldHelp.vue'
 import NavIcon from '@/components/icons/NavIcon.vue'
 import ModalBase from '@/components/ModalBase.vue'
 import userService from '@/services/userService.js'
