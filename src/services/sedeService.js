@@ -51,6 +51,11 @@ const sedeService = {
   async getStatistics() {
     const { data } = await api.get(`${BASE}/statistics`)
     return data
+  },
+
+  async getActivas(params = {}) {
+    const { data } = await api.get(`${BASE}/activas`, { params })
+    return data
   }
 }
 

@@ -1,70 +1,528 @@
 <template>
   <div class="flex flex-col gap-6">
 
-    <!-- Aviso informativo -->
-    <div class="flex items-start gap-3 rounded-[14px] border border-amber-200 bg-amber-50 p-4">
-      <NavIcon name="pendientes" class="mt-0.5 size-4 shrink-0 text-amber-600" />
-      <p class="text-sm text-amber-800">
-        Los roles y permisos del sistema son un catálogo definido a nivel del servidor.
-        Para asignar un rol a un usuario, edítalo desde el módulo de
-        <RouterLink to="/configuracion/usuarios" class="font-medium underline">Usuarios</RouterLink>.
-      </p>
-    </div>
-
-    <!-- Tarjetas de roles -->
-    <section aria-labelledby="roles-heading">
-      <SectionHeader
-        id="roles-heading"
-        title="Roles del sistema"
-        description="Cada rol define el conjunto de acciones que un usuario puede realizar en el sistema."
-        class="mb-4"
-      />
-      <ul class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" role="list">
-        <li
-          v-for="rol in roles"
-          :key="rol.name"
-          role="listitem"
-        >
-          <article class="flex flex-col gap-3 rounded-[14px] border border-black/10 bg-white p-5">
-            <div class="flex items-center gap-3">
-              <span
-                class="flex size-9 items-center justify-center rounded-full"
-                :class="rol.badgeClass"
-              >
-                <NavIcon :name="rol.icon" class="size-4" />
-              </span>
-              <div class="min-w-0 flex-1">
-                <h3 class="text-sm font-semibold capitalize text-slate-900">{{ rol.name }}</h3>
-                <p class="mt-0.5 text-xs text-slate-500">{{ rol.descripcion }}</p>
-              </div>
-              <span
-                class="ml-auto flex h-6 min-w-[40px] items-center justify-center rounded-full px-2 text-xs font-medium"
-                :class="rol.badgeClass"
-              >
-                {{ rol.permisoCount }} permisos
-              </span>
-            </div>
-            <div class="flex flex-wrap gap-1">
-              <span
-                v-for="modulo in rol.modulos"
-                :key="modulo"
-                class="inline-flex items-center rounded-full border border-current/20 px-2 py-0.5 text-xs font-medium"
-                :class="rol.tagClass"
-              >
-                {{ modulo }}
-              </span>
-            </div>
-          </article>
+    <!-- Estadísticas -->
+    <section aria-labelledby="stats-roles-heading">
+      <h2 id="stats-roles-heading" class="sr-only">Resumen de roles</h2>
+      <ul class="grid grid-cols-1 gap-4 sm:grid-cols-3" role="list">
+        <li role="listitem">
+          <StatCard
+            title="Total roles"
+            :value="stats.total"
+            description="Definidos en el sistema"
+            icon="security"
+            icon-variant="blue"
+          />
+        </li>
+        <li role="listitem">
+          <StatCard
+            title="Activos"
+            :value="stats.activos"
+            description="Disponibles para asignar"
+            icon="people"
+            icon-variant="blue"
+          />
+        </li>
+        <li role="listitem">
+          <StatCard
+            title="Inactivos"
+            :value="stats.inactivos"
+            description="Deshabilitados temporalmente"
+            icon="pendientes"
+            icon-variant="blue"
+          />
         </li>
       </ul>
     </section>
 
-    <!-- Matriz de permisos por módulo -->
+    <!-- Barra de filtros y acciones -->
+    <section aria-labelledby="filtros-roles-heading" class="rounded-[14px] border border-black/10 bg-white p-6">
+      <h2 id="filtros-roles-heading" class="sr-only">Filtros y acciones</h2>
+      <div class="flex flex-wrap items-end gap-4">
+        <div class="min-w-0 flex-1 sm:max-w-xs">
+          <FormInputSearch
+            v-model="filters.search"
+            label="Buscar:"
+            placeholder="Nombre del rol..."
+            help="Filtra roles por nombre."
+            @input="onSearchInput"
+          />
+        </div>
+        <div class="w-full sm:w-[180px]">
+          <FormSelect
+            v-model="filters.status"
+            label="Estado:"
+            help="Activo o inactivo."
+            :options="statusOptions"
+          />
+        </div>
+        <div class="flex w-full items-end sm:w-auto">
+          <button
+            type="button"
+            class="flex h-9 items-center gap-2 rounded-lg bg-[#213360] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            @click="openCreate"
+          >
+            <NavIcon name="plus" class="size-4" />
+            Nuevo rol
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tabla de roles -->
+    <section aria-labelledby="listado-roles-heading">
+      <SectionHeader
+        id="listado-roles-heading"
+        title="Roles del sistema"
+        description="Cada rol define el conjunto de acciones que un usuario puede realizar."
+        class="mb-4"
+      />
+
+      <div v-if="loading" class="flex items-center justify-center rounded-[14px] border border-black/10 bg-white py-16">
+        <span class="text-sm text-slate-500">Cargando roles...</span>
+      </div>
+
+      <div v-else-if="error" class="rounded-[14px] border border-red-200 bg-red-50 p-6">
+        <p class="text-sm text-red-700">{{ error }}</p>
+        <button
+          type="button"
+          class="mt-3 text-sm font-medium text-red-700 underline"
+          @click="loadRoles"
+        >
+          Reintentar
+        </button>
+      </div>
+
+      <DataTable
+        v-else
+        :columns="tableColumns"
+        :data="rolesFiltrados"
+        row-key="id"
+        aria-label="Listado de roles del sistema"
+      >
+        <template #cell="{ column, value, row }">
+          <template v-if="column.key === 'name'">
+            <span class="font-medium capitalize text-slate-900">{{ value }}</span>
+          </template>
+          <template v-else-if="column.key === 'status'">
+            <StatusBadge
+              :label="row.status ? 'Activo' : 'Inactivo'"
+              :variant="row.status ? 'activo' : 'inactivo'"
+            />
+          </template>
+          <template v-else-if="column.key === 'permissions_count'">
+            <span class="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+              {{ value ?? row.permissions?.length ?? 0 }}
+            </span>
+          </template>
+          <template v-else-if="column.key === 'users_count'">
+            <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
+              {{ value ?? 0 }}
+            </span>
+          </template>
+          <template v-else-if="column.key === 'created_at'">
+            {{ formatDate(value) }}
+          </template>
+          <template v-else>
+            {{ value ?? '—' }}
+          </template>
+        </template>
+
+        <template #actions="{ row }">
+          <button
+            type="button"
+            class="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            title="Ver detalle"
+            @click="openDetail(row)"
+          >
+            <NavIcon name="eye" class="size-4" />
+          </button>
+          <button
+            type="button"
+            class="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            title="Editar"
+            @click="openEdit(row)"
+          >
+            <NavIcon name="pencil" class="size-4" />
+          </button>
+          <button
+            type="button"
+            class="rounded p-1.5 transition-colors focus:outline-none focus:ring-2"
+            :class="row.status
+              ? 'text-slate-500 hover:bg-red-100 hover:text-red-700 focus:ring-red-500'
+              : 'text-slate-500 hover:bg-green-100 hover:text-green-700 focus:ring-green-500'"
+            :title="row.status ? 'Desactivar' : 'Activar'"
+            @click="confirmToggle(row)"
+          >
+            <NavIcon :name="row.status ? 'close' : 'track_changes'" class="size-4" />
+          </button>
+          <button
+            type="button"
+            class="rounded p-1.5 text-slate-500 transition-colors hover:bg-red-100 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+            title="Eliminar"
+            @click="openEliminar(row)"
+          >
+            <NavIcon name="trash" class="size-4" />
+          </button>
+        </template>
+      </DataTable>
+    </section>
+
+    <!-- ── Modal: Crear / Editar rol ──────────────────────────────────────────── -->
+    <ModalBase
+      v-model="showFormModal"
+      size="xl"
+      :title="editingRol ? 'Editar rol' : 'Nuevo rol'"
+      :description="editingRol ? 'Modifica el nombre, estado y permisos del rol.' : 'Define el nombre y los permisos del nuevo rol.'"
+    >
+      <template #icon>
+        <span class="flex size-5 shrink-0 items-center justify-center text-[#213360]">
+          <NavIcon name="security" class="size-5" />
+        </span>
+      </template>
+
+      <form class="flex flex-col gap-5 pb-2" @submit.prevent="submitForm">
+        <!-- Nombre + Estado -->
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FormInput
+            v-model="form.name"
+            label="Nombre del rol"
+            placeholder="Ej: supervisor"
+            help="Identificador único del rol en el sistema (sin espacios, minúsculas)."
+            :required="true"
+          />
+
+          <!-- Toggle de estado -->
+          <div class="flex items-center gap-3 rounded-lg bg-[#f3f3f5] px-3 py-2.5">
+            <button
+              type="button"
+              role="switch"
+              :aria-checked="form.status"
+              class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+              :class="form.status ? 'bg-[#213360]' : 'bg-slate-300'"
+              @click="form.status = !form.status"
+            >
+              <span
+                class="pointer-events-none inline-block size-4 rounded-full bg-white shadow transition-transform"
+                :class="form.status ? 'translate-x-4' : 'translate-x-0'"
+              />
+            </button>
+            <span class="text-sm font-medium text-slate-700">
+              {{ form.status ? 'Rol activo' : 'Rol inactivo' }}
+            </span>
+            <FormFieldHelp text="Un rol inactivo no puede asignarse a nuevos usuarios." />
+          </div>
+        </div>
+
+        <!-- Permisos por módulo con checkboxes -->
+        <div class="flex flex-col gap-3">
+          <!-- Cabecera: título + búsqueda + contador + limpiar todo -->
+          <div class="flex flex-wrap items-center gap-3">
+            <div class="flex items-center gap-1">
+              <span class="text-sm font-medium text-slate-900">Permisos</span>
+              <FormFieldHelp text="Marca los permisos que tendrá este rol. Se sincronizan completamente al guardar." />
+            </div>
+            <span class="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+              {{ form.permissions.length }} seleccionado{{ form.permissions.length !== 1 ? 's' : '' }}
+            </span>
+            <div class="ml-auto flex items-center gap-3">
+              <div class="relative">
+                <input
+                  v-model="permisosSearch"
+                  type="text"
+                  placeholder="Buscar permiso..."
+                  class="w-44 rounded-lg border-0 bg-[#f3f3f5] px-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <button
+                type="button"
+                class="text-xs text-slate-500 hover:text-slate-700 hover:underline focus:outline-none"
+                @click="form.permissions.splice(0)"
+              >
+                Limpiar todo
+              </button>
+            </div>
+          </div>
+
+          <!-- Estado de carga -->
+          <div v-if="permisosLoading" class="py-6 text-center text-sm text-slate-400">
+            Cargando permisos del sistema...
+          </div>
+
+          <!-- Grid de módulos -->
+          <div
+            v-else
+            class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
+          >
+            <div
+              v-for="grupo in permisosAgrupadosTodos"
+              :key="grupo.nombre"
+              class="rounded-lg border border-black/10 bg-white overflow-hidden"
+            >
+              <!-- Cabecera del módulo -->
+              <div class="flex items-center justify-between border-b border-black/8 bg-slate-50 px-3 py-2">
+                <div class="flex items-center gap-1.5">
+                  <NavIcon :name="grupo.icon" class="size-3.5 text-[#213360]" />
+                  <span class="text-xs font-semibold text-slate-700">{{ grupo.nombre }}</span>
+                  <span class="rounded-full bg-white px-1.5 py-0.5 text-[10px] font-medium text-slate-500 border border-black/10">
+                    {{ grupo.permisos.filter(p => form.permissions.includes(p.name)).length }}/{{ grupo.permisos.length }}
+                  </span>
+                </div>
+                <div class="flex gap-2 text-[10px]">
+                  <button
+                    type="button"
+                    class="text-blue-600 hover:underline focus:outline-none"
+                    @click="toggleModulo(grupo.permisos, true)"
+                  >
+                    Todos
+                  </button>
+                  <button
+                    type="button"
+                    class="text-slate-400 hover:underline focus:outline-none"
+                    @click="toggleModulo(grupo.permisos, false)"
+                  >
+                    Ninguno
+                  </button>
+                </div>
+              </div>
+
+              <!-- Lista de checkboxes -->
+              <div class="max-h-56 overflow-y-auto divide-y divide-slate-50">
+                <label
+                  v-for="p in grupo.permisos"
+                  :key="p.name"
+                  class="flex cursor-pointer items-start gap-2.5 px-3 py-2 transition-colors hover:bg-slate-50"
+                  :class="{ 'bg-blue-50/60': form.permissions.includes(p.name) }"
+                >
+                  <input
+                    type="checkbox"
+                    :value="p.name"
+                    :checked="form.permissions.includes(p.name)"
+                    class="mt-0.5 size-3.5 shrink-0 rounded border-slate-300 accent-[#213360] focus:ring-blue-500"
+                    @change="togglePermiso(p.name)"
+                  />
+                  <div class="min-w-0">
+                    <p class="text-xs leading-tight text-slate-700">{{ p.descripcion || p.name }}</p>
+                    <code class="text-[9px] text-slate-400">{{ p.name }}</code>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <p v-if="fieldErrors['permissions']?.[0]" class="text-xs text-red-600">
+            {{ fieldErrors['permissions'][0] }}
+          </p>
+        </div>
+
+        <div v-if="formError" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+          {{ formError }}
+        </div>
+
+        <div v-if="fieldErrors && Object.keys(fieldErrors).length > 0" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+          <ul class="list-inside list-disc space-y-1">
+            <li v-for="(msgs, field) in fieldErrors" :key="field">
+              <strong>{{ field }}:</strong> {{ Array.isArray(msgs) ? msgs.join(', ') : msgs }}
+            </li>
+          </ul>
+        </div>
+      </form>
+
+      <template #footer>
+        <button
+          type="button"
+          class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          @click="showFormModal = false"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          :disabled="formLoading"
+          class="flex items-center gap-2 rounded-lg bg-[#213360] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          @click="submitForm"
+        >
+          <span v-if="formLoading">Guardando...</span>
+          <span v-else>{{ editingRol ? 'Guardar cambios' : 'Crear rol' }}</span>
+        </button>
+      </template>
+    </ModalBase>
+
+    <!-- ── Modal: Confirmar toggle status ─────────────────────────────────────── -->
+    <ModalBase
+      v-model="showToggleModal"
+      :title="targetRol?.status ? 'Desactivar rol' : 'Activar rol'"
+      :description="targetRol?.status
+        ? 'El rol quedará inactivo y no podrá asignarse a nuevos usuarios.'
+        : 'El rol volverá a estar disponible para asignarse a usuarios.'"
+    >
+      <div class="pb-2">
+        <p class="text-sm text-slate-700">
+          ¿Confirmas
+          <strong>{{ targetRol?.status ? 'desactivar' : 'activar' }}</strong>
+          el rol <strong class="capitalize">{{ targetRol?.name }}</strong>?
+        </p>
+        <div v-if="actionError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+          {{ actionError }}
+        </div>
+      </div>
+      <template #footer>
+        <button
+          type="button"
+          class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          @click="showToggleModal = false"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          :disabled="actionLoading"
+          class="rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors disabled:opacity-60 focus:outline-none focus:ring-2"
+          :class="targetRol?.status
+            ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
+            : 'bg-green-600 hover:bg-green-700 focus:ring-green-500'"
+          @click="doToggle"
+        >
+          {{ actionLoading ? 'Procesando...' : (targetRol?.status ? 'Desactivar' : 'Activar') }}
+        </button>
+      </template>
+    </ModalBase>
+
+    <!-- ── Modal: Confirmar eliminar ─────────────────────────────────────────── -->
+    <ModalBase
+      v-model="showEliminarModal"
+      title="Eliminar rol"
+      description="Esta acción es irreversible. El rol se eliminará permanentemente."
+    >
+      <div class="pb-2">
+        <p class="text-sm text-slate-700">
+          ¿Estás seguro de eliminar el rol <strong class="capitalize">{{ targetRol?.name }}</strong>?
+        </p>
+        <p v-if="(targetRol?.users_count ?? 0) > 0" class="mt-2 text-sm text-amber-700">
+          Este rol tiene <strong>{{ targetRol.users_count }}</strong> usuario(s) asignado(s). El backend rechazará la eliminación.
+        </p>
+        <div v-if="actionError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+          {{ actionError }}
+        </div>
+      </div>
+      <template #footer>
+        <button
+          type="button"
+          class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          @click="showEliminarModal = false"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          :disabled="actionLoading"
+          class="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-red-500"
+          @click="doEliminar"
+        >
+          {{ actionLoading ? 'Eliminando...' : 'Eliminar' }}
+        </button>
+      </template>
+    </ModalBase>
+
+    <!-- ── Modal: Detalle de rol ──────────────────────────────────────────────── -->
+    <ModalBase
+      v-model="showDetailModal"
+      size="xl"
+      title="Detalle del rol"
+    >
+      <template #icon>
+        <span class="flex size-5 shrink-0 items-center justify-center text-[#213360]">
+          <NavIcon name="security" class="size-5" />
+        </span>
+      </template>
+
+      <div v-if="detailRol" class="space-y-5 pb-4">
+        <!-- Resumen de propiedades -->
+        <dl class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-4">
+          <div>
+            <dt class="font-medium text-slate-500">Nombre</dt>
+            <dd class="mt-0.5 font-semibold capitalize text-slate-900">{{ detailRol.name }}</dd>
+          </div>
+          <div>
+            <dt class="font-medium text-slate-500">Estado</dt>
+            <dd class="mt-0.5">
+              <StatusBadge
+                :label="detailRol.status ? 'Activo' : 'Inactivo'"
+                :variant="detailRol.status ? 'activo' : 'inactivo'"
+              />
+            </dd>
+          </div>
+          <div>
+            <dt class="font-medium text-slate-500">Permisos</dt>
+            <dd class="mt-0.5 text-slate-900">{{ detailRol.permissions_count ?? detailRol.permissions?.length ?? 0 }}</dd>
+          </div>
+          <div>
+            <dt class="font-medium text-slate-500">Usuarios</dt>
+            <dd class="mt-0.5 text-slate-900">{{ detailRol.users_count ?? 0 }}</dd>
+          </div>
+          <div>
+            <dt class="font-medium text-slate-500">Creado</dt>
+            <dd class="mt-0.5 text-slate-900">{{ formatDate(detailRol.created_at) }}</dd>
+          </div>
+          <div>
+            <dt class="font-medium text-slate-500">Actualizado</dt>
+            <dd class="mt-0.5 text-slate-900">{{ formatDate(detailRol.updated_at) }}</dd>
+          </div>
+        </dl>
+
+        <div class="border-t border-black/8" />
+
+        <!-- Permisos por módulo en columnas -->
+        <div>
+          <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Permisos asignados
+          </p>
+
+          <div v-if="permisosDetalleAgrupados.length" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div
+              v-for="grupo in permisosDetalleAgrupados"
+              :key="grupo.nombre"
+              class="rounded-lg border border-black/10 bg-white overflow-hidden"
+            >
+              <!-- Cabecera del módulo -->
+              <div class="flex items-center gap-1.5 border-b border-black/8 bg-slate-50 px-3 py-2">
+                <NavIcon :name="grupo.icon" class="size-3.5 text-[#213360]" />
+                <span class="text-xs font-semibold text-slate-700">{{ grupo.nombre }}</span>
+                <span class="ml-auto rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">
+                  {{ grupo.permisos.length }}
+                </span>
+              </div>
+
+              <!-- Lista de permisos con check -->
+              <ul class="max-h-56 overflow-y-auto divide-y divide-slate-50">
+                <li
+                  v-for="p in grupo.permisos"
+                  :key="p.name"
+                  class="flex items-start gap-2 px-3 py-2"
+                >
+                  <svg class="mt-0.5 size-3.5 shrink-0 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <div class="min-w-0">
+                    <p class="text-xs leading-tight text-slate-700">{{ p.descripcion || p.name }}</p>
+                    <code class="text-[9px] text-slate-400">{{ p.name }}</code>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <p v-else class="text-sm text-slate-400">Sin permisos asignados.</p>
+        </div>
+      </div>
+    </ModalBase>
+
+    <!-- ── Matriz de permisos (referencia) ────────────────────────────────────── -->
     <section aria-labelledby="matriz-heading">
       <SectionHeader
         id="matriz-heading"
         title="Matriz de permisos por módulo"
-        description="Acciones habilitadas para cada rol en cada módulo del sistema."
+        description="Referencia de las acciones habilitadas para cada rol cargado desde el sistema."
         class="mb-4"
       />
 
@@ -102,8 +560,8 @@
                       Permiso
                     </th>
                     <th
-                      v-for="rol in rolesHeader"
-                      :key="rol.name"
+                      v-for="rol in rolesMatriz"
+                      :key="rol.id ?? rol.name"
                       scope="col"
                       class="px-3 py-2.5 text-center text-xs font-medium text-slate-500"
                     >
@@ -124,12 +582,12 @@
                       </div>
                     </td>
                     <td
-                      v-for="rol in rolesHeader"
-                      :key="rol.name"
+                      v-for="rol in rolesMatriz"
+                      :key="rol.id ?? rol.name"
                       class="px-3 py-2.5 text-center"
                     >
                       <span
-                        v-if="tienePermiso(rol.name, permiso.key)"
+                        v-if="rolTienePermiso(rol, permiso.key)"
                         class="inline-flex items-center justify-center"
                         :aria-label="`${rol.name} tiene ${permiso.key}`"
                       >
@@ -155,177 +613,327 @@
         </div>
       </div>
     </section>
+
   </div>
 </template>
 
 <script setup>
-import { reactive } from 'vue'
-import { RouterLink } from 'vue-router'
+import { ref, reactive, computed, watch } from 'vue'
+import { onMounted } from 'vue'
+import StatCard from '@/components/dashboard/StatCard.vue'
+import DataTable from '@/components/activos/DataTable.vue'
 import SectionHeader from '@/components/activos/SectionHeader.vue'
+import StatusBadge from '@/components/activos/StatusBadge.vue'
+import FormInput from '@/components/forms/FormInput.vue'
+import FormInputSearch from '@/components/forms/FormInputSearch.vue'
+import FormSelect from '@/components/forms/FormSelect.vue'
+import FormFieldHelp from '@/components/forms/FormFieldHelp.vue'
 import NavIcon from '@/components/icons/NavIcon.vue'
+import ModalBase from '@/components/ModalBase.vue'
+import roleService from '@/services/roleService.js'
+import { useNotification } from '@/composables/useNotification'
 
-// ─── Catálogo de roles (fijo por seeder del backend) ─────────────────────────
-const roles = [
-  {
-    name: 'superusuario',
-    descripcion: 'Acceso total al sistema, incluyendo gestión de usuarios.',
-    icon: 'security',
-    badgeClass: 'bg-purple-100 text-purple-700',
-    tagClass: 'text-purple-700 bg-purple-50',
-    modulos: ['Configuración', 'CRM', 'Académico', 'Financiero'],
-    permisoCount: '∞'
-  },
-  {
-    name: 'financiero',
-    descripcion: 'Módulo financiero, CRM y configuración básica.',
-    icon: 'payments',
-    badgeClass: 'bg-blue-100 text-blue-700',
-    tagClass: 'text-blue-700 bg-blue-50',
-    modulos: ['Financiero', 'CRM', 'Académico'],
-    permisoCount: 40
-  },
-  {
-    name: 'coordinador',
-    descripcion: 'Módulo académico, CRM y configuración básica.',
-    icon: 'school',
-    badgeClass: 'bg-teal-100 text-teal-700',
-    tagClass: 'text-teal-700 bg-teal-50',
-    modulos: ['Académico', 'CRM', 'Financiero'],
-    permisoCount: 40
-  },
-  {
-    name: 'profesor',
-    descripcion: 'Gestión de grupos, notas y asistencias.',
-    icon: 'book',
-    badgeClass: 'bg-green-100 text-green-700',
-    tagClass: 'text-green-700 bg-green-50',
-    modulos: ['Académico'],
-    permisoCount: 10
-  },
-  {
-    name: 'auxiliar',
-    descripcion: 'CRM operativo y módulo financiero (recibos).',
-    icon: 'contacts',
-    badgeClass: 'bg-amber-100 text-amber-700',
-    tagClass: 'text-amber-700 bg-amber-50',
-    modulos: ['CRM', 'Financiero'],
-    permisoCount: 12
-  },
-  {
-    name: 'alumno',
-    descripcion: 'Solo lectura de sus propias notas, asistencias y recibos.',
-    icon: 'estudiantes',
-    badgeClass: 'bg-slate-100 text-slate-600',
-    tagClass: 'text-slate-600 bg-slate-50',
-    modulos: ['Académico (lectura)'],
-    permisoCount: 4
+const { success: notifySuccess, error: notifyError } = useNotification()
+
+// ─── Estado principal ──────────────────────────────────────────────────────────
+const roles = ref([])
+const loading = ref(false)
+const error = ref('')
+const allPermisos = ref([])
+const permisosLoading = ref(false)
+
+// ─── Estadísticas computadas ──────────────────────────────────────────────────
+const stats = computed(() => ({
+  total: roles.value.length,
+  activos: roles.value.filter((r) => r.status).length,
+  inactivos: roles.value.filter((r) => !r.status).length
+}))
+
+// ─── Filtros ──────────────────────────────────────────────────────────────────
+const filters = reactive({ search: '', status: '' })
+let searchTimer = null
+
+const statusOptions = [
+  { value: '', label: 'Todos' },
+  { value: '1', label: 'Activos' },
+  { value: '0', label: 'Inactivos' }
+]
+
+watch(() => filters.status, () => loadRoles())
+
+function onSearchInput() {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => loadRoles(), 400)
+}
+
+// Roles filtrados en cliente (los cargamos todos con per_page=0)
+const rolesFiltrados = computed(() => {
+  let lista = roles.value
+  if (filters.search) {
+    const q = filters.search.toLowerCase()
+    lista = lista.filter((r) => r.name.toLowerCase().includes(q))
   }
+  if (filters.status === '1') lista = lista.filter((r) => r.status)
+  if (filters.status === '0') lista = lista.filter((r) => !r.status)
+  return lista
+})
+
+// ─── Columnas de la tabla ─────────────────────────────────────────────────────
+const tableColumns = [
+  { key: 'name', label: 'Nombre' },
+  { key: 'permissions_count', label: 'Permisos' },
+  { key: 'users_count', label: 'Usuarios' },
+  { key: 'status', label: 'Estado' },
+  { key: 'created_at', label: 'Creado' }
 ]
 
-const rolesHeader = [
-  { name: 'superusuario' },
-  { name: 'financiero' },
-  { name: 'coordinador' },
-  { name: 'profesor' },
-  { name: 'auxiliar' },
-  { name: 'alumno' }
-]
-
-// ─── Catálogo de permisos por módulo (desde documentación del backend) ────────
-const PERMISOS_POR_ROL = {
-  superusuario: new Set([
-    'co_users', 'co_userCrear', 'co_userEditar', 'co_userInactivar', 'co_usersPerfil',
-    'co_poblaciones', 'co_poblacionInactivar', 'co_sedes', 'co_sedeCrear', 'co_sedeEditar', 'co_sedeInactivar',
-    'co_areas', 'co_areaCrear', 'co_areaEditar', 'co_areaInactivar',
-    'co_horarios', 'co_horarioCrear', 'co_horarioEditar', 'co_horarioInactivar',
-    'crm_referidos', 'crm_referidoCrear', 'crm_referidoEditar', 'crm_referidoInactivar',
-    'crm_seguimientos', 'crm_seguimientoCrear', 'crm_seguimientoEditar', 'crm_seguimientoInactivar',
-    'crm_agendas', 'crm_agendaCrear', 'crm_agendaEditar', 'crm_agendaInactivar',
-    'aca_cursos', 'aca_cursoCrear', 'aca_cursoEditar', 'aca_cursoInactivar',
-    'aca_modulos', 'aca_moduloCrear', 'aca_moduloEditar', 'aca_moduloInactivar',
-    'aca_grupos', 'aca_grupoCrear', 'aca_grupoEditar', 'aca_grupoInactivar',
-    'aca_matriculas', 'aca_matriculaCrear', 'aca_matriculaEditar', 'aca_matriculaInactivar',
-    'aca_esquemas', 'aca_esquemaCrear', 'aca_esquemaEditar', 'aca_esquemaInactivar',
-    'aca_notas', 'aca_notaCrear', 'aca_notaEditar', 'aca_notaInactivar',
-    'aca_asistencias', 'aca_asistenciaCrear', 'aca_asistenciaEditar', 'aca_asistenciaInactivar',
-    'aca_asistenciaReportes', 'aca_claseProgramar', 'aca_configuracionAsistencia',
-    'fin_lp_tipos_producto', 'fin_lp_tipoProductoCrear', 'fin_lp_tipoProductoEditar', 'fin_lp_tipoProductoInactivar',
-    'fin_lp_productos', 'fin_lp_productoCrear', 'fin_lp_productoEditar', 'fin_lp_productoInactivar',
-    'fin_lp_listas_precios', 'fin_lp_listaPrecioCrear', 'fin_lp_listaPrecioEditar', 'fin_lp_listaPrecioInactivar', 'fin_lp_listaPrecioAprobar',
-    'fin_conceptos_pago', 'fin_conceptoPagoCrear', 'fin_conceptoPagoEditar', 'fin_conceptoPagoInactivar',
-    'fin_descuentos', 'fin_descuentoCrear', 'fin_descuentoEditar', 'fin_descuentoInactivar', 'fin_descuentoAprobar', 'fin_descuentoAplicar', 'fin_descuentoHistorial',
-    'fin_recibos_pago', 'fin_reciboPagoCrear', 'fin_reciboPagoEditar', 'fin_reciboPagoAnular', 'fin_reciboPagoCerrar', 'fin_reciboPagoReportes', 'fin_reciboPagoPDF'
-  ]),
-  financiero: new Set([
-    'co_usersPerfil', 'co_poblaciones', 'co_poblacionInactivar', 'co_sedes', 'co_sedeCrear', 'co_sedeEditar', 'co_sedeInactivar',
-    'co_areas', 'co_areaCrear', 'co_areaEditar', 'co_areaInactivar',
-    'co_horarios', 'co_horarioCrear', 'co_horarioEditar', 'co_horarioInactivar',
-    'crm_referidos', 'crm_referidoCrear', 'crm_referidoEditar', 'crm_referidoInactivar',
-    'crm_seguimientos', 'crm_seguimientoCrear', 'crm_seguimientoEditar', 'crm_seguimientoInactivar',
-    'crm_agendas', 'crm_agendaCrear', 'crm_agendaEditar', 'crm_agendaInactivar',
-    'aca_cursos', 'aca_cursoCrear', 'aca_cursoEditar', 'aca_cursoInactivar',
-    'aca_modulos', 'aca_moduloCrear', 'aca_moduloEditar', 'aca_moduloInactivar',
-    'aca_grupos', 'aca_grupoCrear', 'aca_grupoEditar', 'aca_grupoInactivar',
-    'aca_matriculas', 'aca_matriculaCrear', 'aca_matriculaEditar', 'aca_matriculaInactivar',
-    'aca_esquemas', 'aca_esquemaCrear', 'aca_esquemaEditar', 'aca_esquemaInactivar',
-    'aca_notas', 'aca_notaCrear', 'aca_notaEditar', 'aca_notaInactivar',
-    'aca_asistencias', 'aca_asistenciaCrear', 'aca_asistenciaEditar', 'aca_asistenciaInactivar',
-    'aca_asistenciaReportes', 'aca_claseProgramar', 'aca_configuracionAsistencia',
-    'fin_lp_tipos_producto', 'fin_lp_tipoProductoCrear', 'fin_lp_tipoProductoEditar', 'fin_lp_tipoProductoInactivar',
-    'fin_lp_productos', 'fin_lp_productoCrear', 'fin_lp_productoEditar', 'fin_lp_productoInactivar',
-    'fin_lp_listas_precios', 'fin_lp_listaPrecioCrear', 'fin_lp_listaPrecioEditar', 'fin_lp_listaPrecioInactivar', 'fin_lp_listaPrecioAprobar',
-    'fin_conceptos_pago', 'fin_conceptoPagoCrear', 'fin_conceptoPagoEditar', 'fin_conceptoPagoInactivar',
-    'fin_descuentos', 'fin_descuentoCrear', 'fin_descuentoEditar', 'fin_descuentoInactivar', 'fin_descuentoAprobar', 'fin_descuentoAplicar', 'fin_descuentoHistorial',
-    'fin_recibos_pago', 'fin_reciboPagoCrear', 'fin_reciboPagoEditar', 'fin_reciboPagoAnular', 'fin_reciboPagoCerrar', 'fin_reciboPagoReportes', 'fin_reciboPagoPDF'
-  ]),
-  coordinador: new Set([
-    'co_usersPerfil', 'co_poblaciones', 'co_poblacionInactivar', 'co_sedes', 'co_sedeCrear', 'co_sedeEditar', 'co_sedeInactivar',
-    'co_areas', 'co_areaCrear', 'co_areaEditar', 'co_areaInactivar',
-    'co_horarios', 'co_horarioCrear', 'co_horarioEditar', 'co_horarioInactivar',
-    'crm_referidos', 'crm_referidoCrear', 'crm_referidoEditar', 'crm_referidoInactivar',
-    'crm_seguimientos', 'crm_seguimientoCrear', 'crm_seguimientoEditar', 'crm_seguimientoInactivar',
-    'crm_agendas', 'crm_agendaCrear', 'crm_agendaEditar', 'crm_agendaInactivar',
-    'aca_cursos', 'aca_cursoCrear', 'aca_cursoEditar', 'aca_cursoInactivar',
-    'aca_modulos', 'aca_moduloCrear', 'aca_moduloEditar', 'aca_moduloInactivar',
-    'aca_grupos', 'aca_grupoCrear', 'aca_grupoEditar', 'aca_grupoInactivar',
-    'aca_matriculas', 'aca_matriculaCrear', 'aca_matriculaEditar', 'aca_matriculaInactivar',
-    'aca_esquemas', 'aca_esquemaCrear', 'aca_esquemaEditar', 'aca_esquemaInactivar',
-    'aca_notas', 'aca_notaCrear', 'aca_notaEditar', 'aca_notaInactivar',
-    'aca_asistencias', 'aca_asistenciaCrear', 'aca_asistenciaEditar', 'aca_asistenciaInactivar',
-    'aca_asistenciaReportes', 'aca_claseProgramar', 'aca_configuracionAsistencia',
-    'fin_lp_tipos_producto', 'fin_lp_tipoProductoCrear', 'fin_lp_tipoProductoEditar', 'fin_lp_tipoProductoInactivar',
-    'fin_lp_productos', 'fin_lp_productoCrear', 'fin_lp_productoEditar', 'fin_lp_productoInactivar',
-    'fin_lp_listas_precios', 'fin_lp_listaPrecioCrear', 'fin_lp_listaPrecioEditar', 'fin_lp_listaPrecioInactivar', 'fin_lp_listaPrecioAprobar',
-    'fin_conceptos_pago', 'fin_conceptoPagoCrear', 'fin_conceptoPagoEditar', 'fin_conceptoPagoInactivar',
-    'fin_descuentos', 'fin_descuentoCrear', 'fin_descuentoEditar', 'fin_descuentoInactivar', 'fin_descuentoAplicar', 'fin_descuentoHistorial',
-    'fin_recibos_pago', 'fin_reciboPagoCrear', 'fin_reciboPagoEditar', 'fin_reciboPagoAnular', 'fin_reciboPagoCerrar', 'fin_reciboPagoReportes', 'fin_reciboPagoPDF'
-  ]),
-  profesor: new Set([
-    'co_usersPerfil',
-    'aca_esquemas', 'aca_esquemaCrear', 'aca_esquemaEditar',
-    'aca_notas', 'aca_notaCrear', 'aca_notaEditar',
-    'aca_asistencias', 'aca_asistenciaCrear', 'aca_asistenciaEditar',
-    'aca_asistenciaReportes', 'aca_claseProgramar'
-  ]),
-  auxiliar: new Set([
-    'co_usersPerfil', 'co_poblaciones', 'co_sedes',
-    'crm_referidos', 'crm_referidoCrear', 'crm_referidoEditar',
-    'crm_seguimientos', 'crm_seguimientoCrear', 'crm_seguimientoEditar',
-    'crm_agendas', 'crm_agendaCrear', 'crm_agendaEditar',
-    'fin_descuentoAplicar',
-    'fin_recibos_pago', 'fin_reciboPagoCrear', 'fin_reciboPagoPDF'
-  ]),
-  alumno: new Set([
-    'co_usersPerfil',
-    'aca_notas', 'aca_asistencias',
-    'fin_reciboPagoPDF'
-  ])
+// ─── Carga de datos ──────────────────────────────────────────────────────────
+async function loadRoles() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await roleService.getAll({ per_page: 0 })
+    roles.value = res.data ?? []
+  } catch (e) {
+    error.value = e?.response?.data?.message ?? 'Error al cargar los roles.'
+  } finally {
+    loading.value = false
+  }
 }
 
-function tienePermiso(rolName, permisoKey) {
-  return PERMISOS_POR_ROL[rolName]?.has(permisoKey) ?? false
+async function loadPermisos() {
+  permisosLoading.value = true
+  try {
+    const res = await roleService.getAllPermisos({ per_page: 0 })
+    allPermisos.value = res.data ?? []
+  } catch {
+    // Fallar silenciosamente; el selector quedará sin opciones
+  } finally {
+    permisosLoading.value = false
+  }
 }
 
+// ─── Helpers de permisos ─────────────────────────────────────────────────────
+function grupoDePermiso(name) {
+  if (name.startsWith('co_')) return 'Configuración'
+  if (name.startsWith('crm_')) return 'CRM'
+  if (name.startsWith('aca_')) return 'Académico'
+  if (name.startsWith('fin_')) return 'Financiero'
+  return 'General'
+}
+
+const MODULO_ICON = {
+  'Configuración': 'settings',
+  'CRM': 'contacts',
+  'Académico': 'academico',
+  'Financiero': 'payments',
+  'General': 'list_alt'
+}
+
+function agruparPermisos(lista) {
+  const orden = ['Configuración', 'CRM', 'Académico', 'Financiero', 'General']
+  const grupos = {}
+  for (const p of lista) {
+    const g = grupoDePermiso(p.name ?? p)
+    if (!grupos[g]) grupos[g] = []
+    grupos[g].push(p)
+  }
+  return orden
+    .filter((n) => grupos[n])
+    .map((nombre) => ({ nombre, icon: MODULO_ICON[nombre], permisos: grupos[nombre] }))
+}
+
+// ── Grid para edición: todos los permisos con búsqueda ──
+const permisosSearch = ref('')
+
+const permisosAgrupadosTodos = computed(() => {
+  const q = permisosSearch.value.trim().toLowerCase()
+  const lista = q
+    ? allPermisos.value.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          (p.descripcion ?? '').toLowerCase().includes(q)
+      )
+    : allPermisos.value
+  return agruparPermisos(lista)
+})
+
+function togglePermiso(name) {
+  const idx = form.permissions.indexOf(name)
+  if (idx === -1) form.permissions.push(name)
+  else form.permissions.splice(idx, 1)
+}
+
+function toggleModulo(grupoPermisos, seleccionar) {
+  grupoPermisos.forEach((p) => {
+    const idx = form.permissions.indexOf(p.name)
+    if (seleccionar && idx === -1) form.permissions.push(p.name)
+    if (!seleccionar && idx !== -1) form.permissions.splice(idx, 1)
+  })
+}
+
+function moduloTodosSeleccionados(grupoPermisos) {
+  return grupoPermisos.length > 0 && grupoPermisos.every((p) => form.permissions.includes(p.name))
+}
+
+// ── Grid para detalle: solo los asignados, agrupados ──
+const permisosDetalleAgrupados = computed(() => {
+  if (!detailRol.value?.permissions?.length) return []
+  return agruparPermisos(detailRol.value.permissions).filter((g) => g.permisos.length > 0)
+})
+
+// ─── Modal Crear / Editar ─────────────────────────────────────────────────────
+const showFormModal = ref(false)
+const editingRol = ref(null)
+const formLoading = ref(false)
+const formError = ref('')
+const fieldErrors = ref({})
+
+const form = reactive({
+  name: '',
+  status: true,
+  permissions: []
+})
+
+function resetForm() {
+  form.name = ''
+  form.status = true
+  form.permissions.splice(0)
+  permisosSearch.value = ''
+  formError.value = ''
+  fieldErrors.value = {}
+}
+
+function openCreate() {
+  editingRol.value = null
+  resetForm()
+  showFormModal.value = true
+}
+
+function openEdit(rol) {
+  editingRol.value = rol
+  form.name = rol.name ?? ''
+  form.status = rol.status ?? true
+  form.permissions.splice(0, form.permissions.length, ...(rol.permissions ?? []).map((p) => p.name))
+  formError.value = ''
+  fieldErrors.value = {}
+  showFormModal.value = true
+}
+
+async function submitForm() {
+  formError.value = ''
+  fieldErrors.value = {}
+
+  const payload = {
+    name: form.name,
+    status: form.status,
+    permissions: form.permissions
+  }
+
+  formLoading.value = true
+  try {
+    if (editingRol.value) {
+      await roleService.update(editingRol.value.id, payload, { _silent: true })
+      notifySuccess(`El rol "${form.name}" fue actualizado correctamente.`)
+    } else {
+      await roleService.create(payload, { _silent: true })
+      notifySuccess(`El rol "${form.name}" fue creado correctamente.`)
+    }
+    showFormModal.value = false
+    await loadRoles()
+  } catch (e) {
+    if (e?.response?.status === 422) {
+      fieldErrors.value = e.response.data?.errors ?? {}
+      formError.value = e.response.data?.message ?? 'Verifica los campos del formulario.'
+    } else if (e?.response?.status === 403) {
+      formError.value = 'No tienes permisos para realizar esta acción.'
+    } else {
+      formError.value = e?.response?.data?.message ?? 'Ocurrió un error inesperado.'
+    }
+  } finally {
+    formLoading.value = false
+  }
+}
+
+// ─── Modal Toggle status ─────────────────────────────────────────────────────
+const showToggleModal = ref(false)
+const targetRol = ref(null)
+const actionLoading = ref(false)
+const actionError = ref('')
+
+function confirmToggle(rol) {
+  targetRol.value = rol
+  actionError.value = ''
+  showToggleModal.value = true
+}
+
+async function doToggle() {
+  actionLoading.value = true
+  actionError.value = ''
+  try {
+    await roleService.toggleStatus(targetRol.value.id)
+    const label = targetRol.value.status ? 'desactivado' : 'activado'
+    notifySuccess(`El rol "${targetRol.value.name}" fue ${label}.`)
+    showToggleModal.value = false
+    await loadRoles()
+  } catch (e) {
+    actionError.value = e?.response?.data?.message ?? 'Error al cambiar el estado del rol.'
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+// ─── Modal Eliminar ───────────────────────────────────────────────────────────
+const showEliminarModal = ref(false)
+
+function openEliminar(rol) {
+  targetRol.value = rol
+  actionError.value = ''
+  showEliminarModal.value = true
+}
+
+async function doEliminar() {
+  actionLoading.value = true
+  actionError.value = ''
+  try {
+    await roleService.delete(targetRol.value.id)
+    notifySuccess(`El rol "${targetRol.value.name}" fue eliminado.`)
+    showEliminarModal.value = false
+    await loadRoles()
+  } catch (e) {
+    if (e?.response?.status === 422) {
+      actionError.value = e.response.data?.message ?? 'No se puede eliminar: el rol tiene usuarios asignados.'
+    } else {
+      actionError.value = e?.response?.data?.message ?? 'Error al eliminar el rol.'
+    }
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+// ─── Modal Detalle ───────────────────────────────────────────────────────────
+const showDetailModal = ref(false)
+const detailRol = ref(null)
+
+async function openDetail(rol) {
+  detailRol.value = rol
+  showDetailModal.value = true
+  try {
+    const res = await roleService.getById(rol.id)
+    detailRol.value = res.data
+  } catch {
+    // Mantener datos del listado si falla
+  }
+}
+
+// ─── Matriz dinámica ──────────────────────────────────────────────────────────
+const rolesMatriz = computed(() => roles.value.slice(0, 6))
+
+function rolTienePermiso(rol, permisoKey) {
+  return (rol.permissions ?? []).some((p) => p.name === permisoKey)
+}
+
+// ─── Módulos para la matriz ───────────────────────────────────────────────────
 const modulosConPermisos = reactive([
   {
     nombre: 'Configuración',
@@ -337,6 +945,12 @@ const modulosConPermisos = reactive([
       { key: 'co_userEditar', descripcion: 'Editar usuario' },
       { key: 'co_userInactivar', descripcion: 'Inactivar usuario' },
       { key: 'co_usersPerfil', descripcion: 'Ver perfil de usuario' },
+      { key: 'co_roles', descripcion: 'Ver roles' },
+      { key: 'co_rolCrear', descripcion: 'Crear rol' },
+      { key: 'co_rolEditar', descripcion: 'Editar rol' },
+      { key: 'co_rolEliminar', descripcion: 'Eliminar rol' },
+      { key: 'co_rolPermisos', descripcion: 'Gestionar permisos de un rol' },
+      { key: 'co_permisos', descripcion: 'Ver todos los permisos' },
       { key: 'co_poblaciones', descripcion: 'Ver poblaciones' },
       { key: 'co_poblacionInactivar', descripcion: 'Activar / inactivar población' },
       { key: 'co_sedes', descripcion: 'Ver sedes' },
@@ -449,4 +1063,18 @@ const modulosConPermisos = reactive([
     ]
   }
 ])
+
+// ─── Utilidades ──────────────────────────────────────────────────────────────
+function formatDate(value) {
+  if (!value) return '—'
+  const d = new Date(value)
+  if (isNaN(d.getTime())) return value
+  return d.toLocaleDateString('es-CO', { day: 'numeric', month: 'numeric', year: 'numeric' })
+}
+
+// ─── Inicialización ───────────────────────────────────────────────────────────
+onMounted(() => {
+  loadRoles()
+  loadPermisos()
+})
 </script>

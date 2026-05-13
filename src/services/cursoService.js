@@ -51,6 +51,21 @@ const cursoService = {
   async getStatistics() {
     const { data } = await api.get(`${BASE}/statistics`)
     return data
+  },
+
+  async duplicate(id) {
+    const res = await cursoService.getById(id, { with: 'modulos' })
+    const original = res.data ?? res
+    const moduloIds = (original.modulos ?? []).map((m) => m.id).filter(Boolean)
+    const payload = {
+      nombre: `Copia de ${original.nombre}`,
+      tipo: original.tipo,
+      status: original.status,
+      ...(moduloIds.length > 0
+        ? { modulo_ids: moduloIds }
+        : { duracion: original.duracion ?? 0 })
+    }
+    return cursoService.create(payload, { _silent: true })
   }
 }
 

@@ -128,6 +128,7 @@
         :data="cursos"
         row-key="id"
         aria-label="Listado de cursos"
+        actions-first
       >
         <template #cell="{ column, value, row }">
           <template v-if="column.key === 'status'">
@@ -182,6 +183,20 @@
               @click="openEdit(row)"
             >
               <NavIcon name="pencil" class="size-4" />
+            </button>
+            <button
+              type="button"
+              :disabled="duplicatingId === row.id"
+              class="rounded p-1.5 text-slate-500 transition-colors hover:bg-amber-100 hover:text-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Duplicar curso"
+              @click="duplicarCurso(row)"
+            >
+              <NavIcon
+                v-if="duplicatingId === row.id"
+                name="track_changes"
+                class="size-4 animate-spin"
+              />
+              <NavIcon v-else name="copy" class="size-4" />
             </button>
             <button
               type="button"
@@ -1125,6 +1140,24 @@ async function submitForm() {
     }
   } finally {
     formLoading.value = false
+  }
+}
+
+// ─── Duplicar curso ───────────────────────────────────────────────────────────
+const duplicatingId = ref(null)
+
+async function duplicarCurso(curso) {
+  if (duplicatingId.value) return
+  duplicatingId.value = curso.id
+  try {
+    await cursoService.duplicate(curso.id)
+    notifySuccess(`Se creó "Copia de ${curso.nombre}" correctamente.`)
+    await Promise.all([loadCursos(pagination.currentPage), loadStatistics()])
+  } catch (e) {
+    const msg = e?.response?.data?.message ?? 'Error al duplicar el curso.'
+    error.value = msg
+  } finally {
+    duplicatingId.value = null
   }
 }
 

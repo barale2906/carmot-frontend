@@ -4,6 +4,13 @@
       <thead class="border-b border-slate-200 bg-slate-50/80">
         <tr>
           <th
+            v-if="hasActions && actionsFirst"
+            scope="col"
+            class="px-4 py-3 font-medium text-slate-700"
+          >
+            Acciones
+          </th>
+          <th
             v-for="col in columns"
             :key="col.key"
             scope="col"
@@ -16,7 +23,7 @@
             </span>
           </th>
           <th
-            v-if="hasActions"
+            v-if="hasActions && !actionsFirst"
             scope="col"
             class="px-4 py-3 font-medium text-slate-700 text-right"
           >
@@ -30,6 +37,11 @@
           :key="rowKey ? row[rowKey] : index"
           class="bg-white transition-colors hover:bg-slate-50/50"
         >
+          <td v-if="hasActions && actionsFirst" class="px-4 py-3">
+            <slot name="actions" :row="row">
+              <div class="flex gap-1" />
+            </slot>
+          </td>
           <td
             v-for="col in columns"
             :key="col.key"
@@ -46,7 +58,7 @@
               {{ formatCell(row[col.key], col) }}
             </slot>
           </td>
-          <td v-if="hasActions" class="px-4 py-3 text-right">
+          <td v-if="hasActions && !actionsFirst" class="px-4 py-3 text-right">
             <slot name="actions" :row="row">
               <div class="flex justify-end gap-1" />
             </slot>
@@ -68,7 +80,8 @@ defineProps({
   },
   data: { type: Array, default: () => [] },
   rowKey: { type: String, default: '' },
-  ariaLabel: { type: String, default: 'Tabla de datos' }
+  ariaLabel: { type: String, default: 'Tabla de datos' },
+  actionsFirst: { type: Boolean, default: false }
 })
 
 const hasActions = true

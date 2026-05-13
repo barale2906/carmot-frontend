@@ -305,6 +305,76 @@
           </template>
         </div>
 
+        <!-- Sedes -->
+        <div class="flex flex-col gap-2">
+          <div class="flex flex-wrap items-center gap-1">
+            <span class="text-sm font-medium text-slate-900">Sedes</span>
+            <FormFieldHelp text="Sedes a las que tendrá acceso el usuario. Los superusuarios tienen acceso implícito a todas las sedes." />
+          </div>
+
+          <div
+            v-if="isSuperUsuario"
+            class="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-700"
+          >
+            <NavIcon name="security" class="size-4 shrink-0" />
+            <span>Acceso a todas las sedes (rol superusuario)</span>
+          </div>
+
+          <template v-else>
+            <!-- Dropdown selector -->
+            <div class="relative">
+              <select
+                class="w-full appearance-none rounded-lg border-0 bg-[#f3f3f5] px-3 py-2 pr-9 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                :value="''"
+                :disabled="sedesLoading"
+                @change="addSede($event.target.value); $event.target.value = ''"
+              >
+                <option value="" disabled>
+                  {{ sedesLoading ? 'Cargando sedes...' : 'Seleccionar sede para agregar...' }}
+                </option>
+                <option
+                  v-for="sede in sedesDisponibles"
+                  :key="sede.id"
+                  :value="sede.id"
+                >
+                  {{ sede.nombre }}
+                </option>
+              </select>
+              <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden="true">
+                <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </span>
+            </div>
+
+            <!-- Badges de sedes seleccionadas -->
+            <div v-if="form.sedes.length" class="flex flex-wrap gap-1.5 rounded-lg border border-black/10 bg-slate-50 p-2">
+              <span
+                v-for="id in form.sedes"
+                :key="id"
+                class="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-800"
+              >
+                {{ getSedeNombre(id) }}
+                <button
+                  type="button"
+                  class="ml-0.5 flex size-3.5 items-center justify-center rounded-full text-blue-600 transition-colors hover:bg-blue-200 hover:text-blue-900 focus:outline-none"
+                  :aria-label="`Quitar ${getSedeNombre(id)}`"
+                  @click="removeSede(id)"
+                >
+                  <svg class="size-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </span>
+            </div>
+            <p v-else class="text-xs text-slate-400">Sin sedes asignadas.</p>
+
+            <p v-if="fieldErrors['sedes']?.[0] ?? fieldErrors['sedes.0']?.[0]" class="text-xs text-red-600">
+              {{ fieldErrors['sedes']?.[0] ?? fieldErrors['sedes.0']?.[0] }}
+            </p>
+          </template>
+        </div>
+
         <div v-if="formError" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
           {{ formError }}
         </div>
@@ -452,6 +522,28 @@
               />
             </dd>
           </div>
+          <div class="col-span-2">
+            <dt class="font-medium text-slate-500">Sedes</dt>
+            <dd class="mt-0.5">
+              <span
+                v-if="detailUser.sedes_acceso_total"
+                class="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800"
+              >
+                <NavIcon name="security" class="size-3" />
+                Acceso a todas las sedes
+              </span>
+              <div v-else-if="detailUser.sedes && detailUser.sedes.length" class="flex flex-wrap gap-1">
+                <span
+                  v-for="sede in detailUser.sedes"
+                  :key="sede.id"
+                  class="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700"
+                >
+                  {{ sede.nombre }}
+                </span>
+              </div>
+              <span v-else class="text-slate-400">Sin sedes asignadas</span>
+            </dd>
+          </div>
           <div>
             <dt class="font-medium text-slate-500">Cursos vinculados</dt>
             <dd class="mt-0.5 text-slate-900">{{ detailUser.cursos_count ?? (detailUser.cursos?.length ?? 0) }}</dd>
@@ -488,6 +580,7 @@ import FormFieldHelp from '@/components/forms/FormFieldHelp.vue'
 import NavIcon from '@/components/icons/NavIcon.vue'
 import ModalBase from '@/components/ModalBase.vue'
 import userService from '@/services/userService.js'
+import sedeService from '@/services/sedeService.js'
 import { useNotification } from '@/composables/useNotification'
 
 const { success: notifySuccess, error: notifyError } = useNotification()
@@ -497,6 +590,8 @@ const users = ref([])
 const loading = ref(false)
 const error = ref('')
 const availableRoles = ref([])
+const availableSedes = ref([])
+const sedesLoading = ref(false)
 
 const pagination = reactive({
   currentPage: 1,
@@ -521,6 +616,30 @@ let searchTimer = null
 const rolOptions = computed(() =>
   availableRoles.value.map((r) => ({ value: r.name, label: r.name }))
 )
+
+const isSuperUsuario = computed(() =>
+  form.rol.toLowerCase() === 'superusuario'
+)
+
+const sedesDisponibles = computed(() =>
+  availableSedes.value.filter((s) => !form.sedes.includes(s.id))
+)
+
+function getSedeNombre(id) {
+  return availableSedes.value.find((s) => s.id === id)?.nombre ?? `#${id}`
+}
+
+function addSede(rawId) {
+  const id = Number(rawId)
+  if (id && !form.sedes.includes(id)) {
+    form.sedes.push(id)
+  }
+}
+
+function removeSede(id) {
+  const idx = form.sedes.indexOf(id)
+  if (idx !== -1) form.sedes.splice(idx, 1)
+}
 
 const estadoOptions = [
   { value: 'activos', label: 'Activos' },
@@ -580,6 +699,18 @@ async function loadFilters() {
   }
 }
 
+async function loadSedes() {
+  sedesLoading.value = true
+  try {
+    const res = await sedeService.getActivas()
+    availableSedes.value = res.data ?? []
+  } catch {
+    // Fallar silenciosamente; el selector quedará vacío
+  } finally {
+    sedesLoading.value = false
+  }
+}
+
 async function loadStatistics() {
   try {
     const res = await userService.getStatistics()
@@ -614,7 +745,8 @@ const form = reactive({
   documento: '',
   rol: '',
   password: '',
-  password_confirmation: ''
+  password_confirmation: '',
+  sedes: []
 })
 
 function resetForm() {
@@ -624,6 +756,7 @@ function resetForm() {
   form.rol = ''
   form.password = ''
   form.password_confirmation = ''
+  form.sedes = []
   formError.value = ''
   fieldErrors.value = {}
 }
@@ -642,6 +775,7 @@ function openEdit(user) {
   form.rol = user.roles?.[0] ?? ''
   form.password = ''
   form.password_confirmation = ''
+  form.sedes = user.sedes_acceso_total ? [] : (user.sedes ?? []).map((s) => s.id)
   formError.value = ''
   fieldErrors.value = {}
   showFormModal.value = true
@@ -656,6 +790,9 @@ async function submitForm() {
     email: form.email,
     documento: form.documento,
     roles: form.rol ? [form.rol] : []
+  }
+  if (!isSuperUsuario.value) {
+    payload.sedes = form.sedes
   }
   if (form.password) {
     payload.password = form.password
@@ -774,6 +911,7 @@ function formatDate(value) {
 // ─── Inicialización ──────────────────────────────────────────────────────────
 onMounted(() => {
   loadFilters()
+  loadSedes()
   loadUsers()
   loadStatistics()
 })
