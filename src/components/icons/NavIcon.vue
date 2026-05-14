@@ -72,5 +72,7 @@ const icons = {
   trash:            () => svg([path('M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6')]),
   inventario:       () => svg([path('M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16zM3.27 6.04L12 12.5l8.73-6.46M12 22.08V12.5')]),
   copy:             () => svg([rect({ x: '9', y: '9', width: '13', height: '13', rx: '2' }), path('M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1')]),
+  download:         () => svg([path('M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'), path('M7 10l5 5 5-5'), path('M12 15V3')]),
+  biblioteca:       () => svg([path('M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20'), path('M9 6h6M9 10h6M9 14h4')]),
 }
 </script>

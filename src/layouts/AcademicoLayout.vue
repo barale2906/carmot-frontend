@@ -17,9 +17,10 @@
 import FormulariosNav from '@/components/forms/FormulariosNav.vue'
 
 const navItems = [
-  { label: 'Curso',   to: '/academico/cursos',          exact: true },
-  { label: 'Módulo',  to: '/academico/cursos/modulos' },
-  { label: 'Tópico',  to: '/academico/cursos/topicos' },
-  { label: 'Tema',    to: '/academico/cursos/temas' }
+  { label: 'Curso',      to: '/academico/cursos',             exact: true },
+  { label: 'Módulo',     to: '/academico/cursos/modulos' },
+  { label: 'Tópico',     to: '/academico/cursos/topicos' },
+  { label: 'Tema',       to: '/academico/cursos/temas' },
+  { label: 'Biblioteca', to: '/academico/cursos/biblioteca' }
 ]
 </script>

@@ -175,6 +175,14 @@
           >
             <NavIcon name="eye" class="size-4" />
           </button>
+          <button
+            type="button"
+            class="rounded p-1.5 text-slate-500 transition-colors hover:bg-blue-100 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            title="Documentos de biblioteca"
+            @click="openBiblioteca(row)"
+          >
+            <NavIcon name="biblioteca" class="size-4" />
+          </button>
           <template v-if="!row.deleted_at">
             <button
               type="button"
@@ -701,6 +709,86 @@
       </div>
     </ModalBase>
 
+    <!-- ── Modal: Documentos del curso ────────────────────────────────────────── -->
+    <ModalBase
+      v-model="showBibliotecaModal"
+      :title="`Biblioteca — ${biblioCurso?.nombre ?? ''}`"
+      description="Documentos asociados a este curso. Haz clic en Descargar para obtener cada archivo."
+    >
+      <template #icon>
+        <span class="flex size-5 shrink-0 items-center justify-center text-[#213360]">
+          <NavIcon name="biblioteca" class="size-5" />
+        </span>
+      </template>
+
+      <div class="pb-2">
+        <!-- Cargando -->
+        <div v-if="biblioLoading" class="flex items-center justify-center py-10">
+          <span class="text-sm text-slate-500">Cargando documentos...</span>
+        </div>
+
+        <!-- Sin documentos -->
+        <div
+          v-else-if="!biblioLoading && biblioDocumentos.length === 0"
+          class="flex flex-col items-center gap-2 py-10 text-center"
+        >
+          <NavIcon name="biblioteca" class="size-8 text-slate-300" />
+          <p class="text-sm text-slate-500">Este curso no tiene documentos en la biblioteca.</p>
+        </div>
+
+        <!-- Lista de documentos -->
+        <ul v-else class="divide-y divide-slate-100">
+          <li
+            v-for="doc in biblioDocumentos"
+            :key="doc.id"
+            class="flex items-center gap-3 py-3"
+          >
+            <!-- Tipo badge -->
+            <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+              <NavIcon name="biblioteca" class="size-4" />
+            </span>
+
+            <!-- Info -->
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-sm font-medium text-slate-800">{{ doc.nombre }}</p>
+              <div class="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                <span class="rounded-full bg-slate-100 px-1.5 py-0.5 font-medium uppercase text-slate-600">
+                  {{ doc.tipo_archivo ?? '?' }}
+                </span>
+                <span>{{ doc.tamanio_legible ?? '' }}</span>
+                <span v-if="doc.fecha_carga">· {{ formatDate(doc.fecha_carga) }}</span>
+                <span
+                  :class="doc.vigente ? 'text-green-600' : 'text-amber-600'"
+                >
+                  · {{ doc.vigente ? 'Vigente' : 'Obsoleto' }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Descargar -->
+            <button
+              type="button"
+              class="flex shrink-0 items-center gap-1.5 rounded-lg bg-[#213360] px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#1a294d] focus:outline-none focus:ring-2 focus:ring-blue-500"
+              @click="downloadBiblioDoc(doc)"
+            >
+              <NavIcon name="download" class="size-3.5" />
+              Descargar
+            </button>
+          </li>
+        </ul>
+      </div>
+
+      <template #footer>
+        <button
+          type="button"
+          class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          @click="showBibliotecaModal = false"
+        >
+          Cerrar
+        </button>
+      </template>
+    </ModalBase>
+
   </div>
 </template>
 
@@ -718,6 +806,7 @@ import NavIcon from '@/components/icons/NavIcon.vue'
 import ModalBase from '@/components/ModalBase.vue'
 import cursoService from '@/services/cursoService.js'
 import moduloService from '@/services/moduloService.js'
+import bibliotecaService from '@/services/bibliotecaService.js'
 import ModuloArbol from '@/components/academico/ModuloArbol.vue'
 import { useNotification } from '@/composables/useNotification'
 
@@ -1266,6 +1355,42 @@ async function openDetail(curso) {
     detailCurso.value = res.data
   } catch {
     // Mantener datos del listado si falla el detalle
+  }
+}
+
+// ─── Modal Biblioteca del curso ───────────────────────────────────────────────
+const showBibliotecaModal = ref(false)
+const biblioCurso         = ref(null)
+const biblioDocumentos    = ref([])
+const biblioLoading       = ref(false)
+
+async function openBiblioteca(curso) {
+  biblioCurso.value      = curso
+  biblioDocumentos.value = []
+  biblioLoading.value    = true
+  showBibliotecaModal.value = true
+  try {
+    const res = await bibliotecaService.getAll({
+      curso_id: curso.id,
+      per_page: 100,
+      sort_by: 'nombre',
+      sort_direction: 'asc'
+    })
+    biblioDocumentos.value = res.data ?? []
+  } catch {
+    biblioDocumentos.value = []
+  } finally {
+    biblioLoading.value = false
+  }
+}
+
+async function downloadBiblioDoc(doc) {
+  try {
+    const res = await bibliotecaService.getDownloadUrl(doc.id)
+    const url = res.data?.url ?? doc.url
+    if (url) window.open(url, '_blank', 'noopener')
+  } catch {
+    // Sin notificación para no interrumpir el modal
   }
 }
 

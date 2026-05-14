@@ -8,9 +8,38 @@
       <FormFieldHelp v-if="help" :text="help" />
     </div>
     <span v-if="help" :id="`${inputId}-help`" class="sr-only">{{ help }}</span>
+
+    <!-- Estado: archivo seleccionado -->
     <div
+      v-if="hasFile"
+      class="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3"
+    >
+      <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600" aria-hidden="true">
+        <svg class="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      </span>
+      <div class="min-w-0 flex-1">
+        <p class="truncate text-sm font-medium text-slate-800">{{ modelValue.name }}</p>
+        <p class="text-xs text-slate-500">{{ humanSize(modelValue.size) }}</p>
+      </div>
+      <button
+        type="button"
+        class="shrink-0 rounded p-1 text-slate-400 transition-colors hover:bg-blue-100 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        title="Quitar archivo"
+        :disabled="disabled"
+        @click="clearFile"
+      >
+        <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Estado: sin archivo -->
+    <div
+      v-else
       class="flex min-h-[120px] flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-200 bg-slate-50/50 px-4 py-6 transition-colors hover:border-slate-300 hover:bg-slate-50"
-      :class="{ 'border-blue-300 bg-blue-50/50': hasFile }"
     >
       <slot name="icon">
         <span class="flex size-10 items-center justify-center rounded-full bg-slate-200 text-slate-500" aria-hidden="true">
@@ -22,24 +51,27 @@
       <p class="text-center text-sm text-slate-600">
         {{ description }}
       </p>
-      <input
-        :id="inputId"
-        type="file"
-        class="sr-only"
-        :accept="accept"
-        :disabled="disabled"
-        :aria-describedby="ariaDescribedBy"
-        v-bind="$attrs"
-        @change="handleChange"
-      />
       <button
         type="button"
-        class="text-sm font-medium text-blue-600 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+        class="rounded text-sm font-medium text-blue-600 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        :disabled="disabled"
         @click="triggerFileInput"
       >
         {{ uploadLabel }}
       </button>
     </div>
+
+    <input
+      :id="inputId"
+      type="file"
+      class="sr-only"
+      :accept="accept"
+      :disabled="disabled"
+      :aria-describedby="ariaDescribedBy"
+      v-bind="$attrs"
+      @change="handleChange"
+    />
+
     <p v-if="hint" :id="`${inputId}-hint`" class="text-xs text-slate-500">
       {{ hint }}
     </p>
@@ -86,5 +118,18 @@ function triggerFileInput() {
 function handleChange(e) {
   const file = e.target?.files?.[0]
   emit('update:modelValue', file ?? null)
+}
+
+function clearFile() {
+  emit('update:modelValue', null)
+  const input = document.getElementById(inputId.value)
+  if (input) input.value = ''
+}
+
+function humanSize(bytes) {
+  if (!bytes) return ''
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 </script>

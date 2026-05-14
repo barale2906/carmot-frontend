@@ -25,6 +25,7 @@ import CursosView from './views/academico/CursosView.vue'
 import ModulosView from './views/academico/ModulosView.vue'
 import TopicosView from './views/academico/TopicosView.vue'
 import TemasView from './views/academico/TemasView.vue'
+import BibliotecaView from './views/academico/BibliotecaView.vue'
 import CiclosView from './views/academico/CiclosView.vue'
 import GruposView from './views/academico/GruposView.vue'
 import ConceptoPagoView from './views/financiero/ConceptoPagoView.vue'
@@ -127,6 +128,11 @@ const routes = [
             path: 'temas',
             name: 'Temas',
             component: TemasView
+          },
+          {
+            path: 'biblioteca',
+            name: 'Biblioteca',
+            component: BibliotecaView
           }
         ]
       }
