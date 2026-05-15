@@ -17,8 +17,12 @@
         :value="modelValue"
         :required="required"
         :disabled="disabled"
-        class="w-full appearance-none rounded-lg border-0 bg-[#f3f3f5] px-3 py-2 pr-9 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 disabled:opacity-50 [&>option]:text-slate-500"
-        :aria-describedby="ariaDescribedBy"
+      class="w-full appearance-none rounded-lg border-0 px-3 py-2 pr-9 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-offset-0 disabled:opacity-50 [&>option]:text-slate-500"
+      :class="error
+        ? 'bg-red-50 focus:ring-red-500 ring-1 ring-red-300'
+        : 'bg-[#f3f3f5] focus:ring-blue-500'"
+      :aria-invalid="error ? 'true' : undefined"
+      :aria-describedby="ariaDescribedBy"
         v-bind="$attrs"
         @change="emit('update:modelValue', ($event.target && $event.target.value) ?? '')"
       >
@@ -43,7 +47,15 @@
       </span>
     </div>
     <p
-      v-if="hint"
+      v-if="error"
+      :id="`${selectId}-error`"
+      role="alert"
+      class="text-xs text-red-600"
+    >
+      {{ error }}
+    </p>
+    <p
+      v-else-if="hint"
       :id="`${selectId}-hint`"
       class="text-xs text-slate-500"
     >
@@ -63,6 +75,8 @@ const props = defineProps({
   label: { type: String, default: '' },
   placeholder: { type: String, default: 'Seleccione opción' },
   hint: { type: String, default: '' },
+  /** Texto de error de validación. Reemplaza al hint cuando está presente. */
+  error: { type: String, default: '' },
   help: { type: String, default: '' },
   required: { type: Boolean, default: false },
   disabled: { type: Boolean, default: false },
@@ -80,7 +94,8 @@ const selectId = computed(() => `select-${Math.random().toString(36).slice(2, 9)
 
 const ariaDescribedBy = computed(() => {
   const ids = []
-  if (props.hint) ids.push(`${selectId.value}-hint`)
+  if (props.error) ids.push(`${selectId.value}-error`)
+  else if (props.hint) ids.push(`${selectId.value}-hint`)
   if (props.help) ids.push(`${selectId.value}-help`)
   return ids.length ? ids.join(' ') : undefined
 })

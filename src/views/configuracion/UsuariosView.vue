@@ -218,12 +218,34 @@
       <form class="flex flex-col gap-4 pb-2" @submit.prevent="submitForm">
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormInput
-            v-model="form.name"
-            label="Nombre completo"
-            placeholder="Ej: María López"
-            help="Nombre que verá el usuario y en reportes."
+            v-model="form.primer_nombre"
+            label="Primer nombre"
+            placeholder="Ej: María"
+            help="Primer nombre del usuario."
             :required="true"
-            span="full"
+            :error="fieldErrors.primer_nombre?.[0]"
+          />
+          <FormInput
+            v-model="form.segundo_nombre"
+            label="Segundo nombre"
+            placeholder="Ej: Fernanda"
+            help="Segundo nombre (opcional)."
+            :error="fieldErrors.segundo_nombre?.[0]"
+          />
+          <FormInput
+            v-model="form.primer_apellido"
+            label="Primer apellido"
+            placeholder="Ej: López"
+            help="Primer apellido del usuario."
+            :required="true"
+            :error="fieldErrors.primer_apellido?.[0]"
+          />
+          <FormInput
+            v-model="form.segundo_apellido"
+            label="Segundo apellido"
+            placeholder="Ej: García"
+            help="Segundo apellido (opcional)."
+            :error="fieldErrors.segundo_apellido?.[0]"
           />
           <FormInput
             v-model="form.email"
@@ -232,6 +254,7 @@
             placeholder="correo@ejemplo.com"
             help="Correo único para iniciar sesión y notificaciones."
             :required="true"
+            :error="fieldErrors.email?.[0]"
           />
           <FormInput
             v-model="form.documento"
@@ -239,6 +262,7 @@
             placeholder="Número de documento"
             help="Identificación oficial del usuario."
             :required="true"
+            :error="fieldErrors.documento?.[0]"
           />
           <div class="flex flex-col gap-2">
             <div class="flex flex-wrap items-center gap-1">
@@ -270,6 +294,7 @@
               placeholder="Mín. 8 caracteres"
               :required="true"
               :hint="'Al menos 8 caracteres, mayúscula, número y símbolo.'"
+              :error="fieldErrors.password?.[0]"
               help="Clave de acceso inicial del usuario."
             />
             <FormInput
@@ -278,6 +303,7 @@
               type="password"
               placeholder="Repite la contraseña"
               help="Debe coincidir exactamente con la contraseña."
+              :error="fieldErrors.password_confirmation?.[0]"
               :required="true"
             />
           </template>
@@ -293,6 +319,7 @@
               label="Nueva contraseña"
               type="password"
               placeholder="Dejar vacío para no cambiar"
+              :error="fieldErrors.password?.[0]"
               help="Solo completa si deseas cambiar la clave actual."
             />
             <FormInput
@@ -300,6 +327,7 @@
               label="Confirmar contraseña"
               type="password"
               placeholder="Repite la contraseña"
+              :error="fieldErrors.password_confirmation?.[0]"
               help="Repite la nueva contraseña si la cambias."
             />
           </template>
@@ -379,9 +407,17 @@
           {{ formError }}
         </div>
 
-        <div v-if="fieldErrors && Object.keys(fieldErrors).length > 0" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <!-- Errores de campos sin input propio (ej: roles, sedes globales) -->
+        <div
+          v-if="fieldErrors && Object.keys(fieldErrors).filter(k => !['primer_nombre','segundo_nombre','primer_apellido','segundo_apellido','email','documento','password','password_confirmation','sedes','sedes.0'].includes(k)).length > 0"
+          class="rounded-lg bg-red-50 p-3 text-sm text-red-700"
+        >
           <ul class="list-inside list-disc space-y-1">
-            <li v-for="(msgs, field) in fieldErrors" :key="field">
+            <li
+              v-for="(msgs, field) in fieldErrors"
+              v-show="!['primer_nombre','segundo_nombre','primer_apellido','segundo_apellido','email','documento','password','password_confirmation','sedes','sedes.0'].includes(field)"
+              :key="field"
+            >
               <strong>{{ field }}:</strong> {{ Array.isArray(msgs) ? msgs.join(', ') : msgs }}
             </li>
           </ul>
@@ -488,9 +524,25 @@
       </template>
       <div v-if="detailUser" class="space-y-3 pb-4">
         <dl class="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-          <div>
-            <dt class="font-medium text-slate-500">Nombre</dt>
+          <div class="col-span-2">
+            <dt class="font-medium text-slate-500">Nombre completo</dt>
             <dd class="mt-0.5 text-slate-900">{{ detailUser.name }}</dd>
+          </div>
+          <div>
+            <dt class="font-medium text-slate-500">Primer nombre</dt>
+            <dd class="mt-0.5 text-slate-900">{{ detailUser.primer_nombre ?? '—' }}</dd>
+          </div>
+          <div>
+            <dt class="font-medium text-slate-500">Segundo nombre</dt>
+            <dd class="mt-0.5 text-slate-900">{{ detailUser.segundo_nombre || '—' }}</dd>
+          </div>
+          <div>
+            <dt class="font-medium text-slate-500">Primer apellido</dt>
+            <dd class="mt-0.5 text-slate-900">{{ detailUser.primer_apellido ?? '—' }}</dd>
+          </div>
+          <div>
+            <dt class="font-medium text-slate-500">Segundo apellido</dt>
+            <dd class="mt-0.5 text-slate-900">{{ detailUser.segundo_apellido || '—' }}</dd>
           </div>
           <div>
             <dt class="font-medium text-slate-500">Documento</dt>
@@ -740,25 +792,36 @@ const formError = ref('')
 const fieldErrors = ref({})
 
 const form = reactive({
-  name: '',
-  email: '',
-  documento: '',
-  rol: '',
-  password: '',
+  primer_nombre:         '',
+  segundo_nombre:        '',
+  primer_apellido:       '',
+  segundo_apellido:      '',
+  email:                 '',
+  documento:             '',
+  rol:                   '',
+  password:              '',
   password_confirmation: '',
-  sedes: []
+  sedes:                 []
 })
 
+const formNombreCompleto = computed(() =>
+  [form.primer_nombre, form.segundo_nombre, form.primer_apellido, form.segundo_apellido]
+    .filter(Boolean).join(' ') || '—'
+)
+
 function resetForm() {
-  form.name = ''
-  form.email = ''
-  form.documento = ''
-  form.rol = ''
-  form.password = ''
+  form.primer_nombre         = ''
+  form.segundo_nombre        = ''
+  form.primer_apellido       = ''
+  form.segundo_apellido      = ''
+  form.email                 = ''
+  form.documento             = ''
+  form.rol                   = ''
+  form.password              = ''
   form.password_confirmation = ''
-  form.sedes = []
-  formError.value = ''
-  fieldErrors.value = {}
+  form.sedes                 = []
+  formError.value            = ''
+  fieldErrors.value          = {}
 }
 
 function openCreate() {
@@ -768,17 +831,20 @@ function openCreate() {
 }
 
 function openEdit(user) {
-  editingUser.value = user
-  form.name = user.name ?? ''
-  form.email = user.email ?? ''
-  form.documento = user.documento ?? ''
-  form.rol = user.roles?.[0] ?? ''
-  form.password = ''
+  editingUser.value         = user
+  form.primer_nombre         = user.primer_nombre    ?? ''
+  form.segundo_nombre        = user.segundo_nombre   ?? ''
+  form.primer_apellido       = user.primer_apellido  ?? ''
+  form.segundo_apellido      = user.segundo_apellido ?? ''
+  form.email                 = user.email            ?? ''
+  form.documento             = user.documento        ?? ''
+  form.rol                   = user.roles?.[0]       ?? ''
+  form.password              = ''
   form.password_confirmation = ''
-  form.sedes = user.sedes_acceso_total ? [] : (user.sedes ?? []).map((s) => s.id)
-  formError.value = ''
-  fieldErrors.value = {}
-  showFormModal.value = true
+  form.sedes                 = user.sedes_acceso_total ? [] : (user.sedes ?? []).map((s) => s.id)
+  formError.value            = ''
+  fieldErrors.value          = {}
+  showFormModal.value        = true
 }
 
 async function submitForm() {
@@ -786,16 +852,17 @@ async function submitForm() {
   fieldErrors.value = {}
 
   const payload = {
-    name: form.name,
-    email: form.email,
-    documento: form.documento,
-    roles: form.rol ? [form.rol] : []
+    primer_nombre:   form.primer_nombre,
+    primer_apellido: form.primer_apellido,
+    email:           form.email,
+    documento:       form.documento,
+    roles:           form.rol ? [form.rol] : []
   }
-  if (!isSuperUsuario.value) {
-    payload.sedes = form.sedes
-  }
+  if (form.segundo_nombre)   payload.segundo_nombre   = form.segundo_nombre
+  if (form.segundo_apellido) payload.segundo_apellido = form.segundo_apellido
+  if (!isSuperUsuario.value) payload.sedes            = form.sedes
   if (form.password) {
-    payload.password = form.password
+    payload.password              = form.password
     payload.password_confirmation = form.password_confirmation
   }
 
@@ -803,14 +870,14 @@ async function submitForm() {
   try {
     if (editingUser.value) {
       await userService.update(editingUser.value.id, payload, { _silent: true })
-      notifySuccess(`El usuario "${form.name}" fue actualizado correctamente.`)
+      notifySuccess(`El usuario "${formNombreCompleto.value}" fue actualizado correctamente.`)
     } else {
       if (!form.password) {
         formError.value = 'La contraseña es obligatoria para crear un usuario.'
         return
       }
       await userService.create(payload, { _silent: true })
-      notifySuccess(`El usuario "${form.name}" fue creado correctamente.`)
+      notifySuccess(`El usuario "${formNombreCompleto.value}" fue creado correctamente.`)
     }
     showFormModal.value = false
     await Promise.all([loadUsers(pagination.currentPage), loadStatistics()])

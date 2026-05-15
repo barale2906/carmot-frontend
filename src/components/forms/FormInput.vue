@@ -21,13 +21,25 @@
       :min="min"
       :max="max"
       :step="step"
-      class="w-full rounded-lg border-0 bg-[#f3f3f5] px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 disabled:opacity-50"
+      class="w-full rounded-lg border-0 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-offset-0 disabled:opacity-50"
+      :class="error
+        ? 'bg-red-50 focus:ring-red-500 ring-1 ring-red-300'
+        : 'bg-[#f3f3f5] focus:ring-blue-500'"
+      :aria-invalid="error ? 'true' : undefined"
       :aria-describedby="ariaDescribedBy"
       v-bind="$attrs"
       @input="emit('update:modelValue', ($event.target && $event.target.value) ?? '')"
     />
     <p
-      v-if="hint"
+      v-if="error"
+      :id="`${inputId}-error`"
+      role="alert"
+      class="text-xs text-red-600"
+    >
+      {{ error }}
+    </p>
+    <p
+      v-else-if="hint"
       :id="`${inputId}-hint`"
       class="text-xs text-slate-500"
     >
@@ -47,6 +59,8 @@ const props = defineProps({
   label: { type: String, default: '' },
   placeholder: { type: String, default: '' },
   hint: { type: String, default: '' },
+  /** Texto de error de validación. Reemplaza al hint cuando está presente. */
+  error: { type: String, default: '' },
   /** Ayuda breve al pasar el cursor sobre el icono junto a la etiqueta. */
   help: { type: String, default: '' },
   required: { type: Boolean, default: false },
@@ -69,7 +83,8 @@ const inputId = computed(() => `input-${Math.random().toString(36).slice(2, 9)}`
 
 const ariaDescribedBy = computed(() => {
   const ids = []
-  if (props.hint) ids.push(`${inputId.value}-hint`)
+  if (props.error) ids.push(`${inputId.value}-error`)
+  else if (props.hint) ids.push(`${inputId.value}-hint`)
   if (props.help) ids.push(`${inputId.value}-help`)
   return ids.length ? ids.join(' ') : undefined
 })
