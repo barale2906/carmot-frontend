@@ -7,13 +7,13 @@
  *
  * @param {{ cursos: ComputedRef, sedes: ComputedRef, comerciales: ComputedRef }} refs
  */
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed } from 'vue'
 
 import cicloService          from '@/services/cicloService.js'
 import userService           from '@/services/userService.js'
 import matriculaService      from '@/services/matriculaService.js'
-import productoLpService     from '@/services/productoLpService.js'
 import precioProductoService from '@/services/precioProductoService.js'
+import { nombreCompleto }    from '@/utils/formatters.js'
 import { authService }       from '@/services/authService.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -46,6 +46,7 @@ export function objectToOptions(obj) {
 
 export const WIZARD_STEPS = [
   { key: 'programacion', label: 'Programación' },
+  { key: 'precio',       label: 'Precio'       },
   { key: 'estudiante',   label: 'Estudiante'   },
   { key: 'personales',   label: 'Personales'   },
   { key: 'detalles',     label: 'Matrícula'    },
@@ -58,18 +59,18 @@ export const WIZARD_STEPS = [
  * devuelve un error 422 con errores de validación por campo.
  */
 const FIELD_STEP_MAP = {
-  // Paso 3 — datos personales
-  tipo_identificacion: 3, departamento_expedicion: 3, ciudad_expedicion: 3,
-  fecha_nacimiento: 3, genero: 3, estado_civil: 3, grupo_sanguineo: 3, rh: 3,
-  direccion: 3, lugar_origen_id: 3, celular: 3, telefono: 3,
-  nivel_educacion: 3, ocupacion: 3, empresa: 3, estrato: 3, regimen_salud: 3,
-  enfermedad_prioritaria: 3, discapacidad: 3,
-  // Paso 4 — detalles de matrícula
-  comercial_id: 4, matriculado_por_id: 4, fecha_matricula: 4, fecha_inicio: 4,
-  monto: 4, valor_cuota: 4, status: 4, observaciones: 4,
-  como_entero_curso: 4, talla_overol: 4, talla_botas: 4, multiculturalidad: 4,
-  nombre_contacto: 4, telefono_contacto: 4, correo_contacto: 4,
-  conocimiento_curso: 4, aprueba_uso_imagen: 4
+  // Paso 4 — datos personales
+  tipo_identificacion: 4, departamento_expedicion: 4, ciudad_expedicion: 4,
+  fecha_nacimiento: 4, genero: 4, estado_civil: 4, grupo_sanguineo: 4, rh: 4,
+  direccion: 4, lugar_origen_id: 4, celular: 4, telefono: 4,
+  nivel_educacion: 4, ocupacion: 4, empresa: 4, estrato: 4, regimen_salud: 4,
+  enfermedad_prioritaria: 4, discapacidad: 4,
+  // Paso 5 — detalles de matrícula
+  comercial_id: 5, matriculado_por_id: 5, fecha_matricula: 5, fecha_inicio: 5,
+  monto: 5, valor_cuota: 5, status: 5, observaciones: 5,
+  como_entero_curso: 5, talla_overol: 5, talla_botas: 5, multiculturalidad: 5,
+  nombre_contacto: 5, telefono_contacto: 5, correo_contacto: 5,
+  conocimiento_curso: 5, aprueba_uso_imagen: 5
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -84,14 +85,23 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
   const apiError    = ref('')
   const fieldErrors = ref({})
 
-  // ── Paso 1: Programación ────────────────────────────────────────────────────
-  const cursoId           = ref('')
-  const cicloId           = ref('')
-  const ciclosDisponibles = ref([])
-  const ciclosLoading     = ref(false)
-  const cicloSeleccionado = ref(null)
+  // ── Paso 1: Programación — sede → curso → ciclo ─────────────────────────────
+  const sedeId              = ref('')
+  const cursosEnSede        = ref([])   // cursos con ciclos activos en la sede elegida
+  const cursosEnSedeLoading = ref(false)
+  const cursoId             = ref('')
+  const cicloId             = ref('')
+  const ciclosDisponibles   = ref([])
+  const ciclosLoading       = ref(false)
+  const cicloSeleccionado   = ref(null)
 
-  // ── Paso 2: Estudiante ──────────────────────────────────────────────────────
+  // ── Paso 2: Precio ──────────────────────────────────────────────────────────
+  const preciosDisponibles  = ref([])   // array de opciones devuelto por el endpoint
+  const precioSeleccionado  = ref(null) // opción elegida por el usuario
+  const precioLoading       = ref(false)
+  const sinPrecioConfigurado = ref(false)
+
+  // ── Paso 3: Estudiante ──────────────────────────────────────────────────────
   const documentoBusqueda    = ref('')
   const estudianteBuscando   = ref(false)
   const estudianteEstado     = ref('idle')   // 'idle' | 'found' | 'not_found'
@@ -108,7 +118,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     password_confirmation: ''
   })
 
-  // ── Paso 3: Datos personales + catálogos ────────────────────────────────────
+  // ── Paso 4: Datos personales + catálogos ────────────────────────────────────
   const catalogsLoading = ref(false)
   const catalogsError   = ref(false)
 
@@ -145,7 +155,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     discapacidad:            false
   })
 
-  // ── Paso 4: Detalles de matrícula ───────────────────────────────────────────
+  // ── Paso 5: Detalles de matrícula ───────────────────────────────────────────
   const detalles = reactive({
     comercial_id:       '',
     matriculado_por_id: '',
@@ -166,20 +176,25 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     multiculturalidad:  ''
   })
 
-  const formaPago            = ref('contado')
-  const precioConsultado     = ref(null)
-  const precioLoading        = ref(false)
-  const sinPrecioConfigurado = ref(false)
-
   // ── Computed: selectores ────────────────────────────────────────────────────
 
-  const cursosOpciones = computed(() =>
-    (cursos.value ?? []).map(c => ({ value: String(c.id), label: c.nombre }))
+  const sedesOpciones = computed(() =>
+    (sedes.value ?? []).map(s => ({ value: String(s.id), label: s.nombre }))
   )
+
+  /**
+   * Cuando hay sede elegida, muestra solo los cursos con ciclos activos en esa sede.
+   * Si aún no hay sede, cae a la lista completa del prop para no bloquear al usuario.
+   */
+  const cursosOpciones = computed(() => {
+    const lista = sedeId.value ? cursosEnSede.value : (cursos.value ?? [])
+    return lista.map(c => ({ value: String(c.id), label: c.nombre }))
+  })
 
   const cursosMap = computed(() => {
     const m = {}
     ;(cursos.value ?? []).forEach(c => { m[String(c.id)] = c.nombre })
+    cursosEnSede.value.forEach(c => { m[String(c.id)] = c.nombre })
     return m
   })
 
@@ -191,19 +206,19 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
   )
 
   const comercialesOpciones = computed(() =>
-    (comerciales.value ?? []).map(u => ({ value: String(u.id), label: u.name }))
+    (comerciales.value ?? []).map(u => ({ value: String(u.id), label: nombreCompleto(u) }))
   )
 
   const comercialesMap = computed(() => {
     const m = {}
-    ;(comerciales.value ?? []).forEach(u => { m[String(u.id)] = u.name })
+    ;(comerciales.value ?? []).forEach(u => { m[String(u.id)] = nombreCompleto(u) })
     return m
   })
 
   const sedeDelCiclo = computed(() => {
     if (!cicloSeleccionado.value) return null
-    const sedeId = cicloSeleccionado.value.sede_id ?? cicloSeleccionado.value.sede?.id
-    return (sedes.value ?? []).find(s => s.id === sedeId) ?? null
+    const cicloSedeId = cicloSeleccionado.value.sede_id ?? cicloSeleccionado.value.sede?.id
+    return (sedes.value ?? []).find(s => s.id === cicloSedeId) ?? null
   })
 
   // ── Computed: catálogos como arrays de opciones ──────────────────────────────
@@ -278,8 +293,12 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
 
   const canProceed = computed(() => {
     switch (currentStep.value) {
-      case 1: return !!cursoId.value && !!cicloId.value
+      case 1:
+        return !!sedeId.value && !!cursoId.value && !!cicloId.value
       case 2:
+        // Puede avanzar si terminó de cargar Y (hay precio seleccionado O no hay precios disponibles)
+        return !precioLoading.value && (!!precioSeleccionado.value || sinPrecioConfigurado.value)
+      case 3:
         if (estudianteEstado.value === 'found') return true
         if (estudianteEstado.value === 'not_found') {
           return (
@@ -292,8 +311,8 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
           )
         }
         return false
-      case 3: return true
-      case 4:
+      case 4: return true
+      case 5:
         return (
           !!detalles.comercial_id &&
           !!detalles.matriculado_por_id &&
@@ -330,16 +349,59 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     apiError.value    = ''
     fieldErrors.value = {}
     currentStep.value++
-    if (currentStep.value === 4) await loadPrecio()
+    if (currentStep.value === 2) await loadPrecio()
   }
 
-  // ── Paso 1: ciclos ────────────────────────────────────────────────────────────
+  // ── Paso 1: sede → curso → ciclo ─────────────────────────────────────────────
+
+  /**
+   * Cuando cambia la sede: resetea curso, ciclo y precios, y carga los cursos
+   * que tienen ciclos activos en esa sede para filtrar el selector.
+   */
+  async function onSedeChange() {
+    cursoId.value              = ''
+    cicloId.value              = ''
+    cicloSeleccionado.value    = null
+    ciclosDisponibles.value    = []
+    cursosEnSede.value         = []
+    preciosDisponibles.value   = []
+    precioSeleccionado.value   = null
+    sinPrecioConfigurado.value = false
+    if (sedeId.value) await loadCursosEnSede()
+  }
+
+  /** Obtiene los cursos únicos con ciclos activos en la sede seleccionada. */
+  async function loadCursosEnSede() {
+    if (!sedeId.value) { cursosEnSede.value = []; return }
+    cursosEnSedeLoading.value = true
+    try {
+      const res = await cicloService.getAll({
+        sede_id:  sedeId.value,
+        status:   1,
+        with:     'curso',
+        per_page: 200
+      })
+      const ciclos = res.data ?? []
+      const map    = new Map()
+      for (const c of ciclos) {
+        if (c.curso?.id && !map.has(c.curso.id)) map.set(c.curso.id, c.curso)
+      }
+      cursosEnSede.value = [...map.values()].sort((a, b) =>
+        a.nombre.localeCompare(b.nombre, 'es')
+      )
+    } catch {
+      cursosEnSede.value = []
+    } finally {
+      cursosEnSedeLoading.value = false
+    }
+  }
 
   async function onCursoChange() {
     cicloId.value              = ''
     cicloSeleccionado.value    = null
     ciclosDisponibles.value    = []
-    precioConsultado.value     = null
+    preciosDisponibles.value   = []
+    precioSeleccionado.value   = null
     sinPrecioConfigurado.value = false
     if (cursoId.value) await loadCiclos()
   }
@@ -360,10 +422,17 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     if (!cursoId.value) return
     ciclosLoading.value = true
     try {
-      const res = await cicloService.getAll({
-        curso_id: cursoId.value, status: 1, with: 'sede,curso',
-        sort_by: 'nombre', sort_direction: 'asc', per_page: 100
-      })
+      const params = {
+        curso_id:       cursoId.value,
+        status:         1,
+        // 'sede.poblacion' provee el poblacion_id necesario para consultar el precio
+        with:           'sede,sede.poblacion,curso',
+        sort_by:        'nombre',
+        sort_direction: 'asc',
+        per_page:       100
+      }
+      if (sedeId.value) params.sede_id = sedeId.value
+      const res = await cicloService.getAll(params)
       ciclosDisponibles.value = res.data ?? []
     } catch {
       ciclosDisponibles.value = []
@@ -372,7 +441,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     }
   }
 
-  // ── Paso 2: búsqueda de estudiante ───────────────────────────────────────────
+  // ── Paso 3: búsqueda de estudiante ───────────────────────────────────────────
 
   async function buscarEstudiante() {
     const doc = documentoBusqueda.value.trim()
@@ -434,7 +503,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     })
   }
 
-  // ── Paso 3: catálogos ─────────────────────────────────────────────────────────
+  // ── Paso 4: catálogos ─────────────────────────────────────────────────────────
 
   async function loadCatalogs() {
     catalogsLoading.value = true
@@ -457,14 +526,26 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     }
   }
 
-  // ── Paso 4: consulta de precio ────────────────────────────────────────────────
+  // ── Paso 2: consulta de precios ───────────────────────────────────────────────
 
   async function loadPrecio() {
-    precioConsultado.value     = null
+    preciosDisponibles.value   = []
+    precioSeleccionado.value   = null
     sinPrecioConfigurado.value = false
 
-    const sede        = sedeDelCiclo.value
-    const poblacionId = sede?.poblacion?.id ?? sede?.poblacion_id
+    /**
+     * Resolución del poblacion_id con múltiples fuentes:
+     * 1. Sede del prop `sedes` (puede tener poblacion.id o poblacion_id)
+     * 2. Sede embebida en el ciclo cargado con `with: 'sede,sede.poblacion'`
+     */
+    const sedeFromProp  = sedeDelCiclo.value
+    const sedeFromCiclo = cicloSeleccionado.value?.sede ?? null
+    const poblacionId =
+      sedeFromProp?.poblacion?.id  ??
+      sedeFromProp?.poblacion_id   ??
+      sedeFromCiclo?.poblacion?.id ??
+      sedeFromCiclo?.poblacion_id  ??
+      null
 
     if (!cursoId.value || !poblacionId) {
       sinPrecioConfigurado.value = true
@@ -473,20 +554,31 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
 
     precioLoading.value = true
     try {
-      const prodRes = await productoLpService.getAll(
-        { referencia_tipo: 'curso', referencia_id: cursoId.value, status: 1, with: 'tipoProducto' },
+      /**
+       * Una sola llamada: el endpoint resuelve internamente el producto LP
+       * a partir de referencia_tipo + referencia_id, eliminando la búsqueda
+       * previa a /lp/productos.
+       * Respuesta: { message, total, data: [{ id, precio_contado, numero_cuotas, ... }] }
+       */
+      const res      = await precioProductoService.obtenerPrecio(
+        {
+          referencia_tipo: 'curso',
+          referencia_id:   cursoId.value,
+          poblacion_id:    poblacionId,
+          fecha:           today()
+        },
         { _silent: true }
       )
-      const productos = prodRes.data ?? (Array.isArray(prodRes) ? prodRes : [])
-      const producto  = productos[0] ?? null
+      const opciones = res?.data ?? (Array.isArray(res) ? res : [])
 
-      if (!producto) { sinPrecioConfigurado.value = true; return }
+      if (!opciones.length) {
+        sinPrecioConfigurado.value = true
+        return
+      }
 
-      const precioRes        = await precioProductoService.obtenerPrecio({
-        producto_id: producto.id, poblacion_id: poblacionId
-      })
-      precioConsultado.value = precioRes.data
-      applyFormaPago()
+      preciosDisponibles.value = opciones
+      // Auto-seleccionar cuando solo hay una opción disponible
+      if (opciones.length === 1) seleccionarPrecio(opciones[0])
     } catch {
       sinPrecioConfigurado.value = true
     } finally {
@@ -494,18 +586,26 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     }
   }
 
-  function applyFormaPago() {
-    if (!precioConsultado.value) return
-    if (formaPago.value === 'contado') {
-      detalles.monto       = precioConsultado.value.precio_contado
+  /**
+   * Registra el precio elegido por el usuario y pre-rellena monto/cuota en detalles.
+   * - Sin cuotas (numero_cuotas === null): pago de contado → monto = precio_contado.
+   * - Con cuotas: financiado → monto = matrícula inicial, valor_cuota = cuota.
+   */
+  function seleccionarPrecio(precio) {
+    precioSeleccionado.value = precio
+    if (!precio) {
+      detalles.monto       = ''
       detalles.valor_cuota = ''
+      return
+    }
+    if (precio.numero_cuotas) {
+      detalles.monto       = precio.matricula
+      detalles.valor_cuota = precio.valor_cuota
     } else {
-      detalles.monto       = precioConsultado.value.matricula ?? precioConsultado.value.precio_contado
-      detalles.valor_cuota = precioConsultado.value.valor_cuota ?? ''
+      detalles.monto       = precio.precio_contado
+      detalles.valor_cuota = ''
     }
   }
-
-  watch(formaPago, applyFormaPago)
 
   // ── Submit ────────────────────────────────────────────────────────────────────
 
@@ -542,7 +642,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
   }
 
   async function _crearEstudiante() {
-    const sedeId = cicloSeleccionado.value?.sede_id ?? cicloSeleccionado.value?.sede?.id
+    const cicloSedeId = cicloSeleccionado.value?.sede_id ?? cicloSeleccionado.value?.sede?.id
     const payload = {
       primer_nombre:         estudianteForm.primer_nombre,
       primer_apellido:       estudianteForm.primer_apellido,
@@ -553,13 +653,13 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
       roles:                 ['alumno'],
       ...(estudianteForm.segundo_nombre   ? { segundo_nombre:   estudianteForm.segundo_nombre   } : {}),
       ...(estudianteForm.segundo_apellido ? { segundo_apellido: estudianteForm.segundo_apellido } : {}),
-      ...(sedeId ? { sedes: [sedeId] } : {})
+      ...(cicloSedeId ? { sedes: [cicloSedeId] } : {})
     }
     try {
       const res = await userService.create(payload, { _silent: true })
       return res.data?.id ?? res?.id ?? null
     } catch (e) {
-      _handleApiError(e, 2)
+      _handleApiError(e, 3)
       return null
     }
   }
@@ -693,12 +793,20 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     apiError.value     = ''
     fieldErrors.value  = {}
 
-    cursoId.value           = ''
-    cicloId.value           = ''
-    ciclosDisponibles.value = []
-    cicloSeleccionado.value = null
+    sedeId.value              = ''
+    cursosEnSede.value        = []
+    cursosEnSedeLoading.value = false
+    cursoId.value             = ''
+    cicloId.value             = ''
+    ciclosDisponibles.value   = []
+    cicloSeleccionado.value   = null
 
-    resetEstudianteBusqueda()   // también limpia estudianteForm con los 4 campos
+    preciosDisponibles.value   = []
+    precioSeleccionado.value   = null
+    precioLoading.value        = false
+    sinPrecioConfigurado.value = false
+
+    resetEstudianteBusqueda()
 
     Object.assign(datosPersonales, {
       tipo_identificacion: '', departamento_expedicion: '', ciudad_expedicion: '',
@@ -717,11 +825,6 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
       nombre_contacto: '', telefono_contacto: '', correo_contacto: '',
       aprueba_uso_imagen: false, multiculturalidad: ''
     })
-
-    formaPago.value            = 'contado'
-    precioConsultado.value     = null
-    precioLoading.value        = false
-    sinPrecioConfigurado.value = false
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -734,30 +837,34 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     canProceed, canGoToStep, goToStep, nextStep,
     stepCircleClass, stepLabelClass,
 
-    // Paso 1
+    // Paso 1 — Programación (sede → curso → ciclo)
+    sedeId, sedesOpciones, onSedeChange, cursosEnSedeLoading,
     cursoId, cicloId, ciclosDisponibles, ciclosLoading, cicloSeleccionado,
     cursosOpciones, cursosMap, ciclosOpciones,
     onCursoChange, onCicloChange,
 
-    // Paso 2
+    // Paso 2 — Precio
+    preciosDisponibles, precioSeleccionado, precioLoading, sinPrecioConfigurado,
+    seleccionarPrecio,
+
+    // Paso 3 — Estudiante
     documentoBusqueda, estudianteBuscando, estudianteEstado,
     estudianteEncontrado, actualizarEstudiante, estudianteForm,
     buscarEstudiante, resetEstudianteBusqueda, estudianteResumen,
 
-    // Paso 3
+    // Paso 4 — Datos personales
     catalogs, datosPersonales, catalogsLoading, catalogsError,
     catalogOpts, departamentosOpciones, ciudadesExpedicionOpciones, lugarOrigenOpciones,
 
-    // Paso 4
-    detalles, formaPago, precioConsultado, precioLoading, sinPrecioConfigurado,
-    comercialesOpciones, comercialesMap, sedeDelCiclo,
-    applyFormaPago, fechaInicioError,
+    // Paso 5 — Detalles de matrícula
+    detalles, comercialesOpciones, comercialesMap, sedeDelCiclo,
+    fechaInicioError,
 
-    // Paso 5
+    // Paso 6 — Confirmación
     tieneAlgunDatoPersonal,
 
     // Acciones
-    submit, init,
+    submit, init, loadCatalogs,
 
     // Utilidades
     formatDate, formatCOP

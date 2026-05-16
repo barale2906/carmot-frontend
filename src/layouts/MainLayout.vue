@@ -23,6 +23,7 @@ import Navbar from '../components/Navbar.vue'
 import Sidebar from '../components/Sidebar.vue'
 import { authService } from '../services/authService'
 import { menuService } from '../services/menuService'
+import { nombreCompleto } from '@/utils/formatters.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -88,19 +89,17 @@ const fetchUserData = async () => {
 
     // Ajustar según la estructura de respuesta de la API
     if (typeof userData === 'string') {
-      // Si es un string, podría ser JSON parseado
       try {
         const parsed = JSON.parse(userData)
-        userName.value = parsed.name || parsed.nombre || 'Usuario'
+        userName.value = nombreCompleto(parsed) || 'Usuario'
         userEmail.value = parsed.email || parsed.correo || ''
         userRole.value = parsed.role || parsed.rol || null
       } catch {
-        // Si no se puede parsear, usar valores por defecto
         userName.value = 'Usuario'
         userEmail.value = ''
       }
     } else if (typeof userData === 'object') {
-      userName.value = userData.name || userData.nombre || userData.username || 'Usuario'
+      userName.value = nombreCompleto(userData) || 'Usuario'
       userEmail.value = userData.email || userData.correo || ''
       userRole.value = userData.role || userData.rol || null
     }

@@ -580,6 +580,7 @@ import areaService from '@/services/areaService.js'
 import horarioService from '@/services/horarioService.js'
 import SemanarioGrupos from '@/components/academico/SemanarioGrupos.vue'
 import { useNotification } from '@/composables/useNotification'
+import { nombreCompleto } from '@/utils/formatters.js'
 
 const { success: notifySuccess } = useNotification()
 
@@ -653,7 +654,7 @@ const formModuloOptions = computed(() =>
   (filterOptions.modulos ?? []).map((m) => ({ value: m.id, label: m.nombre }))
 )
 const formProfesorOptions = computed(() =>
-  (filterOptions.profesores ?? []).map((p) => ({ value: p.id, label: p.name ?? p.email }))
+  (filterOptions.profesores ?? []).map((p) => ({ value: p.id, label: nombreCompleto(p) }))
 )
 
 const areas = ref([])

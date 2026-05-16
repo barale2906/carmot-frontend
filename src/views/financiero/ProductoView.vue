@@ -134,13 +134,24 @@
             </template>
 
             <template v-else-if="column.key === 'referencia_tipo'">
+              <template v-if="row.referencias?.length">
+                <div class="flex flex-wrap gap-1">
+                  <span
+                    v-for="ref in row.referencias.slice(0, 2)"
+                    :key="ref.id"
+                    class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize"
+                    :class="ref.referencia_tipo === 'curso' ? 'bg-violet-100 text-violet-800' : 'bg-amber-100 text-amber-800'"
+                  >{{ ref.referencia_tipo }}</span>
+                  <span v-if="row.referencias.length > 2" class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                    +{{ row.referencias.length - 2 }}
+                  </span>
+                </div>
+              </template>
               <span
-                v-if="value"
+                v-else-if="value"
                 class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize"
                 :class="value === 'curso' ? 'bg-violet-100 text-violet-800' : 'bg-amber-100 text-amber-800'"
-              >
-                {{ value }}
-              </span>
+              >{{ value }}</span>
               <span v-else class="text-slate-400">Sin referencia</span>
             </template>
 
@@ -239,56 +250,75 @@
           />
         </div>
 
-        <!-- Referencia académica -->
+        <!-- Referencias académicas (múltiples) -->
         <div class="flex flex-col gap-3 rounded-lg border border-black/10 bg-slate-50 p-4">
           <div>
-            <p class="text-sm font-medium text-slate-900">Referencia académica</p>
-            <p class="mt-0.5 text-xs text-slate-500">Vincula este producto a un curso o módulo. Opcional para productos complementarios (materiales, seguros, etc.).</p>
+            <p class="text-sm font-medium text-slate-900">Referencias académicas</p>
+            <p class="mt-0.5 text-xs text-slate-500">
+              Vincula este producto a uno o más cursos y/o módulos. Opcional para productos complementarios (diplomas, materiales, etc.).
+            </p>
           </div>
 
-          <FormSelect
-            v-model="form.referencia_tipo"
-            label="Tipo de referencia"
-            :options="referenciaTipoOptions"
-            hint="Selecciona 'Curso' o 'Módulo' para habilitar el selector."
-            help="Indica si el producto se enlaza a un curso o a un módulo."
-            :error="fieldErrors.referencia_tipo?.[0]"
-          />
+          <!-- Lista de referencias seleccionadas -->
+          <div v-if="form.referencias.length" class="flex flex-wrap gap-2">
+            <span
+              v-for="(ref, idx) in form.referencias"
+              :key="ref._key"
+              class="inline-flex items-center gap-1 rounded-full py-0.5 pl-2.5 pr-1 text-xs font-medium"
+              :class="ref.referencia_tipo === 'curso' ? 'bg-violet-100 text-violet-800' : 'bg-amber-100 text-amber-800'"
+            >
+              <span class="capitalize">{{ ref.referencia_tipo }}</span>
+              <span class="mx-0.5 text-slate-400">·</span>
+              <span>{{ labelReferencia(ref) }}</span>
+              <button
+                type="button"
+                class="ml-0.5 flex rounded-full p-0.5 transition-colors hover:bg-black/10 focus:outline-none focus:ring-2 focus:ring-offset-1"
+                :class="ref.referencia_tipo === 'curso' ? 'focus:ring-violet-500' : 'focus:ring-amber-500'"
+                :aria-label="`Quitar ${ref.referencia_tipo} ${labelReferencia(ref)}`"
+                @click="quitarReferencia(idx)"
+              >
+                <NavIcon name="close" class="size-3" />
+              </button>
+            </span>
+          </div>
+          <div v-else class="rounded-lg border border-dashed border-slate-300 bg-white px-4 py-2.5 text-center">
+            <p class="text-xs text-slate-400">Sin referencias — producto complementario o de uso general.</p>
+          </div>
 
-          <!-- Selector de curso -->
-          <div v-if="form.referencia_tipo === 'curso'">
-            <div v-if="cursosLoading" class="rounded-lg border border-black/10 bg-white px-4 py-3 text-sm text-slate-400 italic">Cargando cursos...</div>
+          <!-- Fila para agregar una referencia -->
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-[140px_1fr_auto]">
             <FormSelect
-              v-else
-              v-model="form.referencia_id"
-              label="Curso *"
-              :options="cursosOptions"
-              hint="Curso académico al que se vincula este producto."
-              help="Curso del plan al que pertenece este ítem tarificable."
-              :required="true"
-              :error="fieldErrors.referencia_id?.[0]"
+              v-model="addRefTipo"
+              label="Tipo *"
+              :options="[{ value: 'curso', label: 'Curso' }, { value: 'modulo', label: 'Módulo' }]"
+              help="Tipo de entidad académica a vincular."
             />
+            <div>
+              <div v-if="cursosLoading || modulosLoading" class="rounded-lg border border-black/10 bg-white px-3 py-2 text-sm text-slate-400 italic mt-0">
+                Cargando...
+              </div>
+              <FormSelect
+                v-else
+                v-model="addRefId"
+                :label="addRefTipo === 'curso' ? 'Curso *' : 'Módulo *'"
+                :placeholder="addRefTipo === 'curso' ? 'Selecciona un curso' : 'Selecciona un módulo'"
+                :options="addRefTipo === 'curso' ? cursosOptions : modulosOptions"
+                help="Entidad académica a vincular al producto."
+              />
+            </div>
+            <div class="flex items-end">
+              <button
+                type="button"
+                :disabled="!addRefTipo || !addRefId"
+                class="flex h-9 items-center gap-1.5 rounded-lg bg-[#213360] px-3 text-xs font-medium text-white transition-colors hover:bg-[#1a294d] disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                @click="agregarReferencia"
+              >
+                <NavIcon name="plus" class="size-3.5" />
+                Agregar
+              </button>
+            </div>
           </div>
-
-          <!-- Selector de módulo -->
-          <div v-else-if="form.referencia_tipo === 'modulo'">
-            <div v-if="modulosLoading" class="rounded-lg border border-black/10 bg-white px-4 py-3 text-sm text-slate-400 italic">Cargando módulos...</div>
-            <FormSelect
-              v-else
-              v-model="form.referencia_id"
-              label="Módulo *"
-              :options="modulosOptions"
-              hint="Módulo académico al que se vincula este producto."
-              help="Módulo del plan al que pertenece este ítem tarificable."
-              :required="true"
-              :error="fieldErrors.referencia_id?.[0]"
-            />
-          </div>
-
-          <!-- Sin referencia -->
-          <div v-else class="rounded-lg border border-dashed border-slate-300 bg-white px-4 py-3 text-center">
-            <p class="text-xs text-slate-400">Sin referencia — producto complementario o de uso general.</p>
-          </div>
+          <p v-if="refError" class="text-xs text-red-600">{{ refError }}</p>
         </div>
 
         <!-- Descripción y Estado -->
@@ -383,20 +413,23 @@
           </dd>
         </div>
         <div class="col-span-2">
-          <dt class="font-medium text-slate-500">Referencia académica</dt>
-          <dd class="mt-0.5">
-            <span v-if="detailProducto.referencia">
+          <dt class="font-medium text-slate-500">
+            Referencias académicas
+            <span v-if="referenciasCargadas(detailProducto).length" class="ml-1 font-normal text-slate-400">({{ referenciasCargadas(detailProducto).length }})</span>
+          </dt>
+          <dd class="mt-1.5">
+            <div v-if="referenciasCargadas(detailProducto).length" class="flex flex-wrap gap-1.5">
               <span
-                class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize mr-2"
-                :class="detailProducto.referencia_tipo === 'curso' ? 'bg-violet-100 text-violet-800' : 'bg-amber-100 text-amber-800'"
+                v-for="ref in referenciasCargadas(detailProducto)"
+                :key="ref.id ?? (ref.referencia_tipo + '-' + ref.referencia_id)"
+                class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium capitalize"
+                :class="ref.referencia_tipo === 'curso' ? 'bg-violet-100 text-violet-800' : 'bg-amber-100 text-amber-800'"
               >
-                {{ detailProducto.referencia_tipo }}
+                <span>{{ ref.referencia_tipo }}</span>
+                <span class="text-inherit/60">·</span>
+                <span>{{ ref.referencia?.nombre ?? `#${ref.referencia_id}` }}</span>
               </span>
-              <span class="text-slate-900">{{ detailProducto.referencia.nombre }}</span>
-            </span>
-            <span v-else-if="detailProducto.referencia_id" class="text-slate-500">
-              {{ detailProducto.referencia_tipo }} #{{ detailProducto.referencia_id }}
-            </span>
+            </div>
             <span v-else class="text-slate-400">Sin referencia académica</span>
           </dd>
         </div>
@@ -446,9 +479,10 @@ import FormSelect from '@/components/forms/FormSelect.vue'
 import FormTextarea from '@/components/forms/FormTextarea.vue'
 import NavIcon from '@/components/icons/NavIcon.vue'
 import ModalBase from '@/components/ModalBase.vue'
-import productoLpService from '@/services/productoLpService.js'
-import cursoService from '@/services/cursoService.js'
-import moduloService from '@/services/moduloService.js'
+import productoLpService        from '@/services/productoLpService.js'
+import productoReferenciaService from '@/services/productoReferenciaService.js'
+import cursoService              from '@/services/cursoService.js'
+import moduloService             from '@/services/moduloService.js'
 import { useTipoProductoSelector } from '@/composables/useTipoProducto.js'
 import { useNotification } from '@/composables/useNotification'
 
@@ -465,12 +499,6 @@ const statusOptions = [
   { value: '', label: 'Todos' },
   { value: 1,  label: 'Activos' },
   { value: 0,  label: 'Inactivos' }
-]
-
-const referenciaTipoOptions = [
-  { value: '',       label: 'Sin referencia' },
-  { value: 'curso',  label: 'Curso' },
-  { value: 'modulo', label: 'Módulo' }
 ]
 
 const referenciaTipoFilterOptions = [
@@ -539,7 +567,7 @@ async function loadProductos(page = 1) {
       per_page:       pagination.perPage,
       sort_by:        'nombre',
       sort_direction: 'asc',
-      with:           'tipoProducto'
+      with:           'tipoProducto,referencias'
     }
     if (viewTrashed.value)               params.only_trashed      = true
     if (filters.search)                  params.search            = filters.search
@@ -606,39 +634,101 @@ const formLoading      = ref(false)
 const formError        = ref('')
 const fieldErrors      = ref({})
 
+/** Genera una clave temporal única para identificar items en la lista local */
+function newRefKey() {
+  return `ref-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+}
+
 const form = reactive({
   tipo_producto_id: null,
   nombre:           '',
   codigo:           '',
   descripcion:      '',
-  referencia_tipo:  '',
-  referencia_id:    null,
+  referencias:      [],  // [{ _key, referencia_tipo, referencia_id }]
   status:           1
 })
+
+// ─── Estado del bloque "agregar referencia" ───────────────────────────────────
+const addRefTipo  = ref('curso')
+const addRefId    = ref(null)
+const refError    = ref('')
+
+/** Etiqueta legible de una referencia para los badges del formulario */
+function labelReferencia(ref) {
+  if (!ref.referencia_id) return '—'
+  const lista = ref.referencia_tipo === 'curso' ? cursos.value : modulos.value
+  const item  = lista.find((x) => Number(x.id) === Number(ref.referencia_id))
+  return item?.nombre ?? `#${ref.referencia_id}`
+}
+
+/** Extrae el array normalizado de referencias para el modal de detalle */
+function referenciasCargadas(producto) {
+  if (!producto) return []
+  // La API puede devolver la relación como 'referencias' (modelo LpProductoReferencia[])
+  // o como 'cursos'/'modulos' en el producto detalle
+  if (Array.isArray(producto.referencias) && producto.referencias.length) {
+    return producto.referencias
+  }
+  // Fallback: construir desde cursos/modulos si se cargó con esas relaciones
+  const refs = []
+  for (const c of (producto.cursos ?? [])) {
+    refs.push({ referencia_tipo: 'curso', referencia_id: c.id, referencia: c })
+  }
+  for (const m of (producto.modulos ?? [])) {
+    refs.push({ referencia_tipo: 'modulo', referencia_id: m.id, referencia: m })
+  }
+  if (refs.length) return refs
+  // Último recurso: campo legacy de referencia única
+  if (producto.referencia_id && producto.referencia_tipo) {
+    return [{
+      referencia_tipo: producto.referencia_tipo,
+      referencia_id:   producto.referencia_id,
+      referencia:      producto.referencia ?? null
+    }]
+  }
+  return []
+}
+
+function agregarReferencia() {
+  refError.value = ''
+  if (!addRefTipo.value || !addRefId.value) {
+    refError.value = 'Selecciona el tipo y la entidad académica a vincular.'
+    return
+  }
+  const id   = Number(addRefId.value)
+  const tipo = addRefTipo.value
+  const yaExiste = form.referencias.some(
+    (r) => r.referencia_tipo === tipo && Number(r.referencia_id) === id
+  )
+  if (yaExiste) {
+    refError.value = `Ese ${tipo} ya fue añadido a las referencias.`
+    return
+  }
+  form.referencias.push({ _key: newRefKey(), referencia_tipo: tipo, referencia_id: id })
+  addRefId.value = null
+}
+
+function quitarReferencia(idx) {
+  form.referencias.splice(idx, 1)
+}
 
 function resetForm() {
   form.tipo_producto_id = null
   form.nombre           = ''
   form.codigo           = ''
   form.descripcion      = ''
-  form.referencia_tipo  = ''
-  form.referencia_id    = null
+  form.referencias      = []
   form.status           = 1
+  addRefTipo.value      = 'curso'
+  addRefId.value        = null
+  refError.value        = ''
   formError.value       = ''
   fieldErrors.value     = {}
 }
 
-// Limpiar referencia_id al cambiar tipo de referencia
-watch(() => form.referencia_tipo, (tipo) => {
-  form.referencia_id = null
-  if (tipo === 'curso')  loadCursos()
-  if (tipo === 'modulo') loadModulos()
-})
-
 async function openCreate() {
   editingProducto.value = null
   resetForm()
-  // Pre-cargar datos de referencia para agilizar la selección
   await Promise.allSettled([loadTipos(), loadCursos(), loadModulos()])
   showFormModal.value = true
 }
@@ -649,13 +739,32 @@ async function openEdit(producto) {
   await Promise.allSettled([loadTipos(), loadCursos(), loadModulos()])
 
   form.tipo_producto_id = producto.tipo_producto_id ?? producto.tipo_producto?.id ?? null
-  form.nombre           = producto.nombre           ?? ''
-  form.codigo           = producto.codigo           ?? ''
-  form.descripcion      = producto.descripcion      ?? ''
-  form.referencia_tipo  = producto.referencia_tipo  ?? ''
-  form.referencia_id    = producto.referencia_id    ?? null
-  form.status           = producto.status           ?? 1
-  showFormModal.value   = true
+  form.nombre           = producto.nombre     ?? ''
+  form.codigo           = producto.codigo     ?? ''
+  form.descripcion      = producto.descripcion ?? ''
+  form.status           = producto.status      ?? 1
+
+  // Cargar referencias existentes del producto
+  try {
+    const res = await productoReferenciaService.getAll(
+      { lp_producto_id: producto.id, per_page: 100 },
+      { _silent: true }
+    )
+    form.referencias = (res.data ?? []).map((r) => ({
+      _key:           newRefKey(),
+      referencia_tipo: r.referencia_tipo,
+      referencia_id:   r.referencia_id
+    }))
+  } catch {
+    // Fallback: intentar cargar desde producto si trae la relación
+    form.referencias = referenciasCargadas(producto).map((r) => ({
+      _key:           newRefKey(),
+      referencia_tipo: r.referencia_tipo,
+      referencia_id:   r.referencia_id
+    }))
+  }
+
+  showFormModal.value = true
 }
 
 async function submitForm() {
@@ -671,26 +780,36 @@ async function submitForm() {
     if (form.codigo?.trim())      payload.codigo      = form.codigo.trim()
     if (form.descripcion?.trim()) payload.descripcion = form.descripcion.trim()
 
-    // Referencia académica: enviar ambos o ninguno
-    if (form.referencia_tipo && form.referencia_id) {
-      payload.referencia_tipo = form.referencia_tipo
-      payload.referencia_id   = Number(form.referencia_id)
-    } else if (!form.referencia_tipo && editingProducto.value?.referencia_tipo) {
-      // Desvincular referencia al editar
-      payload.referencia_tipo = null
-      payload.referencia_id   = null
-    }
-
-    // Limpiar undefined para no enviar campos vacíos en PUT
+    // Limpiar undefined
     Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k])
+
+    let productoId
 
     if (editingProducto.value) {
       await productoLpService.update(editingProducto.value.id, payload, { _silent: true })
-      notifySuccess(`El producto "${form.nombre}" fue actualizado correctamente.`)
+      productoId = editingProducto.value.id
     } else {
-      await productoLpService.create(payload, { _silent: true })
-      notifySuccess(`El producto "${form.nombre}" fue creado correctamente.`)
+      const res  = await productoLpService.create(payload, { _silent: true })
+      productoId = res.data?.id ?? res?.id
+      if (!productoId) throw new Error('La API no devolvió el id del producto creado.')
     }
+
+    // Sincronizar referencias (reemplaza todo lo anterior)
+    const referencias = form.referencias.map((r) => ({
+      referencia_id:   Number(r.referencia_id),
+      referencia_tipo: r.referencia_tipo
+    }))
+    await productoReferenciaService.sync(
+      { lp_producto_id: productoId, referencias },
+      { _silent: true }
+    )
+
+    notifySuccess(
+      editingProducto.value
+        ? `El producto "${form.nombre}" fue actualizado correctamente.`
+        : `El producto "${form.nombre}" fue creado correctamente.`
+    )
+
     showFormModal.value = false
     await Promise.all([loadProductos(pagination.currentPage), loadStatistics()])
   } catch (e) {
@@ -698,7 +817,7 @@ async function submitForm() {
       fieldErrors.value = e.response.data?.errors  ?? {}
       formError.value   = e.response.data?.message ?? 'Verifica los campos del formulario.'
     } else {
-      formError.value = e?.response?.data?.message ?? 'Ocurrió un error inesperado.'
+      formError.value = e?.response?.data?.message ?? e?.message ?? 'Ocurrió un error inesperado.'
     }
   } finally {
     formLoading.value = false
@@ -740,7 +859,10 @@ async function openDetail(producto) {
   detailProducto.value  = producto
   showDetailModal.value = true
   try {
-    const res = await productoLpService.getById(producto.id, { with: 'tipoProducto,referencia,listasPrecios' })
+    const res = await productoLpService.getById(
+      producto.id,
+      { with: 'tipoProducto,referencias.referencia,listasPrecios' }
+    )
     detailProducto.value = res.data
   } catch {
     // Mantiene datos del listado

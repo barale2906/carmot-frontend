@@ -154,6 +154,15 @@
               <NavIcon name="pencil" class="size-4" />
             </button>
             <button
+              v-if="!row.deleted_at && canClonar"
+              type="button"
+              class="rounded p-1.5 text-slate-500 transition-colors hover:bg-indigo-100 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              title="Clonar lista para nuevo período"
+              @click="openClonar(row)"
+            >
+              <NavIcon name="copy" class="size-4" />
+            </button>
+            <button
               v-if="!row.deleted_at && canDelete"
               type="button"
               class="rounded p-1.5 text-slate-500 transition-colors hover:bg-red-100 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -1144,6 +1153,17 @@
             <NavIcon name="close" class="size-3.5" />
             Inactivar
           </button>
+          <!-- Clonar: disponible desde cualquier estado -->
+          <button
+            v-if="!detailLista.deleted_at && canClonar"
+            type="button"
+            :disabled="actionLoading"
+            class="flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-xs font-medium text-indigo-700 transition-colors hover:bg-indigo-50 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            @click="openClonar(detailLista)"
+          >
+            <NavIcon name="copy" class="size-3.5" />
+            Clonar para nuevo período
+          </button>
         </div>
       </div>
 
@@ -1217,6 +1237,59 @@
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- Productos sin precio en esta lista -->
+        <div v-if="[1, 2].includes(detailLista.status)" class="mt-5 border-t border-black/10 pt-5">
+          <div class="mb-2 flex items-center justify-between gap-2">
+            <p class="text-sm font-semibold text-slate-900">
+              Productos sin precio
+              <span
+                v-if="sinPrecioProductos.length"
+                class="ml-1.5 inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800"
+              >{{ sinPrecioProductos.length }}</span>
+            </p>
+            <button
+              v-if="!sinPrecioLoading"
+              type="button"
+              class="text-xs text-slate-500 underline hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              @click="loadSinPrecio(detailLista.id)"
+            >Actualizar</button>
+          </div>
+          <div v-if="sinPrecioLoading" class="py-4 text-center text-xs text-slate-400">Verificando productos sin precio…</div>
+          <template v-else-if="sinPrecioProductos.length">
+            <p class="mb-2 text-xs text-amber-800">
+              Los siguientes productos del catálogo LP no tienen precio definido en esta lista. Agrégalos para completar la tarificación antes de aprobar.
+            </p>
+            <ul class="space-y-1 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
+              <li
+                v-for="prod in sinPrecioProductos"
+                :key="prod.id"
+                class="flex flex-wrap items-center justify-between gap-2"
+              >
+                <div class="min-w-0">
+                  <p class="font-medium text-slate-900">{{ prod.nombre }}</p>
+                  <p class="text-xs text-slate-500">
+                    {{ prod.tipo_producto?.nombre ?? '—' }}
+                    <span v-if="prod.referencias?.length" class="ml-1">
+                      · {{ prod.referencias.map(r => r.referencia?.nombre ?? r.referencia_tipo).join(', ') }}
+                    </span>
+                  </p>
+                </div>
+                <button
+                  v-if="canAddPrecio"
+                  type="button"
+                  class="shrink-0 rounded border border-amber-300 bg-white px-2 py-0.5 text-xs font-medium text-amber-800 hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  @click="openPrecioCreateParaProducto(prod)"
+                >
+                  Agregar precio
+                </button>
+              </li>
+            </ul>
+          </template>
+          <p v-else class="rounded-lg border border-dashed border-slate-200 bg-slate-50 py-3 text-center text-xs text-slate-500">
+            Todos los productos del catálogo tienen precio en esta lista.
+          </p>
         </div>
 
         <!-- Descuentos vinculados (detalle) -->
@@ -1521,6 +1594,160 @@
       </button>
     </template>
   </ModalBase>
+
+  <!-- ══ Modal: Clonar lista ════════════════════════════════════════════════════ -->
+  <ModalBase
+    v-model="showClonarModal"
+    title="Clonar lista de precios"
+    :description="clonarOrigen
+      ? `Crea una copia de «${clonarOrigen.nombre}» con precios para un nuevo período.`
+      : 'Crea una nueva lista copiando los precios de la lista origen.'"
+    size="lg"
+  >
+    <template #icon>
+      <span class="flex size-5 shrink-0 items-center justify-center text-indigo-600">
+        <NavIcon name="copy" class="size-5" />
+      </span>
+    </template>
+
+    <form class="flex flex-col gap-4 pb-2" @submit.prevent="submitClonar">
+      <!-- Origen (solo informativo) -->
+      <div class="rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm">
+        <p class="text-xs font-medium text-indigo-600 uppercase tracking-wide mb-0.5">Lista origen</p>
+        <p class="font-semibold text-slate-900">{{ clonarOrigen?.nombre }}</p>
+        <p class="text-xs text-slate-500 mt-0.5">
+          Vigencia: {{ clonarOrigen?.fecha_inicio ?? '—' }} → {{ clonarOrigen?.fecha_fin ?? '—' }}
+        </p>
+      </div>
+
+      <!-- Datos de la nueva lista -->
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <FormInput
+          v-model="clonarForm.nombre"
+          label="Nombre de la nueva lista *"
+          placeholder="Ej: Lista 2026-II"
+          :required="true"
+          maxlength="255"
+          span="full"
+          help="Nombre que identificará a la lista clonada."
+          :error="clonarFieldErrors.nombre?.[0]"
+        />
+        <FormInput
+          v-model="clonarForm.fecha_inicio"
+          label="Fecha inicio *"
+          type="date"
+          :required="true"
+          help="Inicio de vigencia de la nueva lista."
+          :error="clonarFieldErrors.fecha_inicio?.[0]"
+        />
+        <FormInput
+          v-model="clonarForm.fecha_fin"
+          label="Fecha fin *"
+          type="date"
+          :required="true"
+          hint="Igual o posterior a la fecha inicio."
+          help="Último día de vigencia de la nueva lista."
+          :error="clonarFieldErrors.fecha_fin?.[0]"
+        />
+      </div>
+
+      <FormTextarea
+        v-model="clonarForm.descripcion"
+        label="Descripción"
+        placeholder="Opcional. Si se omite hereda la de la lista origen."
+        :rows="2"
+        help="Si se deja vacío, se hereda la descripción de la lista origen."
+        :error="clonarFieldErrors.descripcion?.[0]"
+      />
+
+      <!-- Poblaciones: opcional para sobreescribir -->
+      <div>
+        <FormCheckboxGroup
+          v-model="clonarForm.poblaciones"
+          label="Poblaciones (opcional — deja vacío para heredar)"
+          search-placeholder="Buscar región..."
+          hint="Si no seleccionas ninguna, se copian las poblaciones de la lista origen."
+          help="Regiones para la nueva lista. Vacío = heredar de la lista origen."
+          :options="poblacionesOptions"
+          :error="clonarFieldErrors.poblaciones?.[0]"
+        >
+          <template #before-search>
+            <div
+              v-if="clonarForm.poblaciones.length"
+              class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"
+            >
+              <p class="mb-1.5 text-xs font-medium text-slate-600">Regiones elegidas ({{ clonarForm.poblaciones.length }})</p>
+              <ul class="flex flex-wrap gap-2" role="list">
+                <li
+                  v-for="item in clonarPoblacionesDisplay"
+                  :key="'cpob-' + item.id"
+                  role="listitem"
+                >
+                  <span class="inline-flex items-center gap-0.5 rounded-full border border-indigo-200 bg-indigo-50 py-0.5 pl-2 pr-0.5 text-xs font-medium text-indigo-700">
+                    <span class="truncate">{{ item.label }}</span>
+                    <button
+                      type="button"
+                      class="flex shrink-0 rounded-full p-0.5 text-indigo-600 hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      :aria-label="'Quitar región: ' + item.label"
+                      @click="clonarForm.poblaciones = clonarForm.poblaciones.filter(x => Number(x) !== Number(item.id))"
+                    >
+                      <NavIcon name="close" class="size-3.5" aria-hidden="true" />
+                    </button>
+                  </span>
+                </li>
+              </ul>
+            </div>
+          </template>
+        </FormCheckboxGroup>
+        <p v-if="poblacionesLoading" class="mt-1 text-xs text-slate-400">Cargando regiones...</p>
+      </div>
+
+      <!-- Opción de copiar precios -->
+      <div class="rounded-lg border border-black/10 bg-slate-50 px-4 py-3">
+        <label class="flex cursor-pointer items-start gap-3">
+          <input
+            v-model="clonarForm.copiar_precios"
+            type="checkbox"
+            class="mt-0.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+          />
+          <div>
+            <p class="text-sm font-medium text-slate-900">Copiar precios de la lista origen</p>
+            <p class="mt-0.5 text-xs text-slate-500">
+              Si está marcado, todos los precios de la lista origen se copian a la nueva lista.
+              Si no, se crea la lista vacía lista para asignar precios manualmente.
+            </p>
+          </div>
+        </label>
+      </div>
+
+      <!-- Error general -->
+      <div v-if="clonarError" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <p class="font-medium">{{ clonarError }}</p>
+        <ul v-if="Object.keys(clonarFieldErrors).length" class="mt-1 list-inside list-disc space-y-0.5">
+          <li v-for="(msgs, field) in clonarFieldErrors" :key="field">
+            <strong>{{ field }}:</strong> {{ Array.isArray(msgs) ? msgs.join(', ') : msgs }}
+          </li>
+        </ul>
+      </div>
+    </form>
+
+    <template #footer>
+      <button
+        type="button"
+        class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        @click="showClonarModal = false"
+      >Cancelar</button>
+      <button
+        type="button"
+        :disabled="clonarLoading || !clonarForm.nombre?.trim() || !clonarForm.fecha_inicio || !clonarForm.fecha_fin"
+        class="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        @click="submitClonar"
+      >
+        <NavIcon v-if="!clonarLoading" name="copy" class="size-4" />
+        <span>{{ clonarLoading ? 'Clonando...' : 'Clonar lista' }}</span>
+      </button>
+    </template>
+  </ModalBase>
 </template>
 
 <script setup>
@@ -1537,11 +1764,12 @@ import FormCheckboxGroup from '@/components/forms/FormCheckboxGroup.vue'
 import FormFieldHelp  from '@/components/forms/FormFieldHelp.vue'
 import NavIcon        from '@/components/icons/NavIcon.vue'
 import ModalBase      from '@/components/ModalBase.vue'
-import listaPrecioService  from '@/services/listaPrecioService.js'
-import precioProductoService from '@/services/precioProductoService.js'
-import productoLpService  from '@/services/productoLpService.js'
-import descuentoService   from '@/services/descuentoService.js'
-import tipoProductoService from '@/services/tipoProductoService.js'
+import listaPrecioService       from '@/services/listaPrecioService.js'
+import precioProductoService    from '@/services/precioProductoService.js'
+import productoLpService        from '@/services/productoLpService.js'
+import productoReferenciaService from '@/services/productoReferenciaService.js'
+import descuentoService         from '@/services/descuentoService.js'
+import tipoProductoService      from '@/services/tipoProductoService.js'
 import cursoService       from '@/services/cursoService.js'
 import moduloService      from '@/services/moduloService.js'
 import { usePoblacionSelector } from '@/composables/usePoblacion.js'
@@ -1699,6 +1927,7 @@ const canEdit      = ref(true)
 const canDelete    = ref(true)
 const canAprobar   = ref(true)
 const canInactivar = ref(true)
+const canClonar    = ref(true)
 const canAddPrecio    = ref(true)
 const canEditPrecio   = ref(true)
 const canDeletePrecio = ref(true)
@@ -2216,16 +2445,28 @@ async function crearProductoDesdeReferencia() {
   }
   quickProductLoading.value = true
   try {
+    // 1. Crear el producto (sin referencia en el payload; las referencias se gestionan por separado)
     const res = await productoLpService.create(
       {
         tipo_producto_id: Number(quickTipoProductoId.value),
-        nombre: quickNombre.value.trim(),
-        referencia_tipo: quickRefTipo.value,
-        referencia_id: Number(quickRefId.value)
+        nombre:           quickNombre.value.trim()
       },
       { _silent: true }
     )
     const nuevo = res.data ?? res
+
+    // 2. Vincular la referencia académica seleccionada
+    if (nuevo?.id && quickRefId.value) {
+      await productoReferenciaService.vincular(
+        {
+          lp_producto_id:  nuevo.id,
+          referencia_id:   Number(quickRefId.value),
+          referencia_tipo: quickRefTipo.value
+        },
+        { _silent: true }
+      )
+    }
+
     if (nuevo?.id) {
       const merged = {
         ...nuevo,
@@ -2235,14 +2476,136 @@ async function crearProductoDesdeReferencia() {
         productos.value.unshift(merged)
       }
     }
-    notifySuccess('Producto creado en el catálogo LP.')
+
+    notifySuccess('Producto creado y referencia académica vinculada.')
     quickNombre.value = ''
-    quickRefId.value = ''
+    quickRefId.value  = ''
     await loadProductos(true)
   } catch (e) {
     formError.value = e?.response?.data?.message ?? 'No se pudo crear el producto.'
   } finally {
     quickProductLoading.value = false
+  }
+}
+
+// ─── Productos sin precio en lista ───────────────────────────────────────────
+const sinPrecioProductos = ref([])
+const sinPrecioLoading   = ref(false)
+
+async function loadSinPrecio(listaId) {
+  if (!listaId) { sinPrecioProductos.value = []; return }
+  sinPrecioLoading.value = true
+  try {
+    const res = await precioProductoService.sinPrecioEnLista(
+      { lista_precio_id: listaId, with: 'tipoProducto,referencias.referencia', per_page: 100 },
+      { _silent: true }
+    )
+    sinPrecioProductos.value = res.data ?? []
+  } catch {
+    sinPrecioProductos.value = []
+  } finally {
+    sinPrecioLoading.value = false
+  }
+}
+
+/** Abre el modal de agregar precio preseleccionando el producto */
+function openPrecioCreateParaProducto(prod) {
+  editingPrecio.value = null
+  resetPrecioForm()
+  precioForm.producto_id = prod.id
+  showPrecioModal.value  = true
+  void loadProductos()
+}
+
+// ─── Modal: Clonar lista ──────────────────────────────────────────────────────
+const showClonarModal  = ref(false)
+const clonarOrigen     = ref(null)
+const clonarLoading    = ref(false)
+const clonarError      = ref('')
+const clonarFieldErrors = ref({})
+
+const clonarForm = reactive({
+  nombre:        '',
+  fecha_inicio:  '',
+  fecha_fin:     '',
+  descripcion:   '',
+  poblaciones:   [],
+  copiar_precios: true
+})
+
+const clonarPoblacionesDisplay = computed(() => {
+  const opts = poblacionesOptions.value ?? []
+  const byNum = new Map(opts.map((o) => [Number(o.value), o]))
+  return (clonarForm.poblaciones ?? []).map((id) => {
+    const n = Number(id)
+    const o = byNum.get(n) ?? opts.find((x) => Number(x.value) === n)
+    return { id, label: o?.label ?? `Población #${id}` }
+  })
+})
+
+function resetClonarForm() {
+  clonarForm.nombre        = ''
+  clonarForm.fecha_inicio  = ''
+  clonarForm.fecha_fin     = ''
+  clonarForm.descripcion   = ''
+  clonarForm.poblaciones   = []
+  clonarForm.copiar_precios = true
+  clonarError.value        = ''
+  clonarFieldErrors.value  = {}
+}
+
+async function openClonar(lista) {
+  clonarOrigen.value = lista
+  resetClonarForm()
+  clonarForm.nombre = `${lista.nombre} - Copia`
+  showClonarModal.value = true
+  await loadPoblaciones()
+}
+
+async function submitClonar() {
+  clonarError.value       = ''
+  clonarFieldErrors.value = {}
+
+  if (!clonarForm.nombre?.trim()) {
+    clonarError.value = 'Indica el nombre de la nueva lista.'
+    return
+  }
+  if (!clonarForm.fecha_inicio || !clonarForm.fecha_fin) {
+    clonarError.value = 'Indica las fechas de vigencia de la nueva lista.'
+    return
+  }
+
+  clonarLoading.value = true
+  try {
+    const payload = {
+      nombre:        clonarForm.nombre.trim(),
+      fecha_inicio:  clonarForm.fecha_inicio,
+      fecha_fin:     clonarForm.fecha_fin,
+      copiar_precios: clonarForm.copiar_precios
+    }
+    if (clonarForm.descripcion?.trim())  payload.descripcion = clonarForm.descripcion.trim()
+    if (clonarForm.poblaciones?.length)  payload.poblaciones = clonarForm.poblaciones.map(Number)
+
+    const res = await listaPrecioService.clonar(clonarOrigen.value.id, payload, { _silent: true })
+
+    const preciosCopiados = res.precios_copiados ?? 0
+    const msgDetalle = clonarForm.copiar_precios
+      ? ` Se copiaron ${preciosCopiados} precio(s).`
+      : ' Lista creada sin precios, lista para editar.'
+
+    notifySuccess(`Lista "${clonarForm.nombre}" creada correctamente.${msgDetalle}`)
+    showClonarModal.value  = false
+    showDetailModal.value  = false
+    await Promise.all([loadListas(pagination.currentPage), loadStatistics()])
+  } catch (e) {
+    if (e?.response?.status === 422) {
+      clonarFieldErrors.value = e.response.data?.errors  ?? {}
+      clonarError.value       = e.response.data?.message ?? 'Verifica los datos de la nueva lista.'
+    } else {
+      clonarError.value = e?.response?.data?.message ?? 'No se pudo clonar la lista de precios.'
+    }
+  } finally {
+    clonarLoading.value = false
   }
 }
 
@@ -2605,14 +2968,16 @@ async function loadDetailDescuentos(listaId) {
 }
 
 async function openDetail(lista) {
-  detailLista.value  = lista
-  detailPrecios.value = []
+  detailLista.value      = lista
+  detailPrecios.value    = []
   detailDescuentos.value = []
-  showDetailModal.value = true
+  sinPrecioProductos.value = []
+  showDetailModal.value  = true
   await Promise.all([
     loadDetailFull(lista.id),
     loadPrecios(lista.id),
-    loadDetailDescuentos(lista.id)
+    loadDetailDescuentos(lista.id),
+    ...[1, 2].includes(Number(lista.status)) ? [loadSinPrecio(lista.id)] : []
   ])
 }
 
@@ -2791,7 +3156,10 @@ async function submitPrecio() {
       notifySuccess('Precio agregado a la lista correctamente.')
     }
     showPrecioModal.value = false
-    await loadPrecios(detailLista.value.id)
+    await Promise.all([
+      loadPrecios(detailLista.value.id),
+      ...[1, 2].includes(Number(detailLista.value?.status)) ? [loadSinPrecio(detailLista.value.id)] : []
+    ])
   } catch (e) {
     if (e?.response?.status === 422) {
       precioFieldErrors.value = e.response.data?.errors  ?? {}

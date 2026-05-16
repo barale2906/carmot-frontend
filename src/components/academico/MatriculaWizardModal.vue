@@ -91,13 +91,27 @@
 
             <!-- ─── Paso 1: Programación ─────────────────── -->
             <div v-show="currentStep === 1" class="space-y-4">
+
+              <!-- Sede (primer selector) -->
+              <FormSelect
+                v-model="sedeId"
+                label="Sede"
+                placeholder="Seleccionar sede..."
+                help="Sede donde se realizará el curso."
+                :options="sedesOpciones"
+                required
+                @update:model-value="onSedeChange"
+              />
+
+              <!-- Curso y Ciclo (dependientes de la sede) -->
               <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FormSelect
                   v-model="cursoId"
                   label="Curso"
-                  placeholder="Seleccionar curso..."
-                  help="Programa académico al que se inscribirá el estudiante."
+                  :placeholder="cursosEnSedeLoading ? 'Cargando cursos...' : 'Seleccionar curso...'"
+                  help="Programa académico disponible en la sede seleccionada."
                   :options="cursosOpciones"
+                  :disabled="!sedeId || cursosEnSedeLoading"
                   required
                   @update:model-value="onCursoChange"
                 />
@@ -121,8 +135,8 @@
                 <InfoPanel v-if="cicloSeleccionado" color="blue">
                   <template #title>Ciclo seleccionado</template>
                   <dl class="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-                    <InfoItem label="Nombre"   :value="cicloSeleccionado.nombre" />
-                    <InfoItem label="Sede"     :value="cicloSeleccionado.sede?.nombre" />
+                    <InfoItem label="Nombre"    :value="cicloSeleccionado.nombre" />
+                    <InfoItem label="Sede"      :value="cicloSeleccionado.sede?.nombre" />
                     <InfoItem
                       label="Periodo"
                       :value="`${formatDate(cicloSeleccionado.fecha_inicio)} – ${formatDate(cicloSeleccionado.fecha_fin)}`"
@@ -133,21 +147,170 @@
               </Transition>
 
               <div
-                v-if="!cursoId"
+                v-if="!sedeId"
                 class="rounded-lg border border-slate-100 bg-slate-50 px-4 py-8 text-center text-sm text-slate-400"
               >
-                Selecciona un curso para ver los ciclos disponibles.
+                Selecciona una sede para ver los cursos disponibles.
               </div>
               <div
-                v-else-if="!ciclosLoading && !ciclosDisponibles.length"
+                v-else-if="sedeId && !cursoId"
+                class="rounded-lg border border-slate-100 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400"
+              >
+                Selecciona un curso para ver los ciclos.
+              </div>
+              <div
+                v-else-if="cursoId && !ciclosLoading && !ciclosDisponibles.length"
                 class="rounded-lg border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-700"
               >
-                No hay ciclos activos para este curso. Verifica la programación académica.
+                No hay ciclos activos para este curso en la sede seleccionada. Verifica la programación académica.
               </div>
             </div>
 
-            <!-- ─── Paso 2: Estudiante ───────────────────── -->
+            <!-- ─── Paso 2: Precio y forma de pago ─────────── -->
             <div v-show="currentStep === 2" class="space-y-4">
+
+              <!-- Cargando -->
+              <div v-if="precioLoading" class="flex flex-col items-center gap-3 py-10">
+                <span class="inline-block size-8 animate-spin rounded-full border-4 border-slate-200 border-t-blue-500" role="status" aria-label="Cargando" />
+                <p class="text-sm text-slate-500">Consultando lista de precios vigente...</p>
+              </div>
+
+              <!-- Sin precio configurado -->
+              <template v-else-if="sinPrecioConfigurado">
+                <InfoPanel color="amber">
+                  <template #title>Sin lista de precios vigente</template>
+                  No se encontró una lista de precios activa para esta sede y curso.
+                  El monto deberá ingresarse manualmente en el paso de matrícula.
+                </InfoPanel>
+                <div class="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <FormInput
+                    v-model="detalles.monto"
+                    label="Monto acordado"
+                    type="number" step="0.01" min="0"
+                    help="Valor total acordado para esta matrícula."
+                    placeholder="0"
+                    required
+                  />
+                  <FormInput
+                    v-model="detalles.valor_cuota"
+                    label="Valor por cuota"
+                    type="number" step="0.01" min="0"
+                    help="Dejar en blanco si el pago es de contado."
+                  />
+                </div>
+              </template>
+
+              <!-- Opciones de precio disponibles -->
+              <template v-else-if="preciosDisponibles.length">
+                <!-- Encabezado con info de la lista -->
+                <InfoPanel color="blue">
+                  <template #title>Lista de precios activa</template>
+                  <p class="text-sm text-blue-800 font-medium">
+                    {{ preciosDisponibles[0]?.lista_precio?.nombre }}
+                    <span class="ml-1 text-xs font-normal text-blue-600">
+                      · {{ formatDate(preciosDisponibles[0]?.lista_precio?.fecha_inicio) }}
+                      – {{ formatDate(preciosDisponibles[0]?.lista_precio?.fecha_fin) }}
+                    </span>
+                  </p>
+                </InfoPanel>
+
+                <p class="text-sm font-medium text-slate-700">
+                  Selecciona la modalidad de pago:
+                </p>
+
+                <!-- Tarjetas de precio -->
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <button
+                    v-for="opcion in preciosDisponibles"
+                    :key="opcion.id"
+                    type="button"
+                    class="group relative w-full rounded-xl border-2 p-4 text-left transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                    :class="precioSeleccionado?.id === opcion.id
+                      ? 'border-blue-500 bg-blue-50 shadow-sm'
+                      : 'border-slate-200 bg-slate-50 hover:border-blue-300 hover:bg-blue-50/50'"
+                    @click="seleccionarPrecio(opcion)"
+                  >
+                    <!-- Indicador de selección -->
+                    <span
+                      class="absolute right-3 top-3 flex size-5 items-center justify-center rounded-full border-2 transition-colors"
+                      :class="precioSeleccionado?.id === opcion.id
+                        ? 'border-blue-500 bg-blue-500'
+                        : 'border-slate-300 bg-white'"
+                      aria-hidden="true"
+                    >
+                      <svg
+                        v-if="precioSeleccionado?.id === opcion.id"
+                        class="size-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                      >
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </span>
+
+                    <!-- Tipo: contado o financiado -->
+                    <p class="mb-1 text-xs font-semibold uppercase tracking-wide"
+                       :class="opcion.numero_cuotas ? 'text-violet-600' : 'text-emerald-600'"
+                    >
+                      {{ opcion.numero_cuotas ? 'Financiado' : 'Contado' }}
+                    </p>
+
+                    <!-- Precio principal -->
+                    <p class="text-2xl font-bold text-slate-900">
+                      {{ formatCOP(opcion.precio_contado) }}
+                    </p>
+
+                    <!-- Detalle de cuotas -->
+                    <template v-if="opcion.numero_cuotas">
+                      <p class="mt-1 text-xs text-slate-500">
+                        Matrícula: <strong class="text-slate-700">{{ formatCOP(opcion.matricula) }}</strong>
+                      </p>
+                      <p class="text-xs text-slate-500">
+                        {{ opcion.numero_cuotas }} cuotas de
+                        <strong class="text-slate-700">{{ formatCOP(opcion.valor_cuota) }}</strong>
+                      </p>
+                      <p v-if="opcion.precio_total" class="mt-0.5 text-xs text-slate-400">
+                        Total: {{ formatCOP(opcion.precio_total) }}
+                      </p>
+                    </template>
+                    <template v-else>
+                      <p class="mt-1 text-xs text-slate-500">Pago único</p>
+                    </template>
+
+                    <!-- Observaciones -->
+                    <p v-if="opcion.observaciones" class="mt-2 text-xs italic text-slate-400">
+                      {{ opcion.observaciones }}
+                    </p>
+                  </button>
+                </div>
+
+                <!-- Precio seleccionado — confirmación visual -->
+                <Transition
+                  enter-active-class="transition-all duration-200"
+                  enter-from-class="opacity-0 translate-y-1"
+                  enter-to-class="opacity-100 translate-y-0"
+                >
+                  <div
+                    v-if="precioSeleccionado"
+                    class="mt-1 flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm"
+                  >
+                    <span class="font-medium text-emerald-700">
+                      Modalidad seleccionada:
+                      {{ precioSeleccionado.numero_cuotas ? 'Financiado' : 'Contado' }}
+                      · {{ formatCOP(precioSeleccionado.precio_contado) }}
+                    </span>
+                    <button
+                      type="button"
+                      class="text-xs text-emerald-600 hover:underline"
+                      @click="seleccionarPrecio(null); sinPrecioConfigurado = true"
+                    >
+                      Ingresar manualmente
+                    </button>
+                  </div>
+                </Transition>
+              </template>
+            </div>
+
+            <!-- ─── Paso 3: Estudiante ───────────────────── -->
+            <div v-show="currentStep === 3" class="space-y-4">
               <div class="space-y-1.5">
                 <label class="text-sm font-medium text-slate-900">
                   Número de documento
@@ -238,8 +401,8 @@
               </template>
             </div>
 
-            <!-- ─── Paso 3: Datos personales ─────────────── -->
-            <div v-show="currentStep === 3" class="space-y-5">
+            <!-- ─── Paso 4: Datos personales ─────────────── -->
+            <div v-show="currentStep === 4" class="space-y-5">
               <!-- Estado de catálogos -->
               <div v-if="catalogsLoading" class="flex items-center gap-2 text-sm text-slate-500">
                 <BtnSpinner class="border-slate-300 border-t-slate-600" />
@@ -334,8 +497,8 @@
               </WizardFieldset>
             </div>
 
-            <!-- ─── Paso 4: Detalles de matrícula ────────── -->
-            <div v-show="currentStep === 4" class="space-y-5">
+            <!-- ─── Paso 5: Detalles de matrícula ────────── -->
+            <div v-show="currentStep === 5" class="space-y-5">
               <InfoPanel color="slate">
                 <template #title>Ciclo al que se matricula</template>
                 <dl class="grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
@@ -395,63 +558,35 @@
                 </div>
               </WizardFieldset>
 
-              <WizardFieldset legend="Precio y forma de pago">
-                <div v-if="precioLoading" class="flex items-center gap-2 text-sm text-slate-500">
-                  <BtnSpinner />
-                  Consultando lista de precios vigente...
-                </div>
-                <template v-else-if="precioConsultado">
-                  <div class="mb-3 flex items-center justify-between">
-                    <div>
-                      <p class="text-xs font-medium text-blue-600">Lista de precios activa</p>
-                      <p class="text-sm font-medium text-slate-800">
-                        {{ precioConsultado.lista_precio?.nombre }}
-                        <span class="ml-1 text-xs text-slate-500">· {{ precioConsultado.lista_precio?.codigo }}</span>
-                      </p>
-                    </div>
-                    <button type="button" class="text-xs text-blue-500 hover:underline" @click="precioConsultado = null; sinPrecioConfigurado = true">
-                      Ingresar manualmente
-                    </button>
-                  </div>
-                  <div class="grid grid-cols-2 gap-3">
-                    <label
-                      class="cursor-pointer rounded-xl border-2 p-3 transition-colors"
-                      :class="formaPago === 'contado' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 bg-slate-50'"
-                    >
-                      <input v-model="formaPago" type="radio" value="contado" class="sr-only" />
-                      <p class="text-xs font-semibold text-slate-500">Al contado</p>
-                      <p class="text-xl font-bold text-slate-900">{{ formatCOP(precioConsultado.precio_contado) }}</p>
-                      <p class="text-xs text-slate-400">Pago único</p>
-                    </label>
-                    <label
-                      v-if="precioConsultado.precio_total"
-                      class="cursor-pointer rounded-xl border-2 p-3 transition-colors"
-                      :class="formaPago === 'financiado' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 bg-slate-50'"
-                    >
-                      <input v-model="formaPago" type="radio" value="financiado" class="sr-only" />
-                      <p class="text-xs font-semibold text-slate-500">Financiado</p>
-                      <p class="text-xl font-bold text-slate-900">{{ formatCOP(precioConsultado.matricula) }}</p>
-                      <p class="text-xs text-slate-400">
-                        inicial + {{ precioConsultado.numero_cuotas }}×{{ formatCOP(precioConsultado.valor_cuota) }}
-                        · Total: {{ formatCOP(precioConsultado.precio_total) }}
-                      </p>
-                    </label>
-                  </div>
-                </template>
-                <div
-                  v-else-if="sinPrecioConfigurado"
-                  class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
-                >
-                  No se encontró una lista de precios vigente para esta sede y curso. Ingresa el monto manualmente.
-                </div>
-                <div class="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <!-- Resumen del precio elegido en paso 2 -->
+              <InfoPanel v-if="precioSeleccionado" color="blue">
+                <template #title>Precio seleccionado</template>
+                <dl class="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+                  <InfoItem
+                    label="Modalidad"
+                    :value="precioSeleccionado.numero_cuotas ? 'Financiado' : 'Contado'"
+                  />
+                  <InfoItem label="Monto"  :value="formatCOP(precioSeleccionado.precio_contado)" />
+                  <InfoItem v-if="precioSeleccionado.numero_cuotas"
+                    label="Cuotas"
+                    :value="`${precioSeleccionado.numero_cuotas} × ${formatCOP(precioSeleccionado.valor_cuota)}`"
+                  />
+                  <InfoItem v-if="precioSeleccionado.precio_total"
+                    label="Total"
+                    :value="formatCOP(precioSeleccionado.precio_total)"
+                  />
+                </dl>
+              </InfoPanel>
+
+              <WizardFieldset legend="Precio y pago">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <FormInput
                     v-model="detalles.monto"
                     label="Monto acordado"
                     type="number" step="0.01" min="0"
                     help="Valor total acordado para esta matrícula."
                     :error="fieldErrors.monto?.[0]"
-                    hint="Puedes ajustar el monto sugerido."
+                    hint="Pre-cargado desde el precio seleccionado. Puedes ajustarlo."
                     required
                   />
                   <FormInput
@@ -460,7 +595,7 @@
                     type="number" step="0.01" min="0"
                     help="Valor de cada cuota si el pago es financiado."
                     :error="fieldErrors.valor_cuota?.[0]"
-                    hint="Se calcula automáticamente con pago financiado."
+                    hint="Aplica solo en modalidad financiada."
                   />
                   <FormSelect
                     v-model="detalles.status"
@@ -510,8 +645,8 @@
               </WizardFieldset>
             </div>
 
-            <!-- ─── Paso 5: Confirmación ─────────────────── -->
-            <div v-show="currentStep === 5" class="space-y-4">
+            <!-- ─── Paso 6: Confirmación ─────────────────── -->
+            <div v-show="currentStep === 6" class="space-y-4">
               <p class="text-sm text-slate-500">
                 Revisa el resumen antes de confirmar el registro de la matrícula.
               </p>
@@ -561,17 +696,30 @@
                 </dl>
               </SummaryCard>
 
+              <SummaryCard title="Precio y pago">
+                <dl class="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                  <div class="col-span-2">
+                    <dt class="text-xs text-slate-400">Monto acordado</dt>
+                    <dd class="text-xl font-bold text-blue-700">{{ formatCOP(detalles.monto) }}</dd>
+                  </div>
+                  <InfoItem
+                    label="Modalidad"
+                    :value="precioSeleccionado
+                      ? (precioSeleccionado.numero_cuotas ? 'Financiado' : 'Contado')
+                      : 'Manual'"
+                  />
+                  <InfoItem v-if="detalles.valor_cuota" label="Valor por cuota" :value="formatCOP(detalles.valor_cuota)" />
+                  <InfoItem v-if="precioSeleccionado?.precio_total" label="Total financiado" :value="formatCOP(precioSeleccionado.precio_total)" />
+                  <InfoItem v-if="precioSeleccionado?.lista_precio" label="Lista de precios" :value="precioSeleccionado.lista_precio.nombre" />
+                </dl>
+              </SummaryCard>
+
               <SummaryCard title="Detalles de matrícula">
                 <dl class="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
                   <InfoItem label="Asesor comercial" :value="comercialesMap[detalles.comercial_id]" />
                   <InfoItem label="Registrado por"   :value="comercialesMap[detalles.matriculado_por_id]" />
                   <InfoItem label="Fecha matrícula"  :value="formatDate(detalles.fecha_matricula)" />
                   <InfoItem label="Inicio de clases" :value="formatDate(detalles.fecha_inicio)" />
-                  <div class="col-span-2">
-                    <dt class="text-xs text-slate-400">Monto acordado</dt>
-                    <dd class="text-xl font-bold text-blue-700">{{ formatCOP(detalles.monto) }}</dd>
-                  </div>
-                  <InfoItem v-if="detalles.valor_cuota"     label="Valor por cuota"    :value="formatCOP(detalles.valor_cuota)" />
                   <InfoItem                                  label="Estado inicial"      :value="detalles.status === '1' ? 'Activo' : 'Inactivo'" />
                   <InfoItem v-if="detalles.nombre_contacto" label="Contacto emergencia" :value="`${detalles.nombre_contacto} · ${detalles.telefono_contacto}`" />
                   <InfoItem v-if="detalles.observaciones"   label="Observaciones"       :value="detalles.observaciones" block />
@@ -656,22 +804,31 @@ const {
   canProceed, canGoToStep, goToStep, nextStep,
   stepCircleClass, stepLabelClass,
 
+  // Paso 1 — Programación
+  sedeId, sedesOpciones, onSedeChange, cursosEnSedeLoading,
   cursoId, cicloId, ciclosDisponibles, ciclosLoading, cicloSeleccionado,
   cursosOpciones, cursosMap, ciclosOpciones,
   onCursoChange, onCicloChange,
 
+  // Paso 2 — Precio
+  preciosDisponibles, precioSeleccionado, precioLoading, sinPrecioConfigurado,
+  seleccionarPrecio,
+
+  // Paso 3 — Estudiante
   documentoBusqueda, estudianteBuscando, estudianteEstado,
   estudianteEncontrado, actualizarEstudiante, estudianteForm,
   buscarEstudiante, resetEstudianteBusqueda, estudianteResumen,
 
+  // Paso 4 — Datos personales
   datosPersonales, catalogsLoading, catalogsError,
   catalogOpts, departamentosOpciones, ciudadesExpedicionOpciones, lugarOrigenOpciones,
 
-  detalles, formaPago, precioConsultado, precioLoading, sinPrecioConfigurado,
-  comercialesOpciones, comercialesMap,
-  fechaInicioError,
+  // Paso 5 — Detalles
+  detalles, comercialesOpciones, comercialesMap, fechaInicioError,
 
+  // Paso 6 — Confirmación
   tieneAlgunDatoPersonal,
+
   submit, init, loadCatalogs
 } = useMatriculaWizard({
   cursos:      computed(() => props.cursos),

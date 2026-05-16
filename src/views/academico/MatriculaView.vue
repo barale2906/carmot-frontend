@@ -719,6 +719,7 @@ import cicloService     from '@/services/cicloService.js'
 import sedeService      from '@/services/sedeService.js'
 import userService      from '@/services/userService.js'
 import { useNotification } from '@/composables/useNotification'
+import { nombreCompleto } from '@/utils/formatters.js'
 
 const route = useRoute()
 const { success: notifySuccess, error: notifyError } = useNotification()
@@ -817,12 +818,12 @@ const ciclosOptions = computed(() =>
 const estudiantesOptions = computed(() =>
   estudiantesRef.value.map(e => ({
     value: String(e.id),
-    label: e.name + (e.email ? ` (${e.email})` : '')
+    label: nombreCompleto(e) + (e.email ? ` (${e.email})` : '')
   }))
 )
 
 const comercialesOptions = computed(() =>
-  comercialesRef.value.map(u => ({ value: String(u.id), label: u.name }))
+  comercialesRef.value.map(u => ({ value: String(u.id), label: nombreCompleto(u) }))
 )
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
