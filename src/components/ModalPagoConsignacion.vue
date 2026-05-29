@@ -53,7 +53,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import ModalBase from '@/components/ModalBase.vue'
 import FormInput from '@/components/forms/FormInput.vue'
 
@@ -71,18 +71,14 @@ const fechaAutomaticaHint = computed(() => {
   return `Fecha automática: ${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`
 })
 
-watch(() => props.modelValue, (open) => {
-  if (open) {
-    referencia.value = ''
-    fechaConsignacion.value = ''
-  }
-})
-
 function onConfirmar() {
-  emit('confirm', {
+  const payload = {
     referencia: referencia.value,
     fechaConsignacion: fechaConsignacion.value
-  })
+  }
+  referencia.value = ''
+  fechaConsignacion.value = ''
+  emit('confirm', payload)
   emit('update:modelValue', false)
 }
 </script>

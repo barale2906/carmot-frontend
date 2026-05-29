@@ -11,7 +11,6 @@
       <div
         v-if="open"
         class="fixed inset-0 z-[1100] flex items-start justify-center overflow-y-auto bg-black/50 px-4 py-8"
-        @click.self="handleClose"
       >
         <div
           class="relative my-auto w-full max-w-3xl rounded-xl border border-black/10 bg-white shadow-xl"

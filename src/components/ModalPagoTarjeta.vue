@@ -59,7 +59,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import ModalBase from '@/components/ModalBase.vue'
 import FormSelect from '@/components/forms/FormSelect.vue'
 
@@ -92,10 +92,6 @@ const total = computed(() => valorNumerico.value + recargo.value)
 const valorBaseFormateado = computed(() => `$${valorNumerico.value.toLocaleString('es-CO')}`)
 const recargoFormateado = computed(() => `$${recargo.value.toLocaleString('es-CO')}`)
 const totalFormateado = computed(() => `$${total.value.toLocaleString('es-CO')}`)
-
-watch(() => props.modelValue, (open) => {
-  if (open) porcentajeRecargo.value = '5'
-})
 
 function onConfirmar() {
   emit('confirm', {

@@ -14,7 +14,7 @@
         role="dialog"
         aria-modal="true"
         :aria-labelledby="titleId"
-        @click.self="emit('update:modelValue', false)"
+        @click.self="closeOnBackdrop && emit('update:modelValue', false)"
       >
         <div
           :class="[
@@ -71,7 +71,8 @@ const props = defineProps({
   modelValue: { type: Boolean, default: false },
   title: { type: String, default: '' },
   description: { type: String, default: '' },
-  size: { type: String, default: 'md' }
+  size: { type: String, default: 'md' },
+  closeOnBackdrop: { type: Boolean, default: false }
 })
 
 const emit = defineEmits(['update:modelValue'])
