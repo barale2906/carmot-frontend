@@ -144,6 +144,7 @@
         :data="grupos"
         row-key="id"
         aria-label="Listado de grupos"
+        actions-first
       >
         <template #cell="{ column, value, row }">
           <template v-if="column.key === 'status'">

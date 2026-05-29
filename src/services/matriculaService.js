@@ -51,6 +51,11 @@ const matriculaService = {
   async getStatistics() {
     const { data } = await api.get(`${BASE}/statistics`)
     return data
+  },
+
+  async precargaEstudiante(estudianteId) {
+    const { data } = await api.get(`${BASE}/precarga-estudiante/${estudianteId}`)
+    return data
   }
 }
 

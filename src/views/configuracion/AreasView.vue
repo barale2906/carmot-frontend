@@ -100,6 +100,7 @@
         :data="areas"
         row-key="id"
         aria-label="Listado de áreas"
+        actions-first
       >
         <template #cell="{ column, value, row }">
           <template v-if="column.key === 'estado'">

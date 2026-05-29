@@ -110,6 +110,7 @@
           :data="listas"
           row-key="id"
           aria-label="Listado de listas de precios"
+          actions-first
         >
           <template #cell="{ column, value, row }">
             <template v-if="column.key === 'nombre'">
@@ -1460,7 +1461,7 @@
             <div class="rounded-lg border-0 bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-900">
               {{ valorCuotaCalculado !== null ? formatCOP(valorCuotaCalculado) : '—' }}
             </div>
-            <p class="text-xs text-slate-500">Calculado: redondear₁₀₀((precio_total − matrícula) / cuotas). El servidor recalcula automáticamente.</p>
+            <p class="text-xs text-slate-500">Calculado: redondear₁₀₀(total_financiado / cuotas). El servidor recalcula automáticamente.</p>
           </div>
         </template>
       </div>
@@ -2071,10 +2072,9 @@ const productosCatalogFiltrados = computed(() => {
 function valorCuotaPreviewLine(line) {
   if (!formLineEsFinanciable(line)) return '—'
   const total = parseFloat(line.precio_total)
-  const mat = parseFloat(line.matricula || 0)
   const cuotas = parseInt(line.numero_cuotas, 10)
   if (!total || !cuotas || isNaN(total) || isNaN(cuotas) || cuotas <= 0) return '—'
-  const v = Math.round((total - mat) / cuotas / 100) * 100
+  const v = Math.round(total / cuotas / 100) * 100
   return formatCOP(v)
 }
 
@@ -2299,8 +2299,13 @@ function buildPrecioPayloadForUpdate(line) {
     matricula: parseFloat(line.matricula) || 0
   }
   if (formLineEsFinanciable(line)) {
-    payload.precio_total = parseFloat(line.precio_total) || 0
+    payload.precio_total  = parseFloat(line.precio_total) || 0
     payload.numero_cuotas = parseInt(line.numero_cuotas, 10) || null
+    const total  = parseFloat(line.precio_total)
+    const cuotas = parseInt(line.numero_cuotas, 10)
+    if (total && cuotas && cuotas > 0) {
+      payload.valor_cuota = Math.round(total / cuotas / 100) * 100
+    }
   }
   if (line.observaciones?.trim()) payload.observaciones = line.observaciones.trim()
   return payload
@@ -3038,10 +3043,9 @@ const precioEsFinanciable = computed(() =>
 const valorCuotaCalculado = computed(() => {
   if (!precioEsFinanciable.value) return null
   const total  = parseFloat(precioForm.precio_total)
-  const mat    = parseFloat(precioForm.matricula || 0)
   const cuotas = parseInt(precioForm.numero_cuotas)
   if (!total || !cuotas || isNaN(total) || isNaN(cuotas) || cuotas <= 0) return null
-  return Math.round((total - mat) / cuotas / 100) * 100
+  return Math.round(total / cuotas / 100) * 100
 })
 
 // Productos disponibles (excluye los ya asignados a esta lista)
@@ -3141,8 +3145,11 @@ async function submitPrecio() {
       matricula:      parseFloat(precioForm.matricula)      || 0,
     }
     if (precioEsFinanciable.value) {
-      payload.precio_total   = parseFloat(precioForm.precio_total)  || 0
-      payload.numero_cuotas  = parseInt(String(precioForm.numero_cuotas), 10)
+      payload.precio_total  = parseFloat(precioForm.precio_total)  || 0
+      payload.numero_cuotas = parseInt(String(precioForm.numero_cuotas), 10)
+      if (valorCuotaCalculado.value !== null) {
+        payload.valor_cuota = valorCuotaCalculado.value
+      }
     }
     if (precioForm.observaciones?.trim()) payload.observaciones = precioForm.observaciones.trim()
 

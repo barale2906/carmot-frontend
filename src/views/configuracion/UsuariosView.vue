@@ -108,6 +108,7 @@
         :data="users"
         row-key="id"
         aria-label="Listado de usuarios del sistema"
+        actions-first
       >
         <template #cell="{ column, value, row }">
           <template v-if="column.key === 'roles'">

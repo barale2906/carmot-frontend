@@ -99,6 +99,7 @@
         :data="rolesFiltrados"
         row-key="id"
         aria-label="Listado de roles del sistema"
+        actions-first
       >
         <template #cell="{ column, value, row }">
           <template v-if="column.key === 'name'">

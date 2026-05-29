@@ -114,7 +114,7 @@
           <button type="button" class="mt-3 text-sm font-medium text-red-700 underline" @click="loadProductos(1)">Reintentar</button>
         </div>
 
-        <DataTable v-else :columns="tableColumns" :data="productos" row-key="id" aria-label="Catálogo de productos LP">
+        <DataTable v-else :columns="tableColumns" :data="productos" row-key="id" aria-label="Catálogo de productos LP" actions-first>
           <template #cell="{ column, value, row }">
 
             <template v-if="column.key === 'nombre'">

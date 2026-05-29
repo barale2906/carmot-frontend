@@ -100,6 +100,7 @@
         :data="sedes"
         row-key="id"
         aria-label="Listado de sedes"
+        actions-first
       >
         <template #cell="{ column, value, row }">
           <template v-if="column.key === 'poblacion'">

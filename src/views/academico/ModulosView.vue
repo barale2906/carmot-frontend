@@ -107,6 +107,7 @@
         :data="modulos"
         row-key="id"
         aria-label="Listado de módulos"
+        actions-first
       >
         <template #cell="{ column, value, row }">
           <template v-if="column.key === 'status'">

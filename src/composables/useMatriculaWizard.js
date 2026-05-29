@@ -13,6 +13,7 @@ import cicloService          from '@/services/cicloService.js'
 import userService           from '@/services/userService.js'
 import matriculaService      from '@/services/matriculaService.js'
 import precioProductoService from '@/services/precioProductoService.js'
+import poblacionService      from '@/services/poblacionService.js'
 import { nombreCompleto }    from '@/utils/formatters.js'
 import { authService }       from '@/services/authService.js'
 
@@ -102,11 +103,13 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
   const sinPrecioConfigurado = ref(false)
 
   // ── Paso 3: Estudiante ──────────────────────────────────────────────────────
-  const documentoBusqueda    = ref('')
-  const estudianteBuscando   = ref(false)
-  const estudianteEstado     = ref('idle')   // 'idle' | 'found' | 'not_found'
-  const estudianteEncontrado = ref(null)
-  const actualizarEstudiante = ref(false)
+  const documentoBusqueda       = ref('')
+  const estudianteBuscando      = ref(false)
+  const estudianteEstado        = ref('idle')   // 'idle' | 'found' | 'not_found'
+  const estudianteEncontrado    = ref(null)
+  const actualizarEstudiante    = ref(false)
+  const matriculasExistentes = ref([])
+  const verificandoMatricula = ref(false)
   const estudianteForm = reactive({
     primer_nombre:    '',
     segundo_nombre:   '',
@@ -299,7 +302,8 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
         // Puede avanzar si terminó de cargar Y (hay precio seleccionado O no hay precios disponibles)
         return !precioLoading.value && (!!precioSeleccionado.value || sinPrecioConfigurado.value)
       case 3:
-        if (estudianteEstado.value === 'found') return true
+        if (verificandoMatricula.value) return false
+        if (estudianteEstado.value === 'found') return !yaMatriculadoEnCurso.value
         if (estudianteEstado.value === 'not_found') {
           return (
             !!estudianteForm.primer_nombre &&
@@ -470,6 +474,10 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
         estudianteForm.segundo_apellido    = encontrado.segundo_apellido ?? ''
         estudianteForm.email               = encontrado.email            ?? ''
         estudianteForm.documento           = encontrado.documento        ?? doc
+        await Promise.allSettled([
+          _verificarMatriculaExistente(encontrado.id),
+          _precargarDatosEstudiante(encontrado.id)
+        ])
       } else {
         _setNuevoEstudianteDefaults(doc)
       }
@@ -492,11 +500,67 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     estudianteForm.password_confirmation = doc
   }
 
+  async function _verificarMatriculaExistente(estudianteId) {
+    if (!estudianteId || !cursoId.value) return
+    verificandoMatricula.value = true
+    matriculasExistentes.value = []
+    try {
+      const res = await matriculaService.getAll({
+        estudiante_id: estudianteId,
+        curso_id:      cursoId.value,
+        status:        1,
+        with:          'ciclo,ciclo.sede',
+        per_page:      10
+      })
+      matriculasExistentes.value = res.data ?? []
+    } catch {
+      matriculasExistentes.value = []
+    } finally {
+      verificandoMatricula.value = false
+    }
+  }
+
+  /** Precarga solo los datos personales del estudiante desde su matrícula más reciente.
+   *  404 = sin matrículas previas → se ignora silenciosamente. */
+  async function _precargarDatosEstudiante(estudianteId) {
+    try {
+      const res = await matriculaService.precargaEstudiante(estudianteId)
+      const d   = res.data ?? res
+      Object.assign(datosPersonales, {
+        tipo_identificacion:     d.tipo_identificacion     ?? '',
+        departamento_expedicion: d.departamento_expedicion ?? '',
+        ciudad_expedicion:       d.ciudad_expedicion       ?? '',
+        fecha_nacimiento:        d.fecha_nacimiento        ?? '',
+        genero:                  d.genero                  ?? '',
+        estado_civil:            d.estado_civil            ?? '',
+        grupo_sanguineo:         d.grupo_sanguineo         ?? '',
+        rh:                      d.rh                      ?? '',
+        direccion:               d.direccion               ?? '',
+        lugar_origen_id:         d.lugar_origen_id
+          ? String(d.lugar_origen_id)
+          : (d.lugar_origen?.id ? String(d.lugar_origen.id) : ''),
+        celular:                 d.celular                 ?? '',
+        telefono:                d.telefono                ?? '',
+        nivel_educacion:         d.nivel_educacion         ?? '',
+        ocupacion:               d.ocupacion               ?? '',
+        empresa:                 d.empresa                 ?? '',
+        estrato:                 d.estrato                 ?? '',
+        regimen_salud:           d.regimen_salud           ?? '',
+        enfermedad_prioritaria:  Boolean(d.enfermedad_prioritaria),
+        discapacidad:            Boolean(d.discapacidad)
+      })
+    } catch { /* 404 u otro error: el estudiante no tiene matrículas previas */ }
+  }
+
+  const yaMatriculadoEnCurso = computed(() => matriculasExistentes.value.some(m => m.status === 1))
+
   function resetEstudianteBusqueda() {
     documentoBusqueda.value    = ''
     estudianteEstado.value     = 'idle'
     estudianteEncontrado.value = null
     actualizarEstudiante.value = false
+    matriculasExistentes.value = []
+    verificandoMatricula.value = false
     Object.assign(estudianteForm, {
       primer_nombre: '', segundo_nombre: '', primer_apellido: '', segundo_apellido: '',
       email: '', documento: '', password: '', password_confirmation: ''
@@ -509,21 +573,52 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     catalogsLoading.value = true
     catalogsError.value   = false
     try {
-      const res  = await matriculaService.getFilters()
-      const data = res.data ?? {}
-      catalogs.tipos_identificacion = data.tipos_identificacion ?? {}
-      catalogs.generos              = data.generos              ?? {}
-      catalogs.estados_civiles      = data.estados_civiles      ?? {}
-      catalogs.grupos_sanguineos    = data.grupos_sanguineos    ?? {}
-      catalogs.rhs                  = data.rhs                  ?? {}
-      catalogs.niveles_educacion    = data.niveles_educacion    ?? {}
-      catalogs.regimenes_salud      = data.regimenes_salud      ?? {}
-      catalogs.poblaciones          = data.poblaciones          ?? []
+      const [filtersRes, pobRes] = await Promise.allSettled([
+        matriculaService.getFilters(),
+        _fetchAllPoblaciones()
+      ])
+
+      if (filtersRes.status === 'fulfilled') {
+        const data = filtersRes.value?.data ?? {}
+        catalogs.tipos_identificacion = data.tipos_identificacion ?? {}
+        catalogs.generos              = data.generos              ?? {}
+        catalogs.estados_civiles      = data.estados_civiles      ?? {}
+        catalogs.grupos_sanguineos    = data.grupos_sanguineos    ?? {}
+        catalogs.rhs                  = data.rhs                  ?? {}
+        catalogs.niveles_educacion    = data.niveles_educacion    ?? {}
+        catalogs.regimenes_salud      = data.regimenes_salud      ?? {}
+      } else {
+        throw filtersRes.reason
+      }
+
+      if (pobRes.status === 'fulfilled') {
+        catalogs.poblaciones = pobRes.value
+      }
     } catch {
       catalogsError.value = true
     } finally {
       catalogsLoading.value = false
     }
+  }
+
+  async function _fetchAllPoblaciones() {
+    const perPage = 200
+    let page      = 1
+    let lastPage  = 1
+    const acc     = []
+    do {
+      const res = await poblacionService.getAll({
+        status:         1,
+        sort_by:        'nombre',
+        sort_direction: 'asc',
+        per_page:       perPage,
+        page
+      })
+      acc.push(...(res.data ?? []))
+      lastPage = res.meta?.last_page ?? 1
+      page += 1
+    } while (page <= lastPage)
+    return acc
   }
 
   // ── Paso 2: consulta de precios ───────────────────────────────────────────────
@@ -598,11 +693,10 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
       detalles.valor_cuota = ''
       return
     }
+    detalles.monto = precio.precio_contado
     if (precio.numero_cuotas) {
-      detalles.monto       = precio.matricula
       detalles.valor_cuota = precio.valor_cuota
     } else {
-      detalles.monto       = precio.precio_contado
       detalles.valor_cuota = ''
     }
   }
@@ -851,6 +945,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     documentoBusqueda, estudianteBuscando, estudianteEstado,
     estudianteEncontrado, actualizarEstudiante, estudianteForm,
     buscarEstudiante, resetEstudianteBusqueda, estudianteResumen,
+    matriculasExistentes, verificandoMatricula, yaMatriculadoEnCurso,
 
     // Paso 4 — Datos personales
     catalogs, datosPersonales, catalogsLoading, catalogsError,

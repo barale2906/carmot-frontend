@@ -106,6 +106,7 @@
         :data="activosList"
         row-key="codigo"
         aria-label="Listado de activos"
+        actions-first
       >
         <template #cell="{ column, value, formatted }">
           <StatusBadge

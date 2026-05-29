@@ -99,6 +99,7 @@
         :data="topicos"
         row-key="id"
         aria-label="Listado de tópicos"
+        actions-first
       >
         <template #cell="{ column, value, row }">
           <template v-if="column.key === 'status'">

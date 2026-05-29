@@ -118,6 +118,7 @@
         :data="horarios"
         row-key="id"
         aria-label="Listado de horarios"
+        actions-first
       >
         <template #cell="{ column, value, row }">
           <template v-if="column.key === 'sede'">

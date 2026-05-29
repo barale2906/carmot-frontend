@@ -124,6 +124,7 @@
         :data="poblaciones"
         row-key="id"
         aria-label="Listado de municipios del catálogo"
+        actions-first
       >
         <template #cell="{ column, value, row }">
           <template v-if="column.key === 'nombre'">

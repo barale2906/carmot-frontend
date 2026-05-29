@@ -88,7 +88,7 @@
           <p class="text-sm text-red-700">{{ error }}</p>
           <button type="button" class="mt-3 text-sm font-medium text-red-700 underline" @click="loadCiclos(1)">Reintentar</button>
         </div>
-        <DataTable v-else :columns="tableColumns" :data="ciclos" row-key="id" aria-label="Listado de ciclos">
+        <DataTable v-else :columns="tableColumns" :data="ciclos" row-key="id" aria-label="Listado de ciclos" actions-first>
           <template #cell="{ column, value, row }">
             <template v-if="column.key === 'status'">
               <StatusBadge :label="row.status_text ?? (row.status === 1 ? 'Activo' : 'Inactivo')" :variant="row.status === 1 ? 'activo' : 'inactivo'" />

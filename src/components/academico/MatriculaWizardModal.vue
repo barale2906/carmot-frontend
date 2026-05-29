@@ -359,6 +359,31 @@
                   <p class="text-xs text-emerald-600">{{ estudianteEncontrado?.email }}</p>
                   <p class="text-xs text-emerald-600">Doc: {{ estudianteEncontrado?.documento }}</p>
                 </InfoPanel>
+
+                <!-- Verificando matrícula previa -->
+                <div v-if="verificandoMatricula" class="flex items-center gap-2 text-sm text-slate-500">
+                  <BtnSpinner class="border-slate-300 border-t-slate-600" />
+                  Verificando inscripciones previas en este curso...
+                </div>
+
+                <!-- Bloqueo: ya matriculado activo en este curso -->
+                <InfoPanel v-else-if="yaMatriculadoEnCurso" color="amber">
+                  <template #title>Estudiante ya matriculado en este curso</template>
+                  El estudiante ya tiene una matrícula activa en <strong>{{ cursosMap[cursoId] }}</strong>.
+                  No es posible registrar una nueva matrícula para el mismo curso.
+                  <ul v-if="matriculasExistentes.length" class="mt-2 space-y-1">
+                    <li
+                      v-for="m in matriculasExistentes"
+                      :key="m.id"
+                      class="text-xs text-amber-800"
+                    >
+                      · Matrícula #{{ m.id }}
+                      <template v-if="m.ciclo?.nombre"> — {{ m.ciclo.nombre }}</template>
+                      <template v-if="m.ciclo?.sede?.nombre"> ({{ m.ciclo.sede.nombre }})</template>
+                    </li>
+                  </ul>
+                </InfoPanel>
+
                 <WizardCheckbox v-model="actualizarEstudiante">
                   <template #label>Actualizar información del estudiante</template>
                   <template #help>Marca esta opción si necesitas corregir el nombre o correo electrónico.</template>
@@ -708,6 +733,7 @@
                       ? (precioSeleccionado.numero_cuotas ? 'Financiado' : 'Contado')
                       : 'Manual'"
                   />
+                  <InfoItem v-if="precioSeleccionado?.matricula && precioSeleccionado.numero_cuotas" label="Valor matrícula" :value="formatCOP(precioSeleccionado.matricula)" />
                   <InfoItem v-if="detalles.valor_cuota" label="Valor por cuota" :value="formatCOP(detalles.valor_cuota)" />
                   <InfoItem v-if="precioSeleccionado?.precio_total" label="Total financiado" :value="formatCOP(precioSeleccionado.precio_total)" />
                   <InfoItem v-if="precioSeleccionado?.lista_precio" label="Lista de precios" :value="precioSeleccionado.lista_precio.nombre" />
@@ -818,6 +844,7 @@ const {
   documentoBusqueda, estudianteBuscando, estudianteEstado,
   estudianteEncontrado, actualizarEstudiante, estudianteForm,
   buscarEstudiante, resetEstudianteBusqueda, estudianteResumen,
+  matriculasExistentes, verificandoMatricula, yaMatriculadoEnCurso,
 
   // Paso 4 — Datos personales
   datosPersonales, catalogsLoading, catalogsError,
