@@ -258,6 +258,19 @@
               <NavIcon name="eye" class="size-4" />
             </button>
             <button
+              type="button"
+              class="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+              title="Imprimir hoja de matrícula"
+              :disabled="printing === row.id"
+              @click="handlePrintRow(row)"
+            >
+              <span
+                v-if="printing === row.id"
+                class="block size-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600"
+              />
+              <NavIcon v-else name="print" class="size-4" />
+            </button>
+            <button
               v-if="canEditar"
               type="button"
               class="rounded p-1.5 text-slate-500 transition-colors hover:bg-blue-100 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -316,6 +329,14 @@
       :comerciales="comercialesRef"
       @close="wizardOpen = false"
       @saved="onWizardSaved"
+    />
+
+    <!-- ── Modal: Hoja de matrícula imprimible ────────────────────────────── -->
+    <MatriculaPrintModal
+      :open="printModalOpen"
+      :data="printData"
+      :sedes="sedesRef"
+      @close="printModalOpen = false"
     />
 
     <!-- ── Modal: Detalle ─────────────────────────────────────────────────── -->
@@ -713,6 +734,8 @@ import FormSelect   from '@/components/forms/FormSelect.vue'
 import FormTextarea from '@/components/forms/FormTextarea.vue'
 import FormInputSearch from '@/components/forms/FormInputSearch.vue'
 import MatriculaWizardModal from '@/components/academico/MatriculaWizardModal.vue'
+import MatriculaPrintModal  from '@/components/academico/MatriculaPrintModal.vue'
+import { buildPrintDataFromRecord, fetchAllPoblaciones } from '@/composables/useMatriculaWizard.js'
 
 import matriculaService from '@/services/matriculaService.js'
 import cicloService     from '@/services/cicloService.js'
@@ -782,7 +805,27 @@ const sedesRef       = ref([])
 
 // ─── Modales ──────────────────────────────────────────────────────────────────
 const wizardOpen = ref(false)
+const printModalOpen = ref(false)
+const printData = ref(null)
+const printing = ref(null)
 const modals = reactive({ edit: false, detail: false, delete: false, restore: false, forceDelete: false })
+
+// ─── Catálogos para reimprimir desde el listado (carga perezosa, una sola vez) ─
+const printLookups = { catalogs: {}, poblaciones: [] }
+let printLookupsPromise = null
+
+async function ensurePrintLookups() {
+  if (!printLookupsPromise) {
+    printLookupsPromise = Promise.all([
+      matriculaService.getFilters(),
+      fetchAllPoblaciones()
+    ]).then(([filtersRes, poblaciones]) => {
+      printLookups.catalogs    = filtersRes?.data ?? {}
+      printLookups.poblaciones = poblaciones
+    })
+  }
+  return printLookupsPromise
+}
 
 // ─── Formulario de edición ────────────────────────────────────────────────────
 const EMPTY_FORM = () => ({
@@ -957,9 +1000,39 @@ function openCreate() {
   wizardOpen.value = true
 }
 
-function onWizardSaved() {
-  wizardOpen.value = false
+function onWizardSaved(printSnapshot) {
+  wizardOpen.value     = false
+  printData.value      = printSnapshot
+  printModalOpen.value = true
   Promise.all([loadData(1), loadStatistics()])
+}
+
+// ─── Imprimir hoja de matrícula desde el listado ──────────────────────────────
+async function handlePrintRow(row) {
+  printing.value = row.id
+  try {
+    await ensurePrintLookups()
+    const res = await matriculaService.getById(row.id, {
+      with: 'curso,ciclo,estudiante,matriculadoPor,comercial'
+    })
+    const record = res.data
+
+    // El endpoint de matrículas no resuelve la relación anidada `ciclo.sede`;
+    // se consulta el ciclo por separado para obtener el nombre de la sede.
+    if (record.ciclo?.id) {
+      try {
+        const cicloRes = await cicloService.getById(record.ciclo.id, { with: 'sede' })
+        record.ciclo.sede = cicloRes.data?.sede ?? null
+      } catch { /* se imprime sin sede si la consulta falla */ }
+    }
+
+    printData.value      = buildPrintDataFromRecord(record, printLookups)
+    printModalOpen.value = true
+  } catch (e) {
+    notifyError(e?.response?.data?.message ?? 'No se pudo cargar la información para imprimir.')
+  } finally {
+    printing.value = null
+  }
 }
 
 // ─── Modal: detalle ───────────────────────────────────────────────────────────

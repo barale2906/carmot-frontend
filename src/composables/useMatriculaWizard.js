@@ -41,6 +41,117 @@ export function objectToOptions(obj) {
   return Object.entries(obj ?? {}).map(([value, label]) => ({ value, label: String(label) }))
 }
 
+/** Trae todas las páginas de poblaciones activas (usado para el selector de "lugar de origen"). */
+export async function fetchAllPoblaciones() {
+  const perPage = 200
+  let page      = 1
+  let lastPage  = 1
+  const acc     = []
+  do {
+    const res = await poblacionService.getAll({
+      status:         1,
+      sort_by:        'nombre',
+      sort_direction: 'asc',
+      per_page:       perPage,
+      page
+    })
+    acc.push(...(res.data ?? []))
+    lastPage = res.meta?.last_page ?? 1
+    page += 1
+  } while (page <= lastPage)
+  return acc
+}
+
+/**
+ * Construye el mismo snapshot que `buildPrintData()` (ver más abajo, dentro del
+ * composable) pero a partir de un registro de matrícula ya guardado — usado para
+ * reimprimir la hoja desde el listado, donde no hay estado de wizard disponible.
+ *
+ * @param {Object} record   Matrícula con relaciones: curso, ciclo (idealmente con ciclo.sede
+ *                          ya resuelto a mano, ver MatriculaView.vue), estudiante, matriculado_por.
+ * @param {Object} lookups  { catalogs, poblaciones } — mismos catálogos que usa el wizard.
+ */
+export function buildPrintDataFromRecord(record, { catalogs = {}, poblaciones = [] } = {}) {
+  const estudiante = record.estudiante ?? {}
+  const poblacion  = poblaciones.find(p => String(p.id) === String(record.lugar_origen_id))
+
+  const nombres = estudiante.primer_nombre
+    ? [estudiante.primer_nombre, estudiante.segundo_nombre].filter(Boolean).join(' ')
+    : (estudiante.name ?? '')
+  const apellidos = estudiante.primer_apellido
+    ? [estudiante.primer_apellido, estudiante.segundo_apellido].filter(Boolean).join(' ')
+    : ''
+
+  const anio = (record.fecha_matricula || today()).slice(0, 4)
+
+  return {
+    matriculaId: record.id ?? null,
+    codigo:      record.id ? `MAT-${anio}-${String(record.id).padStart(3, '0')}` : '',
+    fecha:       record.fecha_matricula,
+    sede:        record.ciclo?.sede?.nombre ?? record.sede?.nombre ?? '',
+    curso:       record.curso?.nombre ?? '',
+    ciclo:       record.ciclo?.nombre ?? '',
+
+    personal: {
+      nombres,
+      apellidos,
+      // El backend ya entrega etiquetas legibles (`*_texto`) para varios campos;
+      // se usan de primeras y se cae a los catálogos solo si no vienen.
+      tipoIdentificacion: record.tipo_identificacion_texto ?? catalogs.tipos_identificacion?.[record.tipo_identificacion] ?? '',
+      documento:          estudiante.documento ?? '',
+      expedicion:         [record.departamento_expedicion, record.ciudad_expedicion].filter(Boolean).join(', '),
+      fechaNacimiento:    record.fecha_nacimiento,
+      lugarOrigen:        record.lugar_origen?.nombre ?? (poblacion ? `${poblacion.nombre} (${poblacion.provincia})` : ''),
+      genero:             record.genero_texto ?? catalogs.generos?.[record.genero] ?? '',
+      estadoCivil:        record.estado_civil_texto ?? catalogs.estados_civiles?.[record.estado_civil] ?? '',
+      tipoSangre:         [
+        catalogs.grupos_sanguineos?.[record.grupo_sanguineo] ?? record.grupo_sanguineo,
+        record.rh_texto ?? catalogs.rhs?.[record.rh]
+      ].filter(Boolean).join(' ')
+    },
+
+    contacto: {
+      direccion: record.direccion,
+      telefono:  record.telefono,
+      celular:   record.celular,
+      email:     estudiante.email ?? ''
+    },
+
+    academico: {
+      nivelEducacion: record.nivel_educacion_texto ?? catalogs.niveles_educacion?.[record.nivel_educacion] ?? '',
+      ocupacion:      record.ocupacion,
+      empresa:        record.empresa,
+      estrato:        record.estrato,
+      regimenSalud:   record.regimen_salud_texto ?? catalogs.regimenes_salud?.[record.regimen_salud] ?? ''
+    },
+
+    medica: {
+      enfermedadPrioritaria: Boolean(record.enfermedad_prioritaria),
+      discapacidad:          Boolean(record.discapacidad)
+    },
+
+    detalleCurso: {
+      fechaInicio: record.fecha_inicio,
+      monto:       record.monto,
+      tallaOverol: record.talla_overol,
+      tallaBotas:  record.talla_botas
+    },
+
+    emergencia: {
+      nombre:   record.nombre_contacto,
+      telefono: record.telefono_contacto,
+      correo:   record.correo_contacto
+    },
+
+    apruebaUsoImagen:  Boolean(record.aprueba_uso_imagen),
+    observaciones:     record.observaciones,
+    multiculturalidad: record.multiculturalidad,
+    // La foto se guarda en el registro de la matrícula, no en el usuario.
+    fotoUrl:           record.foto_url || record.foto || estudiante.foto_url || estudiante.foto || null,
+    registradoPor:     record.matriculado_por?.name ?? ''
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Constantes
 // ─────────────────────────────────────────────────────────────────────────────
@@ -623,7 +734,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     try {
       const [filtersRes, pobRes] = await Promise.allSettled([
         matriculaService.getFilters(),
-        _fetchAllPoblaciones()
+        fetchAllPoblaciones()
       ])
 
       if (filtersRes.status === 'fulfilled') {
@@ -647,26 +758,6 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     } finally {
       catalogsLoading.value = false
     }
-  }
-
-  async function _fetchAllPoblaciones() {
-    const perPage = 200
-    let page      = 1
-    let lastPage  = 1
-    const acc     = []
-    do {
-      const res = await poblacionService.getAll({
-        status:         1,
-        sort_by:        'nombre',
-        sort_direction: 'asc',
-        per_page:       perPage,
-        page
-      })
-      acc.push(...(res.data ?? []))
-      lastPage = res.meta?.last_page ?? 1
-      page += 1
-    } while (page <= lastPage)
-    return acc
   }
 
   // ── Paso 2: consulta de precios ───────────────────────────────────────────────
@@ -900,6 +991,85 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     return _omitUndefined(payload)
   }
 
+  // ── Hoja de matrícula imprimible ─────────────────────────────────────────────
+
+  /**
+   * Construye el snapshot de datos para la hoja de matrícula imprimible
+   * (ver MatriculaPrintModal.vue), a partir del estado ya recolectado en el
+   * wizard. Se invoca justo después de un `submit()` exitoso.
+   */
+  function buildPrintData(matricula) {
+    const record = matricula?.data ?? matricula ?? {}
+    const matriculaId = record.id ?? null
+    const anio = (detalles.fecha_matricula || today()).slice(0, 4)
+
+    const findLabel = (opts, value) => opts.find(o => String(o.value) === String(value))?.label ?? ''
+
+    return {
+      matriculaId,
+      codigo: matriculaId ? `MAT-${anio}-${String(matriculaId).padStart(3, '0')}` : '',
+      fecha: detalles.fecha_matricula,
+      sede: sedeDelCiclo.value?.nombre ?? cicloSeleccionado.value?.sede?.nombre ?? '',
+      curso: cursosMap.value[cursoId.value] ?? '',
+      ciclo: cicloSeleccionado.value?.nombre ?? '',
+
+      personal: {
+        nombres:             [estudianteForm.primer_nombre, estudianteForm.segundo_nombre].filter(Boolean).join(' '),
+        apellidos:           [estudianteForm.primer_apellido, estudianteForm.segundo_apellido].filter(Boolean).join(' '),
+        tipoIdentificacion:  findLabel(catalogOpts.value.tiposIdentificacion, datosPersonales.tipo_identificacion),
+        documento:           estudianteForm.documento,
+        expedicion:          [datosPersonales.departamento_expedicion, datosPersonales.ciudad_expedicion].filter(Boolean).join(', '),
+        fechaNacimiento:     datosPersonales.fecha_nacimiento,
+        lugarOrigen:         findLabel(lugarOrigenOpciones.value, datosPersonales.lugar_origen_id),
+        genero:              findLabel(catalogOpts.value.generos, datosPersonales.genero),
+        estadoCivil:         findLabel(catalogOpts.value.estadosCiviles, datosPersonales.estado_civil),
+        tipoSangre:          [findLabel(catalogOpts.value.gruposSanguineos, datosPersonales.grupo_sanguineo), findLabel(catalogOpts.value.rhs, datosPersonales.rh)].filter(Boolean).join(' ')
+      },
+
+      contacto: {
+        direccion: datosPersonales.direccion,
+        telefono:  datosPersonales.telefono,
+        celular:   datosPersonales.celular,
+        email:     estudianteForm.email
+      },
+
+      academico: {
+        nivelEducacion: findLabel(catalogOpts.value.nivelesEducacion, datosPersonales.nivel_educacion),
+        ocupacion:      datosPersonales.ocupacion,
+        empresa:        datosPersonales.empresa,
+        estrato:        datosPersonales.estrato,
+        regimenSalud:   findLabel(catalogOpts.value.regimenesSalud, datosPersonales.regimen_salud)
+      },
+
+      medica: {
+        enfermedadPrioritaria: Boolean(datosPersonales.enfermedad_prioritaria),
+        discapacidad:          Boolean(datosPersonales.discapacidad)
+      },
+
+      detalleCurso: {
+        fechaInicio: detalles.fecha_inicio,
+        monto:       detalles.monto,
+        tallaOverol: detalles.talla_overol,
+        tallaBotas:  detalles.talla_botas
+      },
+
+      emergencia: {
+        nombre:   detalles.nombre_contacto,
+        telefono: detalles.telefono_contacto,
+        correo:   detalles.correo_contacto
+      },
+
+      apruebaUsoImagen:  Boolean(detalles.aprueba_uso_imagen),
+      observaciones:     detalles.observaciones,
+      multiculturalidad: detalles.multiculturalidad,
+      // Se prefiere la URL que devuelve el backend tras guardar (ya persistida en el
+      // servidor) sobre un blob: local — los navegadores no siempre resuelven blobs
+      // de forma confiable durante la generación del PDF de impresión.
+      fotoUrl:           record.foto_url || record.foto || fotoExistente.value || null,
+      registradoPor:     comercialesMap.value[detalles.matriculado_por_id] ?? ''
+    }
+  }
+
   /**
    * Maneja errores de API. Si es 422, extrae errores por campo y navega
    * automáticamente al paso que contiene el primer campo con error.
@@ -1005,7 +1175,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     tieneAlgunDatoPersonal,
 
     // Acciones
-    submit, init, loadCatalogs,
+    submit, init, loadCatalogs, buildPrintData,
 
     // Utilidades
     formatDate, formatCOP

@@ -893,7 +893,7 @@ const {
   // Paso 6 — Confirmación
   tieneAlgunDatoPersonal,
 
-  submit, init, loadCatalogs
+  submit, init, loadCatalogs, buildPrintData
 } = useMatriculaWizard({
   cursos:      computed(() => props.cursos),
   sedes:       computed(() => props.sedes),
@@ -906,9 +906,9 @@ function handleClose() {
 }
 
 async function handleSubmit() {
-  await submit(() => {
+  await submit((matricula) => {
     notifySuccess('Matrícula registrada correctamente.')
-    emit('saved')
+    emit('saved', buildPrintData(matricula))
     emit('close')
   })
 }

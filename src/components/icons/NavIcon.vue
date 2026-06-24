@@ -74,5 +74,6 @@ const icons = {
   copy:             () => svg([rect({ x: '9', y: '9', width: '13', height: '13', rx: '2' }), path('M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1')]),
   download:         () => svg([path('M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'), path('M7 10l5 5 5-5'), path('M12 15V3')]),
   biblioteca:       () => svg([path('M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20'), path('M9 6h6M9 10h6M9 14h4')]),
+  print:            () => svg([path('M6 9V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v5'), rect({ x: '2', y: '9', width: '20', height: '8', rx: '1' }), rect({ x: '6', y: '14', width: '12', height: '7', rx: '1' })]),
 }
 </script>
