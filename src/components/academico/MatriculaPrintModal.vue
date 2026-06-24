@@ -44,7 +44,16 @@
               <!-- Encabezado institucional -->
               <div class="flex items-start justify-between gap-4">
                 <div class="flex items-center gap-4">
-                  <Logo size="small" class="size-20 shrink-0" />
+                  <!--
+                    El logo tiene el wordmark "CARMOT" en blanco (pensado para fondos
+                    oscuros); sobre la hoja blanca solo se veía el anillo de colores.
+                    Se usa el SVG directo (no el componente Logo, que lo recorta a un
+                    cuadrado) sobre un chip con el azul institucional para que el
+                    texto blanco sea legible.
+                  -->
+                  <div class="flex shrink-0 items-center rounded-lg bg-[#213360] px-3 py-2">
+                    <img :src="logoSrc" alt="CARMOT" class="h-12 w-auto" />
+                  </div>
                   <div>
                     <h1 class="text-xl font-bold text-slate-900">Centro de Capacitaciones CARMOT</h1>
                     <p class="text-xs text-slate-500">NIT: 1.048.849.874-0</p>
@@ -212,9 +221,9 @@
 <script setup>
 import { computed, h, watch } from 'vue'
 
-import Logo    from '@/components/Logo.vue'
 import NavIcon from '@/components/icons/NavIcon.vue'
 import { formatDate, formatCOP } from '@/composables/useMatriculaWizard.js'
+import logoSrc from '@/assets/images/logo.svg'
 
 const props = defineProps({
   open:  { type: Boolean, default: false },
@@ -316,6 +325,20 @@ const PrintField = {
     overflow: visible !important;
     width: 100% !important;
     padding: 0 !important;
+  }
+
+  /*
+   * El diálogo de impresión del navegador trae por defecto desactivada la
+   * opción "Imágenes/gráficos de fondo", así que los `background-color`
+   * (el chip azul del logo, la franja "HOJA DE MATRÍCULA", el badge del
+   * código, las secciones resaltadas) no se imprimían y el texto blanco
+   * quedaba invisible sobre la hoja. Esto fuerza su impresión sin depender
+   * de esa opción.
+   */
+  #matricula-print-sheet, #matricula-print-sheet * {
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
   }
 
   .no-print { display: none !important; }
