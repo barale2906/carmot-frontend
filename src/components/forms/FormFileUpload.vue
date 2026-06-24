@@ -14,7 +14,13 @@
       v-if="hasFile"
       class="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3"
     >
-      <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600" aria-hidden="true">
+      <img
+        v-if="previewUrl"
+        :src="previewUrl"
+        alt="Vista previa del archivo"
+        class="size-12 shrink-0 rounded-lg border border-blue-200 object-cover"
+      />
+      <span v-else class="flex size-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600" aria-hidden="true">
         <svg class="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
@@ -39,7 +45,10 @@
     <!-- Estado: sin archivo -->
     <div
       v-else
-      class="flex min-h-[120px] flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-200 bg-slate-50/50 px-4 py-6 transition-colors hover:border-slate-300 hover:bg-slate-50"
+      class="flex min-h-[120px] flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-6 transition-colors"
+      :class="error
+        ? 'border-red-300 bg-red-50/50'
+        : 'border-slate-200 bg-slate-50/50 hover:border-slate-300 hover:bg-slate-50'"
     >
       <slot name="icon">
         <span class="flex size-10 items-center justify-center rounded-full bg-slate-200 text-slate-500" aria-hidden="true">
@@ -67,19 +76,23 @@
       class="sr-only"
       :accept="accept"
       :disabled="disabled"
+      :aria-invalid="error ? 'true' : undefined"
       :aria-describedby="ariaDescribedBy"
       v-bind="$attrs"
       @change="handleChange"
     />
 
-    <p v-if="hint" :id="`${inputId}-hint`" class="text-xs text-slate-500">
+    <p v-if="error" :id="`${inputId}-error`" role="alert" class="text-xs text-red-600">
+      {{ error }}
+    </p>
+    <p v-else-if="hint" :id="`${inputId}-hint`" class="text-xs text-slate-500">
       {{ hint }}
     </p>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch, onBeforeUnmount } from 'vue'
 import FormFieldHelp from '@/components/forms/FormFieldHelp.vue'
 
 defineOptions({ inheritAttrs: false })
@@ -90,6 +103,8 @@ const props = defineProps({
   description: { type: String, default: 'Captura o sube el archivo' },
   uploadLabel: { type: String, default: 'Subir archivo' },
   hint: { type: String, default: '' },
+  /** Texto de error de validación. Reemplaza al hint cuando está presente. */
+  error: { type: String, default: '' },
   help: { type: String, default: '' },
   required: { type: Boolean, default: false },
   disabled: { type: Boolean, default: false },
@@ -104,11 +119,29 @@ const fieldClass = computed(() => (props.span === 'full' ? 'md:col-span-2' : '')
 
 const ariaDescribedBy = computed(() => {
   const ids = []
-  if (props.hint) ids.push(`${inputId.value}-hint`)
+  if (props.error) ids.push(`${inputId.value}-error`)
+  else if (props.hint) ids.push(`${inputId.value}-hint`)
   if (props.help) ids.push(`${inputId.value}-help`)
   return ids.length ? ids.join(' ') : undefined
 })
 const hasFile = computed(() => !!props.modelValue)
+
+const previewUrl = ref('')
+
+watch(
+  () => props.modelValue,
+  (file) => {
+    if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
+    previewUrl.value = file instanceof File && file.type.startsWith('image/')
+      ? URL.createObjectURL(file)
+      : ''
+  },
+  { immediate: true }
+)
+
+onBeforeUnmount(() => {
+  if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
+})
 
 function triggerFileInput() {
   if (props.disabled) return

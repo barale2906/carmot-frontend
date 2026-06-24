@@ -362,14 +362,21 @@
                 <!-- Verificando matrícula previa -->
                 <div v-if="verificandoMatricula" class="flex items-center gap-2 text-sm text-slate-500">
                   <BtnSpinner class="border-slate-300 border-t-slate-600" />
-                  Verificando inscripciones previas en este curso...
+                  Verificando inscripciones previas en este curso y ciclo...
                 </div>
 
-                <!-- Bloqueo: ya matriculado activo en este curso -->
-                <InfoPanel v-else-if="yaMatriculadoEnCurso" color="amber">
-                  <template #title>Estudiante ya matriculado en este curso</template>
-                  El estudiante ya tiene una matrícula activa en <strong>{{ cursosMap[cursoId] }}</strong>.
-                  No es posible registrar una nueva matrícula para el mismo curso.
+                <!-- Error 422 del backend: duplicado detectado solo al guardar -->
+                <InfoPanel v-else-if="fieldErrors.estudiante_id?.[0]" color="amber">
+                  <template #title>Matrícula duplicada</template>
+                  {{ fieldErrors.estudiante_id[0] }}
+                </InfoPanel>
+
+                <!-- Bloqueo: ya matriculado activo en este curso y ciclo -->
+                <InfoPanel v-else-if="yaMatriculadoEnCiclo" color="amber">
+                  <template #title>Estudiante ya matriculado en este curso y ciclo</template>
+                  El estudiante ya tiene una matrícula activa en <strong>{{ cursosMap[cursoId] }}</strong>,
+                  ciclo <strong>{{ cicloSeleccionado?.nombre }}</strong>.
+                  No es posible registrar una nueva matrícula para la misma combinación de curso y ciclo.
                   <ul v-if="matriculasExistentes.length" class="mt-2 space-y-1">
                     <li
                       v-for="m in matriculasExistentes"
@@ -445,6 +452,18 @@
                 Todos los campos de este paso son opcionales y complementan el expediente de la matrícula.
               </p>
 
+              <Transition
+                enter-active-class="transition-all duration-200"
+                enter-from-class="opacity-0 -translate-y-1"
+                enter-to-class="opacity-100 translate-y-0"
+              >
+                <InfoPanel v-if="matriculaReferenciaId" color="blue">
+                  <template #title>Datos precargados</template>
+                  Se tomaron de la matrícula #{{ matriculaReferenciaId }} del estudiante. Puedes
+                  editar cualquier campo de este paso y del paso "Matrícula" antes de continuar.
+                </InfoPanel>
+              </Transition>
+
               <WizardFieldset legend="Identificación">
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <FormSelect
@@ -470,6 +489,23 @@
                     :disabled="!datosPersonales.departamento_expedicion"
                   />
                 </div>
+              </WizardFieldset>
+
+              <WizardFieldset legend="Foto">
+                <p v-if="fotoExistente && !datosPersonales.foto" class="text-xs text-slate-500">
+                  El estudiante ya tiene una foto registrada de una matrícula anterior.
+                  Sube una nueva solo si deseas reemplazarla.
+                </p>
+                <FormFileUpload
+                  v-model="datosPersonales.foto"
+                  label="Foto del estudiante"
+                  accept="image/*"
+                  description="Captura o sube la foto del estudiante"
+                  upload-label="Subir foto"
+                  help="Foto tipo documento para carnet o expediente."
+                  :error="fieldErrors.foto?.[0]"
+                  span="full"
+                />
               </WizardFieldset>
 
               <WizardFieldset legend="Datos demográficos">
@@ -805,9 +841,10 @@
 <script setup>
 import { computed, watch, h } from 'vue'
 
-import FormInput    from '@/components/forms/FormInput.vue'
-import FormSelect   from '@/components/forms/FormSelect.vue'
-import FormTextarea from '@/components/forms/FormTextarea.vue'
+import FormInput      from '@/components/forms/FormInput.vue'
+import FormSelect     from '@/components/forms/FormSelect.vue'
+import FormTextarea   from '@/components/forms/FormTextarea.vue'
+import FormFileUpload from '@/components/forms/FormFileUpload.vue'
 
 import { useMatriculaWizard, WIZARD_STEPS, formatDate, formatCOP } from '@/composables/useMatriculaWizard.js'
 import { useNotification } from '@/composables/useNotification.js'
@@ -843,7 +880,8 @@ const {
   documentoBusqueda, estudianteBuscando, estudianteEstado,
   estudianteEncontrado, actualizarEstudiante, estudianteForm,
   buscarEstudiante, resetEstudianteBusqueda, estudianteResumen,
-  matriculasExistentes, verificandoMatricula, yaMatriculadoEnCurso,
+  matriculasExistentes, verificandoMatricula, yaMatriculadoEnCiclo,
+  matriculaReferenciaId, fotoExistente,
 
   // Paso 4 — Datos personales
   datosPersonales, catalogsLoading, catalogsError,

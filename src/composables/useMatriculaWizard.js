@@ -65,7 +65,9 @@ const FIELD_STEP_MAP = {
   fecha_nacimiento: 4, genero: 4, estado_civil: 4, grupo_sanguineo: 4, rh: 4,
   direccion: 4, lugar_origen_id: 4, celular: 4, telefono: 4,
   nivel_educacion: 4, ocupacion: 4, empresa: 4, estrato: 4, regimen_salud: 4,
-  enfermedad_prioritaria: 4, discapacidad: 4,
+  enfermedad_prioritaria: 4, discapacidad: 4, foto: 4,
+  // Paso 3 — estudiante (matrícula duplicada detectada por el backend)
+  estudiante_id: 3,
   // Paso 5 — detalles de matrícula
   comercial_id: 5, matriculado_por_id: 5, fecha_matricula: 5, fecha_inicio: 5,
   monto: 5, valor_cuota: 5, status: 5, observaciones: 5,
@@ -110,6 +112,10 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
   const actualizarEstudiante    = ref(false)
   const matriculasExistentes = ref([])
   const verificandoMatricula = ref(false)
+  /** ID de la matrícula de referencia desde la que se precargaron los datos (solo informativo). */
+  const matriculaReferenciaId = ref(null)
+  /** Valor crudo de `foto` devuelto por la precarga: indica que el estudiante ya tiene una foto registrada. */
+  const fotoExistente = ref(null)
   const estudianteForm = reactive({
     primer_nombre:    '',
     segundo_nombre:   '',
@@ -155,7 +161,8 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     estrato:                 '',
     regimen_salud:           '',
     enfermedad_prioritaria:  false,
-    discapacidad:            false
+    discapacidad:            false,
+    foto:                    null
   })
 
   // ── Paso 5: Detalles de matrícula ───────────────────────────────────────────
@@ -303,7 +310,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
         return !precioLoading.value && (!!precioSeleccionado.value || sinPrecioConfigurado.value)
       case 3:
         if (verificandoMatricula.value) return false
-        if (estudianteEstado.value === 'found') return !yaMatriculadoEnCurso.value
+        if (estudianteEstado.value === 'found') return !yaMatriculadoEnCiclo.value
         if (estudianteEstado.value === 'not_found') {
           return (
             !!estudianteForm.primer_nombre &&
@@ -420,6 +427,12 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
         ? fechaCiclo
         : detalles.fecha_matricula
     }
+
+    // Si ya hay un estudiante encontrado, la verificación de duplicado depende
+    // del ciclo (curso + ciclo), así que debe repetirse al cambiarlo.
+    if (estudianteEstado.value === 'found' && estudianteEncontrado.value) {
+      await _verificarMatriculaExistente(estudianteEncontrado.value.id)
+    }
   }
 
   async function loadCiclos() {
@@ -456,6 +469,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     estudianteEncontrado.value = null
     apiError.value             = ''
     fieldErrors.value          = {}
+    _resetDatosPrecargados()
 
     try {
       const res = await userService.getAll(
@@ -500,14 +514,21 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     estudianteForm.password_confirmation = doc
   }
 
+  /**
+   * Verifica si el estudiante ya tiene una matrícula activa en la combinación
+   * curso + ciclo seleccionada. La regla de negocio del backend valida esa
+   * combinación exacta (no solo el curso): un estudiante puede matricularse en
+   * el mismo curso si es un ciclo distinto.
+   */
   async function _verificarMatriculaExistente(estudianteId) {
-    if (!estudianteId || !cursoId.value) return
+    if (!estudianteId || !cursoId.value || !cicloId.value) return
     verificandoMatricula.value = true
     matriculasExistentes.value = []
     try {
       const res = await matriculaService.getAll({
         estudiante_id: estudianteId,
         curso_id:      cursoId.value,
+        ciclo_id:      cicloId.value,
         status:        1,
         with:          'ciclo,ciclo.sede',
         per_page:      10
@@ -520,12 +541,17 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     }
   }
 
-  /** Precarga solo los datos personales del estudiante desde su matrícula más reciente.
-   *  404 = sin matrículas previas → se ignora silenciosamente. */
+  /** Precarga los datos personales y de inscripción del estudiante desde su matrícula
+   *  más reciente (ver GUIA_FRONTEND_PRECARGA_MATRICULA.md). 404 = sin matrículas
+   *  previas → se ignora silenciosamente y el formulario continúa en blanco. */
   async function _precargarDatosEstudiante(estudianteId) {
     try {
       const res = await matriculaService.precargaEstudiante(estudianteId)
       const d   = res.data ?? res
+
+      matriculaReferenciaId.value = d.matricula_referencia_id ?? null
+      fotoExistente.value         = d.foto ?? null
+
       Object.assign(datosPersonales, {
         tipo_identificacion:     d.tipo_identificacion     ?? '',
         departamento_expedicion: d.departamento_expedicion ?? '',
@@ -549,10 +575,23 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
         enfermedad_prioritaria:  Boolean(d.enfermedad_prioritaria),
         discapacidad:            Boolean(d.discapacidad)
       })
+
+      // Campos del paso 5 (detalles de inscripción) que también entrega la precarga.
+      Object.assign(detalles, {
+        conocimiento_curso: Boolean(d.conocimiento_curso),
+        como_entero_curso:  d.como_entero_curso  ?? '',
+        talla_overol:       d.talla_overol       ?? '',
+        talla_botas:        d.talla_botas        ?? '',
+        nombre_contacto:    d.nombre_contacto    ?? '',
+        telefono_contacto:  d.telefono_contacto  ?? '',
+        correo_contacto:    d.correo_contacto    ?? '',
+        aprueba_uso_imagen: Boolean(d.aprueba_uso_imagen),
+        multiculturalidad:  d.multiculturalidad  ?? ''
+      })
     } catch { /* 404 u otro error: el estudiante no tiene matrículas previas */ }
   }
 
-  const yaMatriculadoEnCurso = computed(() => matriculasExistentes.value.some(m => m.status === 1))
+  const yaMatriculadoEnCiclo = computed(() => matriculasExistentes.value.some(m => m.status === 1))
 
   function resetEstudianteBusqueda() {
     documentoBusqueda.value    = ''
@@ -565,6 +604,15 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
       primer_nombre: '', segundo_nombre: '', primer_apellido: '', segundo_apellido: '',
       email: '', documento: '', password: '', password_confirmation: ''
     })
+    _resetDatosPrecargados()
+  }
+
+  /** Limpia los datos personales y de inscripción que pudo haber dejado la precarga de un estudiante anterior. */
+  function _resetDatosPrecargados() {
+    Object.assign(datosPersonales, _defaultDatosPersonales())
+    Object.assign(detalles, _defaultDetallesPrecarga())
+    matriculaReferenciaId.value = null
+    fotoExistente.value         = null
   }
 
   // ── Paso 4: catálogos ─────────────────────────────────────────────────────────
@@ -716,7 +764,13 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     if (!estudianteId) { saving.value = false; return }
 
     try {
-      const matricula = await matriculaService.create(_buildPayload(estudianteId))
+      const fields = _buildPayload(estudianteId)
+      // Solo se usa FormData (multipart) cuando hay una foto nueva que subir;
+      // el resto de los casos conserva el envío como JSON plano.
+      const fotoFile = datosPersonales.foto instanceof File ? datosPersonales.foto : null
+      const payload  = fotoFile ? _toFormData(fields, fotoFile) : fields
+
+      const matricula = await matriculaService.create(payload)
       onSuccess?.(matricula)
     } catch (e) {
       _handleApiError(e)
@@ -900,24 +954,15 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     precioLoading.value        = false
     sinPrecioConfigurado.value = false
 
+    // Restaura datosPersonales completo y el subconjunto de detalles que
+    // proviene de la precarga (incluye foto, matriculaReferenciaId, fotoExistente).
     resetEstudianteBusqueda()
 
-    Object.assign(datosPersonales, {
-      tipo_identificacion: '', departamento_expedicion: '', ciudad_expedicion: '',
-      fecha_nacimiento: '', genero: '', estado_civil: '', grupo_sanguineo: '', rh: '',
-      direccion: '', lugar_origen_id: '', celular: '', telefono: '',
-      nivel_educacion: '', ocupacion: '', empresa: '', estrato: '', regimen_salud: '',
-      enfermedad_prioritaria: false, discapacidad: false
-    })
-
+    // Resto de detalles del paso 5, independientes de la precarga del estudiante.
     Object.assign(detalles, {
       comercial_id: '', matriculado_por_id: '', status: '1',
       fecha_matricula: today(), fecha_inicio: '',
-      monto: '', valor_cuota: '', observaciones: '',
-      conocimiento_curso: false, como_entero_curso: '',
-      talla_overol: '', talla_botas: '',
-      nombre_contacto: '', telefono_contacto: '', correo_contacto: '',
-      aprueba_uso_imagen: false, multiculturalidad: ''
+      monto: '', valor_cuota: '', observaciones: ''
     })
   }
 
@@ -945,7 +990,8 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     documentoBusqueda, estudianteBuscando, estudianteEstado,
     estudianteEncontrado, actualizarEstudiante, estudianteForm,
     buscarEstudiante, resetEstudianteBusqueda, estudianteResumen,
-    matriculasExistentes, verificandoMatricula, yaMatriculadoEnCurso,
+    matriculasExistentes, verificandoMatricula, yaMatriculadoEnCiclo,
+    matriculaReferenciaId, fotoExistente,
 
     // Paso 4 — Datos personales
     catalogs, datosPersonales, catalogsLoading, catalogsError,
@@ -967,7 +1013,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helper privado del módulo
+// Helpers privados del módulo
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Retorna una copia del objeto sin las claves cuyo valor es undefined. */
@@ -975,4 +1021,35 @@ function _omitUndefined(obj) {
   return Object.fromEntries(
     Object.entries(obj).filter(([, v]) => v !== undefined)
   )
+}
+
+/** Valores en blanco de `datosPersonales` (paso 4). */
+function _defaultDatosPersonales() {
+  return {
+    tipo_identificacion: '', departamento_expedicion: '', ciudad_expedicion: '',
+    fecha_nacimiento: '', genero: '', estado_civil: '', grupo_sanguineo: '', rh: '',
+    direccion: '', lugar_origen_id: '', celular: '', telefono: '',
+    nivel_educacion: '', ocupacion: '', empresa: '', estrato: '', regimen_salud: '',
+    enfermedad_prioritaria: false, discapacidad: false, foto: null
+  }
+}
+
+/** Valores en blanco del subconjunto de `detalles` (paso 5) que entrega la precarga. */
+function _defaultDetallesPrecarga() {
+  return {
+    conocimiento_curso: false, como_entero_curso: '',
+    talla_overol: '', talla_botas: '',
+    nombre_contacto: '', telefono_contacto: '', correo_contacto: '',
+    aprueba_uso_imagen: false, multiculturalidad: ''
+  }
+}
+
+/** Convierte el payload de la matrícula (objeto plano) a FormData para incluir un archivo. */
+function _toFormData(fields, fotoFile) {
+  const fd = new FormData()
+  Object.entries(fields).forEach(([key, value]) => {
+    fd.append(key, typeof value === 'boolean' ? (value ? '1' : '0') : String(value))
+  })
+  fd.append('foto', fotoFile)
+  return fd
 }
