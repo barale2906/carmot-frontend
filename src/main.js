@@ -32,6 +32,8 @@ import ConceptoPagoView from './views/financiero/ConceptoPagoView.vue'
 import TipoProductoView from './views/financiero/TipoProductoView.vue'
 import ProductoView from './views/financiero/ProductoView.vue'
 import ListaPrecioView from './views/financiero/ListaPrecioView.vue'
+import RecibosPagoView from './views/financiero/RecibosPagoView.vue'
+import CarteraView from './views/financiero/CarteraView.vue'
 import MatriculaView from './views/academico/MatriculaView.vue'
 import './assets/styles/main.css'
 
@@ -198,9 +200,17 @@ const routes = [
             path: 'conceptos-pago',
             name: 'ConceptosPago',
             component: ConceptoPagoView
+          },
+          {
+            path: 'recibos-pago',
+            name: 'RecibosPago',
+            component: RecibosPagoView
+          },
+          {
+            path: 'cartera',
+            name: 'Cartera',
+            component: CarteraView
           }
-          // Próximo módulo:
-          // { path: 'recibos-pago', name: 'RecibosPago', component: RecibosPagoView },
         ]
       }
     ]

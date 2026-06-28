@@ -174,30 +174,14 @@
                 <p class="text-sm text-slate-500">Consultando lista de precios vigente...</p>
               </div>
 
-              <!-- Sin precio configurado -->
-              <template v-else-if="sinPrecioConfigurado">
-                <InfoPanel color="amber">
-                  <template #title>Sin lista de precios vigente</template>
-                  No se encontró una lista de precios activa para esta sede y curso.
-                  El monto deberá ingresarse manualmente en el paso de matrícula.
-                </InfoPanel>
-                <div class="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <FormInput
-                    v-model="detalles.monto"
-                    label="Monto acordado"
-                    type="number" step="0.01" min="0"
-                    help="Valor total acordado para esta matrícula."
-                    placeholder="0"
-                    required
-                  />
-                  <FormInput
-                    v-model="detalles.valor_cuota"
-                    label="Valor por cuota"
-                    type="number" step="0.01" min="0"
-                    help="Dejar en blanco si el pago es de contado."
-                  />
-                </div>
-              </template>
+              <!-- Sin precio configurado — bloquea el avance -->
+              <div v-else-if="sinPrecioConfigurado" class="rounded-lg border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700">
+                <p class="font-semibold">Sin lista de precios vigente</p>
+                <p class="mt-1 text-xs text-red-600">
+                  No se encontró una lista de precios activa para este curso y sede.
+                  Es necesario configurar los precios antes de registrar la matrícula.
+                </p>
+              </div>
 
               <!-- Opciones de precio disponibles -->
               <template v-else-if="preciosDisponibles.length">
@@ -296,13 +280,6 @@
                       {{ precioSeleccionado.numero_cuotas ? 'Financiado' : 'Contado' }}
                       · {{ formatCOP(precioSeleccionado.precio_contado) }}
                     </span>
-                    <button
-                      type="button"
-                      class="text-xs text-emerald-600 hover:underline"
-                      @click="seleccionarPrecio(null); sinPrecioConfigurado = true"
-                    >
-                      Ingresar manualmente
-                    </button>
                   </div>
                 </Transition>
               </template>
@@ -310,48 +287,108 @@
 
             <!-- ─── Paso 3: Estudiante ───────────────────── -->
             <div v-show="currentStep === 3" class="space-y-4">
-              <div class="space-y-1.5">
+
+              <!-- Campo de búsqueda — visible solo mientras no se ha seleccionado un estudiante -->
+              <div v-if="estudianteEstado === 'idle'" class="space-y-1.5">
                 <label class="text-sm font-medium text-slate-900">
-                  Número de documento
-                  <span class="ml-1 text-xs font-normal text-slate-500">— busca si ya está registrado</span>
+                  Buscar estudiante
+                  <span class="ml-1 text-xs font-normal text-slate-500">— por nombre o número de documento</span>
                 </label>
-                <div class="flex gap-2">
-                  <input
-                    v-model="documentoBusqueda"
-                    type="text"
-                    placeholder="Ej: 1020304050"
-                    class="flex-1 rounded-lg border-0 bg-[#f3f3f5] px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    :disabled="estudianteBuscando"
-                    @keyup.enter="buscarEstudiante"
-                  />
-                  <button
-                    type="button"
-                    class="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
-                    :disabled="!documentoBusqueda.trim() || estudianteBuscando"
-                    @click="buscarEstudiante"
-                  >
-                    <BtnSpinner v-if="estudianteBuscando" />
-                    <svg v-else class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <div class="relative">
+                  <div class="relative flex items-center">
+                    <svg class="pointer-events-none absolute left-3 size-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
-                    Buscar
+                    <input
+                      v-model="documentoBusqueda"
+                      type="text"
+                      placeholder="Ej: Juan Pérez o 1020304050"
+                      autocomplete="off"
+                      class="w-full rounded-lg border-0 bg-[#f3f3f5] py-2 pl-9 pr-8 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      :disabled="estudianteBuscando"
+                      @input="buscarEstudianteDebounced"
+                      @keyup.enter="buscarEstudiante"
+                      @blur="() => setTimeout(ocultarResultados, 150)"
+                    />
+                    <BtnSpinner v-if="estudianteBuscando" class="absolute right-2.5 border-slate-300 border-t-slate-600" />
+                  </div>
+
+                  <!-- Dropdown de resultados -->
+                  <div
+                    v-if="resultadosBusqueda.length > 0"
+                    class="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-black/10 bg-white shadow-lg"
+                  >
+                    <button
+                      v-for="est in resultadosBusqueda"
+                      :key="est.id"
+                      type="button"
+                      class="flex w-full items-center gap-3 border-b border-black/5 px-4 py-2.5 text-left text-sm transition-colors last:border-0 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none"
+                      @mousedown.prevent="seleccionarCandidato(est)"
+                    >
+                      <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#213360]/10 text-xs font-semibold text-[#213360]">
+                        {{ (est.primer_nombre || est.name || '?')[0].toUpperCase() }}
+                      </div>
+                      <div class="min-w-0 flex-1">
+                        <p class="truncate font-medium text-slate-900">
+                          {{ [est.primer_nombre, est.primer_apellido].filter(Boolean).join(' ') || est.name }}
+                        </p>
+                        <p class="truncate text-xs text-slate-500">
+                          <template v-if="est.documento">Doc: {{ est.documento }}</template>
+                          <template v-if="est.documento && est.email"> · </template>
+                          <template v-if="est.email">{{ est.email }}</template>
+                        </p>
+                      </div>
+                    </button>
+                    <!-- Opción: registrar nuevo -->
+                    <button
+                      type="button"
+                      class="flex w-full items-center gap-2 border-t border-black/5 bg-slate-50 px-4 py-2.5 text-left text-xs font-medium text-slate-600 hover:bg-amber-50 hover:text-amber-700 focus:outline-none"
+                      @mousedown.prevent="registrarNuevoEstudiante"
+                    >
+                      <svg class="size-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                      </svg>
+                      Registrar como nuevo estudiante
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Sin resultados y búsqueda activa -->
+                <div
+                  v-if="!estudianteBuscando && documentoBusqueda.trim().length >= 2 && resultadosBusqueda.length === 0"
+                  class="rounded-lg border border-amber-100 bg-amber-50 px-4 py-3"
+                >
+                  <p class="text-sm text-amber-700">
+                    No se encontró ningún estudiante con "<strong>{{ documentoBusqueda }}</strong>".
+                  </p>
+                  <button
+                    type="button"
+                    class="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-200 focus:outline-none"
+                    @click="registrarNuevoEstudiante"
+                  >
+                    <svg class="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                    </svg>
+                    Registrar como nuevo estudiante
                   </button>
+                </div>
+
+                <!-- Estado vacío -->
+                <div
+                  v-if="!documentoBusqueda.trim() && !estudianteBuscando"
+                  class="rounded-lg border border-slate-100 bg-slate-50 px-4 py-8 text-center text-sm text-slate-400"
+                >
+                  Escribe el nombre o documento del estudiante.
                 </div>
               </div>
 
-              <div
-                v-if="estudianteEstado === 'idle'"
-                class="rounded-lg border border-slate-100 bg-slate-50 px-4 py-8 text-center text-sm text-slate-400"
-              >
-                Ingresa el documento y presiona "Buscar".
-              </div>
-
+              <!-- Estudiante seleccionado -->
               <template v-if="estudianteEstado === 'found'">
                 <InfoPanel color="green">
-                  <template #title>Estudiante encontrado</template>
+                  <template #title>Estudiante seleccionado</template>
                   <template #action>
                     <button type="button" class="text-xs text-emerald-600 hover:underline" @click="resetEstudianteBusqueda">
-                      Buscar otro
+                      Cambiar
                     </button>
                   </template>
                   <p class="text-sm font-medium text-emerald-700">{{ estudianteEncontrado?.name }}</p>
@@ -403,18 +440,16 @@
                 </div>
               </template>
 
+              <!-- Nuevo estudiante -->
               <template v-if="estudianteEstado === 'not_found'">
                 <InfoPanel color="amber">
-                  <template #title>Estudiante no encontrado</template>
+                  <template #title>Nuevo estudiante</template>
                   <template #action>
                     <button type="button" class="text-xs text-amber-600 hover:underline" @click="resetEstudianteBusqueda">
                       Buscar otro
                     </button>
                   </template>
-                  <p class="text-xs text-amber-700">
-                    No existe ningún usuario con el documento <strong>{{ documentoBusqueda }}</strong>.
-                    Completa los datos para registrarlo.
-                  </p>
+                  <p class="text-xs text-amber-700">Completa los datos para registrar al nuevo estudiante.</p>
                   <p v-if="cicloSeleccionado?.sede?.nombre" class="text-xs text-amber-700">
                     Se le asignará la sede: <strong>{{ cicloSeleccionado.sede.nombre }}</strong>
                   </p>
@@ -879,7 +914,9 @@ const {
   // Paso 3 — Estudiante
   documentoBusqueda, estudianteBuscando, estudianteEstado,
   estudianteEncontrado, actualizarEstudiante, estudianteForm,
-  buscarEstudiante, resetEstudianteBusqueda, estudianteResumen,
+  buscarEstudiante, buscarEstudianteDebounced,
+  seleccionarCandidato, registrarNuevoEstudiante, ocultarResultados,
+  resultadosBusqueda, resetEstudianteBusqueda, estudianteResumen,
   matriculasExistentes, verificandoMatricula, yaMatriculadoEnCiclo,
   matriculaReferenciaId, fotoExistente,
 
@@ -906,9 +943,9 @@ function handleClose() {
 }
 
 async function handleSubmit() {
-  await submit((matricula) => {
+  await submit((matricula, estudianteId) => {
     notifySuccess('Matrícula registrada correctamente.')
-    emit('saved', buildPrintData(matricula))
+    emit('saved', buildPrintData(matricula, estudianteId))
     emit('close')
   })
 }

@@ -85,11 +85,12 @@ export function buildPrintDataFromRecord(record, { catalogs = {}, poblaciones = 
   const anio = (record.fecha_matricula || today()).slice(0, 4)
 
   return {
-    matriculaId: record.id ?? null,
-    codigo:      record.id ? `MAT-${anio}-${String(record.id).padStart(3, '0')}` : '',
-    fecha:       record.fecha_matricula,
-    sede:        record.ciclo?.sede?.nombre ?? record.sede?.nombre ?? '',
-    curso:       record.curso?.nombre ?? '',
+    matriculaId:  record.id ?? null,
+    estudianteId: record.estudiante_id ?? null,
+    codigo:       record.id ? `MAT-${anio}-${String(record.id).padStart(3, '0')}` : '',
+    fecha:        record.fecha_matricula,
+    sede:         record.ciclo?.sede?.nombre ?? record.sede?.nombre ?? '',
+    curso:        record.curso?.nombre ?? '',
     ciclo:       record.ciclo?.nombre ?? '',
 
     personal: {
@@ -219,6 +220,8 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
   const documentoBusqueda       = ref('')
   const estudianteBuscando      = ref(false)
   const estudianteEstado        = ref('idle')   // 'idle' | 'found' | 'not_found'
+  const resultadosBusqueda      = ref([])
+  let   _busquedaTimer          = null
   const estudianteEncontrado    = ref(null)
   const actualizarEstudiante    = ref(false)
   const matriculasExistentes = ref([])
@@ -417,8 +420,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
       case 1:
         return !!sedeId.value && !!cursoId.value && !!cicloId.value
       case 2:
-        // Puede avanzar si terminó de cargar Y (hay precio seleccionado O no hay precios disponibles)
-        return !precioLoading.value && (!!precioSeleccionado.value || sinPrecioConfigurado.value)
+        return !precioLoading.value && !!precioSeleccionado.value
       case 3:
         if (verificandoMatricula.value) return false
         if (estudianteEstado.value === 'found') return !yaMatriculadoEnCiclo.value
@@ -571,46 +573,71 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
 
   // ── Paso 3: búsqueda de estudiante ───────────────────────────────────────────
 
-  async function buscarEstudiante() {
-    const doc = documentoBusqueda.value.trim()
-    if (!doc) return
+  /** Dispara la búsqueda con debounce mientras el usuario escribe. */
+  function buscarEstudianteDebounced() {
+    clearTimeout(_busquedaTimer)
+    const q = documentoBusqueda.value.trim()
+    if (q.length < 2) {
+      resultadosBusqueda.value = []
+      return
+    }
+    _busquedaTimer = setTimeout(buscarEstudiante, 350)
+  }
 
+  /** Ejecuta la búsqueda inmediatamente (Enter o botón). */
+  async function buscarEstudiante() {
+    const q = documentoBusqueda.value.trim()
+    if (!q) return
+
+    clearTimeout(_busquedaTimer)
     estudianteBuscando.value   = true
-    estudianteEstado.value     = 'idle'
-    estudianteEncontrado.value = null
+    resultadosBusqueda.value   = []
     apiError.value             = ''
     fieldErrors.value          = {}
-    _resetDatosPrecargados()
 
     try {
       const res = await userService.getAll(
-        { search: doc, per_page: 20, with: 'roles,sedes' },
+        { search: q, per_page: 10, with: 'roles' },
         { _silent: true }
       )
-      const encontrado = (res.data ?? []).find(u => u.documento === doc) ?? null
-
-      if (encontrado) {
-        estudianteEncontrado.value         = encontrado
-        estudianteEstado.value             = 'found'
-        actualizarEstudiante.value         = false
-        estudianteForm.primer_nombre       = encontrado.primer_nombre    ?? ''
-        estudianteForm.segundo_nombre      = encontrado.segundo_nombre   ?? ''
-        estudianteForm.primer_apellido     = encontrado.primer_apellido  ?? ''
-        estudianteForm.segundo_apellido    = encontrado.segundo_apellido ?? ''
-        estudianteForm.email               = encontrado.email            ?? ''
-        estudianteForm.documento           = encontrado.documento        ?? doc
-        await Promise.allSettled([
-          _verificarMatriculaExistente(encontrado.id),
-          _precargarDatosEstudiante(encontrado.id)
-        ])
-      } else {
-        _setNuevoEstudianteDefaults(doc)
-      }
+      resultadosBusqueda.value = res.data ?? []
     } catch {
-      _setNuevoEstudianteDefaults(doc)
+      resultadosBusqueda.value = []
     } finally {
       estudianteBuscando.value = false
     }
+  }
+
+  /** Selecciona un candidato del listado de resultados y carga sus datos. */
+  async function seleccionarCandidato(est) {
+    resultadosBusqueda.value           = []
+    estudianteEncontrado.value         = est
+    estudianteEstado.value             = 'found'
+    actualizarEstudiante.value         = false
+    estudianteForm.primer_nombre       = est.primer_nombre    ?? ''
+    estudianteForm.segundo_nombre      = est.segundo_nombre   ?? ''
+    estudianteForm.primer_apellido     = est.primer_apellido  ?? ''
+    estudianteForm.segundo_apellido    = est.segundo_apellido ?? ''
+    estudianteForm.email               = est.email            ?? ''
+    estudianteForm.documento           = est.documento        ?? ''
+    apiError.value                     = ''
+    fieldErrors.value                  = {}
+    _resetDatosPrecargados()
+    await Promise.allSettled([
+      _verificarMatriculaExistente(est.id),
+      _precargarDatosEstudiante(est.id)
+    ])
+  }
+
+  /** Inicia el flujo de nuevo estudiante usando el texto escrito como documento. */
+  function registrarNuevoEstudiante() {
+    resultadosBusqueda.value = []
+    _setNuevoEstudianteDefaults(documentoBusqueda.value.trim())
+  }
+
+  /** Oculta el dropdown de resultados (usado en blur del input con delay). */
+  function ocultarResultados() {
+    resultadosBusqueda.value = []
   }
 
   function _setNuevoEstudianteDefaults(doc) {
@@ -705,7 +732,9 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
   const yaMatriculadoEnCiclo = computed(() => matriculasExistentes.value.some(m => m.status === 1))
 
   function resetEstudianteBusqueda() {
+    clearTimeout(_busquedaTimer)
     documentoBusqueda.value    = ''
+    resultadosBusqueda.value   = []
     estudianteEstado.value     = 'idle'
     estudianteEncontrado.value = null
     actualizarEstudiante.value = false
@@ -862,7 +891,10 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
       const payload  = fotoFile ? _toFormData(fields, fotoFile) : fields
 
       const matricula = await matriculaService.create(payload)
-      onSuccess?.(matricula)
+      // Se pasa estudianteId explícito porque en la ruta de nuevo estudiante
+      // (not_found) estudianteEncontrado permanece null y buildPrintData no puede
+      // derivar el ID desde ahí.
+      onSuccess?.(matricula, estudianteId)
     } catch (e) {
       _handleApiError(e)
     } finally {
@@ -932,6 +964,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
 
     const payload = {
       // ── Obligatorios ──────────────────────────────────────────────────────
+      sede_id:            Number(sedeDelCiclo.value?.id ?? cicloSeleccionado.value?.sede_id),
       curso_id:           Number(cursoId.value),
       ciclo_id:           Number(cicloId.value),
       estudiante_id:      Number(estudianteId),
@@ -947,6 +980,9 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
       discapacidad:           Boolean(datosPersonales.discapacidad),
       conocimiento_curso:     Boolean(detalles.conocimiento_curso),
       aprueba_uso_imagen:     Boolean(detalles.aprueba_uso_imagen),
+
+      // ── Precio de lista seleccionado ──────────────────────────────────────
+      lp_precio_producto_id: num(precioSeleccionado.value?.id),
 
       // ── Detalles de matrícula (opcionales) ────────────────────────────────
       valor_cuota:       num(detalles.valor_cuota),
@@ -998,7 +1034,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
    * (ver MatriculaPrintModal.vue), a partir del estado ya recolectado en el
    * wizard. Se invoca justo después de un `submit()` exitoso.
    */
-  function buildPrintData(matricula) {
+  function buildPrintData(matricula, estudianteIdFallback = null) {
     const record = matricula?.data ?? matricula ?? {}
     const matriculaId = record.id ?? null
     const anio = (detalles.fecha_matricula || today()).slice(0, 4)
@@ -1007,6 +1043,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
 
     return {
       matriculaId,
+      estudianteId: record.estudiante_id ?? estudianteIdFallback ?? estudianteEncontrado.value?.id ?? null,
       codigo: matriculaId ? `MAT-${anio}-${String(matriculaId).padStart(3, '0')}` : '',
       fecha: detalles.fecha_matricula,
       sede: sedeDelCiclo.value?.nombre ?? cicloSeleccionado.value?.sede?.nombre ?? '',
@@ -1159,7 +1196,9 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     // Paso 3 — Estudiante
     documentoBusqueda, estudianteBuscando, estudianteEstado,
     estudianteEncontrado, actualizarEstudiante, estudianteForm,
-    buscarEstudiante, resetEstudianteBusqueda, estudianteResumen,
+    buscarEstudiante, buscarEstudianteDebounced,
+    seleccionarCandidato, registrarNuevoEstudiante, ocultarResultados,
+    resultadosBusqueda, resetEstudianteBusqueda, estudianteResumen,
     matriculasExistentes, verificandoMatricula, yaMatriculadoEnCiclo,
     matriculaReferenciaId, fotoExistente,
 

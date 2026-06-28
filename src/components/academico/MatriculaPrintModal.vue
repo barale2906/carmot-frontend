@@ -204,6 +204,15 @@
               Cerrar
             </button>
             <button
+              v-if="data?.matriculaId && data?.estudianteId"
+              type="button"
+              class="inline-flex items-center gap-2 rounded-lg border border-[#213360] px-4 py-2 text-sm font-medium text-[#213360] transition hover:bg-blue-50"
+              @click="irARecibo"
+            >
+              <NavIcon name="receipt" class="size-4" />
+              Ir al recibo de caja
+            </button>
+            <button
               type="button"
               class="inline-flex items-center gap-2 rounded-lg bg-[#213360] px-4 py-2 text-sm font-medium text-white hover:bg-[#1a294d]"
               @click="handlePrint"
@@ -220,6 +229,7 @@
 
 <script setup>
 import { computed, h, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
 import NavIcon from '@/components/icons/NavIcon.vue'
 import { formatDate, formatCOP } from '@/composables/useMatriculaWizard.js'
@@ -231,6 +241,19 @@ const props = defineProps({
   sedes: { type: Array,   default: () => [] }
 })
 const emit = defineEmits(['close'])
+
+const router = useRouter()
+
+function irARecibo() {
+  emit('close')
+  router.push({
+    path: '/academico/recibo-pago',
+    query: {
+      matricula_id:  props.data?.matriculaId,
+      estudiante_id: props.data?.estudianteId,
+    }
+  })
+}
 
 const sedesTexto = computed(() => props.sedes.map(s => s.nombre).filter(Boolean).join(', '))
 
