@@ -253,6 +253,24 @@
             :required="true"
           />
           <FormInput
+            v-model="form.codigo_academico"
+            label="Código académico"
+            placeholder="Ej: TUN-AC"
+            help="Prefijo del número de recibo académico. Único entre sedes."
+            :hint="`${form.codigo_academico.length}/10 caracteres`"
+            :error="fieldErrors.codigo_academico?.[0]"
+            maxlength="10"
+          />
+          <FormInput
+            v-model="form.codigo_inventario"
+            label="Código de inventario"
+            placeholder="Ej: TUN-INV"
+            help="Prefijo del número de recibo de inventario. Único entre sedes."
+            :hint="`${form.codigo_inventario.length}/10 caracteres`"
+            :error="fieldErrors.codigo_inventario?.[0]"
+            maxlength="10"
+          />
+          <FormInput
             v-model="form.hora_inicio"
             label="Hora apertura"
             type="time"
@@ -378,9 +396,9 @@
         <div v-if="formError" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
           {{ formError }}
         </div>
-        <div v-if="fieldErrors && Object.keys(fieldErrors).length > 0" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div v-if="Object.keys(filteredFieldErrors).length > 0" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
           <ul class="list-inside list-disc space-y-1">
-            <li v-for="(msgs, field) in fieldErrors" :key="field">
+            <li v-for="(msgs, field) in filteredFieldErrors" :key="field">
               <strong>{{ field }}:</strong> {{ Array.isArray(msgs) ? msgs.join(', ') : msgs }}
             </li>
           </ul>
@@ -525,6 +543,14 @@
             </dd>
           </div>
           <div>
+            <dt class="font-medium text-slate-500">Código académico</dt>
+            <dd class="mt-0.5 text-slate-900">{{ detailSede.codigo_academico ?? '—' }}</dd>
+          </div>
+          <div>
+            <dt class="font-medium text-slate-500">Código inventario</dt>
+            <dd class="mt-0.5 text-slate-900">{{ detailSede.codigo_inventario ?? '—' }}</dd>
+          </div>
+          <div>
             <dt class="font-medium text-slate-500">Creada</dt>
             <dd class="mt-0.5 text-slate-900">{{ formatDate(detailSede.created_at) }}</dd>
           </div>
@@ -625,6 +651,8 @@ const form = reactive({
   direccion: '',
   telefono: '',
   email: '',
+  codigo_academico: '',
+  codigo_inventario: '',
   hora_inicio: '',
   hora_fin: '',
   poblacion_id: '',
@@ -771,6 +799,14 @@ function goToPage(page) {
   if (page >= 1 && page <= pagination.lastPage) loadSedes(page)
 }
 
+/** Errores de campo sin los que ya se muestran bajo su input */
+const filteredFieldErrors = computed(() => {
+  const perField = ['codigo_academico', 'codigo_inventario']
+  return Object.fromEntries(
+    Object.entries(fieldErrors.value).filter(([k]) => !perField.includes(k))
+  )
+})
+
 // ─── Formulario (modales y estado) ─────────────────────────────────────────────
 const showFormModal = ref(false)
 const editingSede = ref(null)
@@ -784,6 +820,8 @@ function resetForm() {
   form.direccion = ''
   form.telefono = ''
   form.email = ''
+  form.codigo_academico = ''
+  form.codigo_inventario = ''
   form.hora_inicio = ''
   form.hora_fin = ''
   form.poblacion_id = ''
@@ -818,6 +856,8 @@ async function openEdit(sede) {
     form.direccion = data.direccion ?? ''
     form.telefono = data.telefono ?? ''
     form.email = data.email ?? ''
+    form.codigo_academico = data.codigo_academico ?? ''
+    form.codigo_inventario = data.codigo_inventario ?? ''
     form.hora_inicio = horaToTime(data.hora_inicio)
     form.hora_fin = horaToTime(data.hora_fin)
     form.poblacion_id = data.poblacion_id ?? ''
@@ -837,6 +877,8 @@ async function openEdit(sede) {
     form.direccion = sede.direccion ?? ''
     form.telefono = sede.telefono ?? ''
     form.email = sede.email ?? ''
+    form.codigo_academico = sede.codigo_academico ?? ''
+    form.codigo_inventario = sede.codigo_inventario ?? ''
     form.hora_inicio = horaToTime(sede.hora_inicio)
     form.hora_fin = horaToTime(sede.hora_fin)
     form.poblacion_id = sede.poblacion_id ?? ''
@@ -865,6 +907,8 @@ function buildPayload() {
     direccion: form.direccion,
     telefono: form.telefono,
     email: form.email,
+    codigo_academico: form.codigo_academico || undefined,
+    codigo_inventario: form.codigo_inventario || undefined,
     hora_inicio: timeToBackend(form.hora_inicio),
     hora_fin: timeToBackend(form.hora_fin),
     poblacion_id: form.poblacion_id || undefined,
