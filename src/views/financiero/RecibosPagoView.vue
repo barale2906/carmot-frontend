@@ -165,6 +165,20 @@
             </button>
 
             <button
+              type="button"
+              class="rounded p-1.5 text-slate-500 transition-colors hover:bg-sky-100 hover:text-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
+              title="Enviar por correo"
+              :disabled="emailLoadingId === row.id"
+              @click="enviarEmail(row)"
+            >
+              <svg v-if="emailLoadingId === row.id" class="size-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+              </svg>
+              <NavIcon v-else name="mail" class="size-4" />
+            </button>
+
+            <button
               v-if="row.status === 1 && canAnular"
               type="button"
               class="rounded p-1.5 text-slate-500 transition-colors hover:bg-red-100 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -383,7 +397,7 @@ import carteraService          from '@/services/carteraService.js'
 import { useNotification }     from '@/composables/useNotification'
 
 const router = useRouter()
-const { success: notifySuccess } = useNotification()
+const { success: notifySuccess, error: notifyError } = useNotification()
 
 // ─── Permisos ─────────────────────────────────────────────────────────────────
 const canCreate = ref(true)
@@ -550,6 +564,21 @@ async function confirmAnular() {
     actionError.value = e?.response?.data?.message ?? 'Error al anular el recibo de pago.'
   } finally {
     actionLoading.value = false
+  }
+}
+
+// ─── Envío de correo desde la lista ──────────────────────────────────────────
+const emailLoadingId = ref(null)
+
+async function enviarEmail(recibo) {
+  emailLoadingId.value = recibo.id
+  try {
+    const res = await reciboPagoService.enviarEmail(recibo.id)
+    notifySuccess(`Recibo enviado a ${res.estudiante_email}`)
+  } catch (e) {
+    notifyError(e?.response?.data?.message ?? 'No se pudo enviar el correo.')
+  } finally {
+    emailLoadingId.value = null
   }
 }
 
