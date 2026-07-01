@@ -318,7 +318,7 @@ const PrintField = {
    * los navegadores solo imprimen la primera página de elementos con esas
    * posiciones y recortan lo que no entra ahí. Por eso, al imprimir, hay que
    * "aplanar" toda la cadena de ancestros a flujo normal (`static`) para que
-   * el contenido fluya y se pagine en cuantas hojas necesite.
+   * el contenido fluya sin restricción de altura.
    */
   body > *:not(#matricula-print-overlay) { display: none !important; }
 
@@ -340,6 +340,18 @@ const PrintField = {
     border: none !important;
     overflow: visible !important;
     display: block !important;
+  }
+
+  /*
+   * zoom: 0.68 reduce el contenido al 68 % para que quepa en una sola hoja
+   * carta. width: 147% (≈ 100/0.68) compensa el encogimiento del zoom para
+   * que el bloque siga llenando el ancho de la página imprimible.
+   * El selector de ID gana en especificidad sobre la clase .print-reset
+   * aunque ambos usen !important, así que el width aquí prevalece.
+   */
+  #matricula-print-overlay {
+    zoom: 0.68;
+    width: 147% !important;
   }
 
   #matricula-print-sheet {
@@ -366,6 +378,9 @@ const PrintField = {
 
   .no-print { display: none !important; }
 
-  @page { margin: 14mm; }
+  @page {
+    size: letter portrait;
+    margin: 5mm;
+  }
 }
 </style>
