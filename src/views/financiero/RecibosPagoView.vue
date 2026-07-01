@@ -157,10 +157,11 @@
               v-if="canPdf"
               type="button"
               class="rounded p-1.5 text-slate-500 transition-colors hover:bg-blue-100 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              title="Descargar PDF"
+              title="Imprimir / PDF"
+              :disabled="printLoading"
               @click="descargarPdf(row)"
             >
-              <NavIcon name="download" class="size-4" />
+              <NavIcon name="print" class="size-4" />
             </button>
 
             <button
@@ -198,233 +199,6 @@
       </section>
     </template>
   </div>
-
-  <!-- ── Modal: Crear recibo ──────────────────────────────────────────────── -->
-  <ModalBase
-    v-model="showFormModal"
-    title="Nuevo recibo de pago"
-    description="Registra manualmente un cobro con sus conceptos y medios de pago."
-    size="xl"
-  >
-    <template #icon>
-      <span class="flex size-5 shrink-0 items-center justify-center text-[#213360]">
-        <NavIcon name="receipt" class="size-5" />
-      </span>
-    </template>
-
-    <form class="flex flex-col gap-5 pb-2" @submit.prevent="submitForm">
-
-      <!-- ── Campos comunes ────────────────────────────────────────── -->
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <FormSelect
-          v-model="form.sede_id"
-          label="Sede *"
-          :options="sedeOptions"
-          :required="true"
-          help="Sede que emite el recibo."
-          :error="fieldErrors.sede_id?.[0]"
-        />
-        <FormInput
-          v-model="form.fecha_recibo"
-          label="Fecha del recibo *"
-          type="date"
-          :required="true"
-          help="Fecha de emisión del comprobante."
-          :error="fieldErrors.fecha_recibo?.[0]"
-        />
-      </div>
-
-      <!-- ── Estudiante y matrícula opcionales ──────────────────────── -->
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <FormInput
-          v-model="form.estudiante_id"
-          label="ID Estudiante"
-          type="number"
-          placeholder="Opcional"
-          help="ID del estudiante asociado al cobro."
-          :error="fieldErrors.estudiante_id?.[0]"
-        />
-        <FormInput
-          v-model="form.matricula_id"
-          label="ID Matrícula"
-          type="number"
-          placeholder="Opcional"
-          help="ID de matrícula si el cobro está vinculado."
-          :error="fieldErrors.matricula_id?.[0]"
-        />
-      </div>
-
-      <!-- ── Conceptos de pago ────────────────────────────────────────── -->
-      <div>
-        <div class="mb-2 flex items-center justify-between">
-          <h3 class="text-sm font-medium text-slate-700">Conceptos de pago</h3>
-          <button
-            type="button"
-            class="flex items-center gap-1 rounded-lg border border-slate-300 px-2 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            @click="addConcepto"
-          >
-            <NavIcon name="plus" class="size-3.5" /> Agregar línea
-          </button>
-        </div>
-
-        <div v-if="form.conceptos_pago.length === 0" class="rounded-lg border border-dashed border-slate-300 py-4 text-center text-sm text-slate-400">
-          Sin líneas. Agrega al menos un concepto de pago.
-        </div>
-
-        <div v-else class="space-y-3">
-          <div
-            v-for="(linea, idx) in form.conceptos_pago"
-            :key="idx"
-            class="rounded-lg border border-black/10 bg-slate-50 p-3"
-          >
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-12">
-              <div class="sm:col-span-4">
-                <FormSelect
-                  v-model="linea.concepto_pago_id"
-                  label="Concepto"
-                  :options="conceptoOptions"
-                  @update:modelValue="(v) => onConceptoChange(idx, v)"
-                />
-              </div>
-              <div class="sm:col-span-3">
-                <FormInput v-model="linea.producto" label="Producto / descripción" placeholder="Opcional" />
-              </div>
-              <div class="sm:col-span-2">
-                <FormInput
-                  v-model.number="linea.cantidad"
-                  label="Cantidad"
-                  type="number"
-                  min="1"
-                  @input="recalcLinea(idx)"
-                />
-              </div>
-              <div class="sm:col-span-2">
-                <FormInput
-                  v-model.number="linea.unitario"
-                  label="Valor unit."
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  @input="recalcLinea(idx)"
-                />
-              </div>
-              <div class="flex items-end sm:col-span-1">
-                <button
-                  type="button"
-                  class="mb-px flex h-9 w-full items-center justify-center rounded-lg border border-red-200 text-red-500 transition-colors hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-400"
-                  title="Eliminar línea"
-                  @click="removeConcepto(idx)"
-                >
-                  <NavIcon name="close" class="size-4" />
-                </button>
-              </div>
-            </div>
-            <div class="mt-2 text-right text-xs text-slate-500">
-              Subtotal: <span class="font-mono font-medium text-slate-800">$ {{ formatMoney(linea.subtotal) }}</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="mt-2 flex justify-end text-sm">
-          <span class="text-slate-500 mr-2">Total conceptos:</span>
-          <span class="font-mono font-semibold text-slate-900">$ {{ formatMoney(totalConceptos) }}</span>
-        </div>
-      </div>
-
-      <!-- ── Medios de pago (ambos modos) ───────────────────────────── -->
-      <div>
-        <div class="mb-2 flex items-center justify-between">
-          <h3 class="text-sm font-medium text-slate-700">Medios de pago</h3>
-          <button
-            type="button"
-            class="flex items-center gap-1 rounded-lg border border-slate-300 px-2 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            @click="addMedio"
-          >
-            <NavIcon name="plus" class="size-3.5" /> Agregar medio
-          </button>
-        </div>
-
-        <div v-if="form.medios_pago.length === 0" class="rounded-lg border border-dashed border-slate-300 py-4 text-center text-sm text-slate-400">
-          Sin medios de pago. Agrega al menos uno.
-        </div>
-
-        <div v-else class="space-y-3">
-          <div
-            v-for="(medio, idx) in form.medios_pago"
-            :key="idx"
-            class="rounded-lg border border-black/10 bg-slate-50 p-3"
-          >
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-12">
-              <div class="sm:col-span-4">
-                <FormSelect v-model="medio.medio_pago" label="Medio" :options="mediosPagoOptions" />
-              </div>
-              <div class="sm:col-span-3">
-                <FormInput
-                  v-model.number="medio.valor"
-                  label="Valor"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                />
-              </div>
-              <div class="sm:col-span-4">
-                <FormInput
-                  v-model="medio.referencia"
-                  label="Referencia"
-                  placeholder="Opcional"
-                  help="Nro. transacción, cheque, etc."
-                />
-              </div>
-              <div class="flex items-end sm:col-span-1">
-                <button
-                  type="button"
-                  class="mb-px flex h-9 w-full items-center justify-center rounded-lg border border-red-200 text-red-500 transition-colors hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-400"
-                  title="Eliminar medio"
-                  @click="removeMedio(idx)"
-                >
-                  <NavIcon name="close" class="size-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="mt-2 flex justify-end text-sm">
-          <span class="text-slate-500 mr-2">Total medios:</span>
-          <span class="font-mono font-semibold text-slate-900">$ {{ formatMoney(totalMedios) }}</span>
-        </div>
-      </div>
-
-      <!-- Errores de formulario -->
-      <div v-if="formError && !Object.keys(fieldErrors).length" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
-        {{ formError }}
-      </div>
-      <div v-if="Object.keys(fieldErrors).length" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
-        <p class="font-medium">{{ formError }}</p>
-        <ul class="mt-1 list-inside list-disc space-y-0.5">
-          <li v-for="(msgs, field) in fieldErrors" :key="field">
-            {{ Array.isArray(msgs) ? msgs.join(', ') : msgs }}
-          </li>
-        </ul>
-      </div>
-    </form>
-
-    <template #footer>
-      <button
-        type="button"
-        class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        @click="showFormModal = false"
-      >Cancelar</button>
-      <button
-        type="button"
-        :disabled="formLoading"
-        class="flex items-center gap-2 rounded-lg bg-[#213360] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        @click="submitForm"
-      >
-        {{ formLoading ? 'Guardando...' : 'Crear recibo' }}
-      </button>
-    </template>
-  </ModalBase>
 
   <!-- ── Modal: Detalle ───────────────────────────────────────────────────── -->
   <ModalBase v-model="showDetailModal" title="Detalle del recibo" size="xl">
@@ -477,7 +251,6 @@
             <thead class="bg-slate-50">
               <tr>
                 <th class="px-3 py-2 text-left font-medium text-slate-500">Concepto</th>
-                <th class="px-3 py-2 text-left font-medium text-slate-500">Producto</th>
                 <th class="px-3 py-2 text-right font-medium text-slate-500">Cant.</th>
                 <th class="px-3 py-2 text-right font-medium text-slate-500">Unitario</th>
                 <th class="px-3 py-2 text-right font-medium text-slate-500">Subtotal</th>
@@ -485,8 +258,11 @@
             </thead>
             <tbody class="divide-y divide-black/5">
               <tr v-for="cp in detailRecibo.conceptos_pago" :key="cp.id" class="hover:bg-slate-50">
-                <td class="px-3 py-2 text-slate-800">{{ cp.nombre }}</td>
-                <td class="px-3 py-2 text-slate-600">{{ cp.producto ?? '—' }}</td>
+                <td class="px-3 py-2">
+                  <span class="text-slate-800">{{ cp.nombre }}</span>
+                  <!-- Para conceptos de cartera el backend guarda el detalle de cuota en observaciones -->
+                  <span v-if="cp.observaciones" class="ml-1.5 text-slate-500">— {{ cp.observaciones }}</span>
+                </td>
                 <td class="px-3 py-2 text-right text-slate-800">{{ cp.cantidad }}</td>
                 <td class="px-3 py-2 text-right font-mono text-slate-800">$ {{ formatMoney(cp.unitario) }}</td>
                 <td class="px-3 py-2 text-right font-mono font-medium text-slate-900">$ {{ formatMoney(cp.subtotal) }}</td>
@@ -532,7 +308,7 @@
         class="flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
         @click="descargarPdf(detailRecibo)"
       >
-        <NavIcon name="download" class="size-4" /> PDF
+        <NavIcon name="print" class="size-4" /> Imprimir
       </button>
       <button
         v-if="detailRecibo?.status === 1 && canAnular"
@@ -544,6 +320,13 @@
       </button>
     </template>
   </ModalBase>
+
+  <!-- ── Modal: Imprimir recibo ──────────────────────────────────────────── -->
+  <ReciboPrintModal
+    :open="showPrintModal"
+    :recibo="printRecibo"
+    @close="showPrintModal = false"
+  />
 
   <!-- ── Modal: Anular ────────────────────────────────────────────────────── -->
   <ModalBase
@@ -583,22 +366,23 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted } from 'vue'
-import StatCard     from '@/components/dashboard/StatCard.vue'
-import DataTable    from '@/components/activos/DataTable.vue'
-import SectionHeader from '@/components/activos/SectionHeader.vue'
-import StatusBadge  from '@/components/activos/StatusBadge.vue'
-import FormInput    from '@/components/forms/FormInput.vue'
-import FormInputSearch from '@/components/forms/FormInputSearch.vue'
-import FormSelect   from '@/components/forms/FormSelect.vue'
-import NavIcon      from '@/components/icons/NavIcon.vue'
-import ModalBase    from '@/components/ModalBase.vue'
-import reciboPagoService  from '@/services/reciboPagoService.js'
-import conceptoPagoService from '@/services/conceptoPagoService.js'
-import sedeService  from '@/services/sedeService.js'
-import { authService } from '@/services/authService.js'
-import { useNotification } from '@/composables/useNotification'
+import { ref, reactive, watch, onMounted } from 'vue'
+import { useRouter }           from 'vue-router'
+import StatCard                from '@/components/dashboard/StatCard.vue'
+import DataTable               from '@/components/activos/DataTable.vue'
+import SectionHeader           from '@/components/activos/SectionHeader.vue'
+import StatusBadge             from '@/components/activos/StatusBadge.vue'
+import FormInput               from '@/components/forms/FormInput.vue'
+import FormInputSearch         from '@/components/forms/FormInputSearch.vue'
+import FormSelect              from '@/components/forms/FormSelect.vue'
+import NavIcon                 from '@/components/icons/NavIcon.vue'
+import ModalBase               from '@/components/ModalBase.vue'
+import ReciboPrintModal        from '@/components/financiero/ReciboPrintModal.vue'
+import reciboPagoService       from '@/services/reciboPagoService.js'
+import carteraService          from '@/services/carteraService.js'
+import { useNotification }     from '@/composables/useNotification'
 
+const router = useRouter()
 const { success: notifySuccess } = useNotification()
 
 // ─── Permisos ─────────────────────────────────────────────────────────────────
@@ -608,17 +392,17 @@ const canPdf    = ref(true)
 
 // ─── Columnas de la tabla ─────────────────────────────────────────────────────
 const tableColumns = [
-  { key: 'numero_recibo',       label: 'N.° Recibo' },
-  { key: 'fecha_recibo',        label: 'Fecha' },
+  { key: 'numero_recibo',         label: 'N.° Recibo' },
+  { key: 'fecha_recibo',          label: 'Fecha' },
   { key: 'valor_total_formatted', label: 'Total' },
-  { key: 'status_text',         label: 'Estado' },
+  { key: 'status_text',           label: 'Estado' },
 ]
 
 // ─── Estado del listado ───────────────────────────────────────────────────────
-const recibos   = ref([])
-const loading   = ref(false)
-const error     = ref('')
-const apiError  = ref('')
+const recibos  = ref([])
+const loading  = ref(false)
+const error    = ref('')
+const apiError = ref('')
 
 const pagination = reactive({ currentPage: 1, lastPage: 1, total: 0, from: 0, to: 0, perPage: 15 })
 const stats      = reactive({ total: 0, creados: 0, cerrados: 0, anulados: 0 })
@@ -626,23 +410,13 @@ const filters    = reactive({ search: '', status: '', fecha_inicio: '', fecha_fi
 
 const statusFilterOptions = [
   { value: '',  label: 'Todos los estados' },
-  { value: '0', label: 'En proceso' },
   { value: '1', label: 'Creado' },
   { value: '2', label: 'Cerrado' },
   { value: '3', label: 'Anulado' },
 ]
 
-const mediosPagoOptions = [
-  { value: 'efectivo',        label: 'Efectivo' },
-  { value: 'transferencia',   label: 'Transferencia' },
-  { value: 'tarjeta_debito',  label: 'Tarjeta débito' },
-  { value: 'tarjeta_credito', label: 'Tarjeta crédito' },
-  { value: 'cheque',          label: 'Cheque' },
-  { value: 'consignacion',    label: 'Consignación' },
-]
-
 function statusBadgeVariant(status) {
-  const map = { 0: 'mantenimiento', 1: 'disponible', 2: 'activo', 3: 'inactivo' }
+  const map = { 1: 'disponible', 2: 'activo', 3: 'inactivo' }
   return map[status] ?? 'inactivo'
 }
 
@@ -658,11 +432,11 @@ async function loadRecibos(page = 1) {
   error.value   = ''
   try {
     const params = { page, per_page: pagination.perPage }
-    if (filters.search)       params.search       = filters.search
-    if (filters.status !== '') params.status       = filters.status
-    if (filters.fecha_inicio) params.fecha_inicio  = filters.fecha_inicio
-    if (filters.fecha_fin)    params.fecha_fin     = filters.fecha_fin
-    if (filters.vigentes)     params.vigentes      = true
+    if (filters.search)        params.search       = filters.search
+    if (filters.status !== '') params.status        = filters.status
+    if (filters.fecha_inicio)  params.fecha_inicio  = filters.fecha_inicio
+    if (filters.fecha_fin)     params.fecha_fin     = filters.fecha_fin
+    if (filters.vigentes)      params.vigentes      = true
 
     const res = await reciboPagoService.getAll(params)
     recibos.value = res.data ?? []
@@ -721,163 +495,9 @@ function goToPage(page) {
 watch(() => filters.status,   () => loadRecibos(1))
 watch(() => filters.vigentes, () => loadRecibos(1))
 
-// ─── Datos auxiliares para el formulario ─────────────────────────────────────
-const sedeOptions     = ref([])
-const conceptoOptions = ref([])
-const currentUserId   = ref(null)
-
-async function loadFormData() {
-  try {
-    const [sedesRes, conceptosRes, userRes] = await Promise.all([
-      sedeService.getAll({ per_page: 100, status: 1 }),
-      conceptoPagoService.getAll({ per_page: 100 }),
-      authService.getUser(),
-    ])
-    sedeOptions.value = (sedesRes.data ?? []).map(s => ({ value: s.id, label: s.nombre }))
-    conceptoOptions.value = (conceptosRes.data ?? []).map(c => ({
-      value: c.id,
-      label: c.nombre,
-      _valor: c.valor,
-      _tipo: c.tipo,
-    }))
-    currentUserId.value = userRes?.id ?? null
-  } catch {
-    // No bloquea la vista si falla la carga de datos auxiliares
-  }
-}
-
-// ─── Modal Crear ──────────────────────────────────────────────────────────────
-const showFormModal = ref(false)
-const formLoading   = ref(false)
-const formError     = ref('')
-const fieldErrors   = ref({})
-
-const form = reactive({
-  sede_id:        null,
-  cajero_id:      null,
-  estudiante_id:  '',
-  matricula_id:   '',
-  origen:         1,
-  fecha_recibo:   new Date().toISOString().substring(0, 10),
-  conceptos_pago: [],
-  medios_pago:    [],
-})
-
-function resetForm() {
-  form.sede_id        = null
-  form.cajero_id      = currentUserId.value
-  form.estudiante_id  = ''
-  form.matricula_id   = ''
-  form.origen         = 1
-  form.fecha_recibo   = new Date().toISOString().substring(0, 10)
-  form.conceptos_pago = []
-  form.medios_pago    = []
-  formError.value     = ''
-  fieldErrors.value   = {}
-}
-
+// ─── Nuevo recibo ─────────────────────────────────────────────────────────────
 function openCreate() {
-  resetForm()
-  showFormModal.value = true
-}
-
-// Gestión de líneas de conceptos
-function addConcepto() {
-  form.conceptos_pago.push({
-    concepto_pago_id: null,
-    tipo:             0,
-    producto:         '',
-    cantidad:         1,
-    unitario:         0,
-    subtotal:         0,
-    id_relacional:    null,
-    observaciones:    null,
-  })
-}
-
-function removeConcepto(idx) {
-  form.conceptos_pago.splice(idx, 1)
-}
-
-function onConceptoChange(idx, conceptoId) {
-  const opt = conceptoOptions.value.find(o => o.value === conceptoId || o.value === Number(conceptoId))
-  if (opt) {
-    form.conceptos_pago[idx].tipo     = opt._tipo ?? 0
-    form.conceptos_pago[idx].unitario = Number(opt._valor ?? 0)
-    recalcLinea(idx)
-  }
-}
-
-function recalcLinea(idx) {
-  const l = form.conceptos_pago[idx]
-  l.subtotal = (Number(l.cantidad) || 0) * (Number(l.unitario) || 0)
-}
-
-const totalConceptos = computed(() =>
-  form.conceptos_pago.reduce((acc, l) => acc + (Number(l.subtotal) || 0), 0)
-)
-
-// Gestión de medios de pago
-function addMedio() {
-  form.medios_pago.push({ medio_pago: 'efectivo', valor: 0, referencia: '' })
-}
-
-function removeMedio(idx) {
-  form.medios_pago.splice(idx, 1)
-}
-
-const totalMedios = computed(() =>
-  form.medios_pago.reduce((acc, m) => acc + (Number(m.valor) || 0), 0)
-)
-
-async function submitForm() {
-  formError.value   = ''
-  fieldErrors.value = {}
-  formLoading.value = true
-
-  try {
-    const payload = {
-      sede_id:           form.sede_id,
-      cajero_id:         form.cajero_id ?? currentUserId.value,
-      origen:            form.origen,
-      fecha_recibo:      form.fecha_recibo,
-      fecha_transaccion: form.fecha_recibo,
-      valor_total:       totalConceptos.value,
-      descuento_total:   0,
-      conceptos_pago:    form.conceptos_pago.map(l => ({
-        concepto_pago_id: Number(l.concepto_pago_id),
-        tipo:             l.tipo,
-        valor:            l.subtotal,
-        producto:         l.producto || null,
-        cantidad:         Number(l.cantidad),
-        unitario:         Number(l.unitario),
-        subtotal:         Number(l.subtotal),
-        id_relacional:    null,
-        observaciones:    null,
-      })),
-      medios_pago: form.medios_pago.map(m => ({
-        medio_pago: m.medio_pago,
-        valor:      Number(m.valor),
-        referencia: m.referencia || null,
-      })),
-    }
-    if (form.estudiante_id) payload.estudiante_id = Number(form.estudiante_id)
-    if (form.matricula_id)  payload.matricula_id  = Number(form.matricula_id)
-
-    await reciboPagoService.create(payload, { _silent: true })
-    notifySuccess('Recibo de pago creado correctamente.')
-    showFormModal.value = false
-    await Promise.all([loadRecibos(pagination.currentPage), loadStatistics()])
-  } catch (e) {
-    if (e?.response?.status === 422) {
-      fieldErrors.value = e.response.data?.errors  ?? {}
-      formError.value   = e.response.data?.message ?? 'Verifica los campos del formulario.'
-    } else {
-      formError.value = e?.response?.data?.message ?? 'Ocurrió un error inesperado.'
-    }
-  } finally {
-    formLoading.value = false
-  }
+  router.push({ name: 'NuevoReciboPago' })
 }
 
 // ─── Modal Detalle ────────────────────────────────────────────────────────────
@@ -886,9 +506,9 @@ const detailRecibo    = ref(null)
 const detailLoading   = ref(false)
 
 async function openDetail(recibo) {
-  detailRecibo.value  = recibo
+  detailRecibo.value    = recibo
   showDetailModal.value = true
-  detailLoading.value = true
+  detailLoading.value   = true
   try {
     const res = await reciboPagoService.getById(recibo.id, { with: 'sede,cajero,conceptosPago,mediosPago' })
     detailRecibo.value = res.data
@@ -906,8 +526,8 @@ const actionLoading   = ref(false)
 const actionError     = ref('')
 
 function openAnular(recibo) {
-  targetRecibo.value  = recibo
-  actionError.value   = ''
+  targetRecibo.value    = recibo
+  actionError.value     = ''
   showAnularModal.value = true
 }
 
@@ -933,27 +553,51 @@ async function confirmAnular() {
   }
 }
 
-// ─── PDF ──────────────────────────────────────────────────────────────────────
+// ─── Impresión de recibo ──────────────────────────────────────────────────────
+const showPrintModal  = ref(false)
+const printRecibo     = ref(null)
+const printLoading    = ref(false)
+
 async function descargarPdf(recibo) {
+  printLoading.value = true
   try {
-    const response = await reciboPagoService.getPdf(recibo.id)
-    const url = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }))
-    const a   = document.createElement('a')
-    a.href    = url
-    a.download = `recibo-${recibo.numero_recibo}.pdf`
-    a.click()
-    URL.revokeObjectURL(url)
+    const res        = await reciboPagoService.getById(recibo.id, {
+      with: 'sede,cajero,conceptosPago,mediosPago,matricula',
+    })
+    const reciboData = res.data
+
+    // Enriquecer conceptos de cartera (id_relacional != null) con el estado
+    // actual de cada cuota para que aparezca en el impreso.
+    const conceptosCartera = (reciboData.conceptos_pago ?? [])
+      .filter(cp => cp.id_relacional != null)
+
+    if (conceptosCartera.length && reciboData.matricula_id) {
+      try {
+        const carteraRes = await carteraService.getAll({
+          matricula_id: reciboData.matricula_id,
+          per_page: 50,
+        })
+        const carteras = carteraRes.data ?? []
+        reciboData.conceptos_pago = reciboData.conceptos_pago.map(cp => {
+          if (cp.id_relacional == null) return cp
+          const cartera = carteras.find(c => c.id === cp.id_relacional)
+          return cartera ? { ...cp, _status: cartera.status, _status_text: cartera.status_text } : cp
+        })
+      } catch { /* no bloquea la impresión si falla */ }
+    }
+
+    printRecibo.value    = reciboData
+    showPrintModal.value = true
   } catch {
-    // Silencio; el toast global de api.js cubre el error
+    // El toast global de api.js cubre el error
+  } finally {
+    printLoading.value = false
   }
 }
 
 // ─── Ciclo de vida ────────────────────────────────────────────────────────────
 onMounted(async () => {
-  await Promise.allSettled([
-    loadFormData(),
-    loadRecibos(1),
-  ])
+  await loadRecibos(1)
   if (!apiError.value) {
     await loadStatistics()
   }

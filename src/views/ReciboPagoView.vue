@@ -210,10 +210,21 @@
                   class="flex items-center justify-between py-2.5"
                 >
                   <div>
-                    <p class="text-sm font-medium text-slate-800">{{ item.label }}</p>
-                    <p v-if="item.tipo === 'concepto'" class="text-xs text-slate-500">
-                      {{ item.cantidad }} × $ {{ formatMoney(item.valor) }}
-                    </p>
+                    <!-- Para cuotas: muestra el concepto estándar como título y el detalle de cuota como subtítulo -->
+                    <template v-if="item.tipo === 'cuota'">
+                      <p class="text-sm font-medium text-slate-800">
+                        {{ item.conceptoNombre || item.label }}
+                      </p>
+                      <p v-if="item.conceptoNombre" class="text-xs text-slate-500">
+                        {{ item.label }}
+                      </p>
+                    </template>
+                    <template v-else>
+                      <p class="text-sm font-medium text-slate-800">{{ item.label }}</p>
+                      <p class="text-xs text-slate-500">
+                        {{ item.cantidad }} × $ {{ formatMoney(item.valor) }}
+                      </p>
+                    </template>
                   </div>
                   <span class="font-mono text-sm font-semibold text-slate-900">$ {{ formatMoney(item.pagado) }}</span>
                 </div>
@@ -515,10 +526,11 @@ const cargandoDetalle   = ref(false)
 const detalleInfo       = ref(null)
 
 // ─── Conceptos adicionales ────────────────────────────────────────────────────
-const conceptosDisponibles = ref([])
-const conceptoSeleccionado = ref(null)
-const cantidadConcepto     = ref(1)
-const conceptosAdicionales = ref([])   // [{ concepto_id, nombre, valor, cantidad }]
+const conceptosDisponibles  = ref([])
+const conceptoCarteraNombre = ref('')   // Nombre del concepto estándar de tipo Cartera (tipo 0)
+const conceptoSeleccionado  = ref(null)
+const cantidadConcepto      = ref(1)
+const conceptosAdicionales  = ref([])   // [{ concepto_id, nombre, valor, cantidad }]
 
 // ─── Distribución previsualizada ──────────────────────────────────────────────
 const calculado     = ref(false)
@@ -715,9 +727,13 @@ async function cargarDetalleDeuda(matriculaId) {
 // ─── Conceptos adicionales ────────────────────────────────────────────────────
 async function cargarConceptos() {
   try {
-    const res = await conceptoPagoService.getAll({ per_page: 200 })
-    // Excluir tipo 0 (Cartera) — esos se gestionan a través de las cuotas
-    conceptosDisponibles.value = (res.data ?? []).filter(c => c.tipo !== 0)
+    const res  = await conceptoPagoService.getAll({ per_page: 200 })
+    const todos = res.data ?? []
+    // El concepto tipo 0 (Cartera) lo asigna el backend automáticamente; guardamos su nombre para el preview
+    const cartera = todos.find(c => c.tipo === 0)
+    if (cartera) conceptoCarteraNombre.value = cartera.nombre
+    // Solo los no-cartera quedan disponibles para conceptos adicionales
+    conceptosDisponibles.value = todos.filter(c => c.tipo !== 0)
   } catch { /* no bloquea el flujo */ }
 }
 
@@ -773,9 +789,10 @@ function calcular() {
     const saldo  = Number(cuota.saldo)
     const pagado = Math.min(restante, saldo)
     items.push({
-      tipo:         'cuota',
-      label:        cuota.numero_cuota === 0 ? 'Matrícula' : `Cuota ${cuota.numero_cuota}`,
-      numero_cuota: cuota.numero_cuota,
+      tipo:          'cuota',
+      label:         cuota.numero_cuota === 0 ? 'Matrícula' : `Cuota ${cuota.numero_cuota}`,
+      conceptoNombre: conceptoCarteraNombre.value,
+      numero_cuota:  cuota.numero_cuota,
       saldo,
       pagado,
     })

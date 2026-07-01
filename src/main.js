@@ -212,6 +212,11 @@ const routes = [
             component: CarteraView
           }
         ]
+      },
+      {
+        path: 'recibos-pago/nuevo',
+        name: 'NuevoReciboPago',
+        component: ReciboPagoView
       }
     ]
   },
