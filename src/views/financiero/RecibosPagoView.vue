@@ -255,6 +255,18 @@
           <dt class="font-medium text-slate-500">Total</dt>
           <dd class="mt-0.5 font-mono font-semibold text-slate-900">$ {{ detailRecibo.valor_total_formatted ?? detailRecibo.valor_total }}</dd>
         </div>
+        <div v-if="detailRecibo.descuento_total > 0">
+          <dt class="font-medium text-slate-500">Descuento</dt>
+          <dd class="mt-0.5 font-mono font-semibold text-emerald-700">− $ {{ detailRecibo.descuento_total_formatted ?? formatMoney(detailRecibo.descuento_total) }}</dd>
+        </div>
+        <div v-if="detailRecibo.sobrecargo_total > 0">
+          <dt class="font-medium text-slate-500">Recargo</dt>
+          <dd class="mt-0.5 font-mono font-semibold text-orange-700">+ $ {{ detailRecibo.sobrecargo_total_formatted ?? formatMoney(detailRecibo.sobrecargo_total) }}</dd>
+        </div>
+        <div v-if="detailRecibo.valor_neto != null">
+          <dt class="font-medium text-slate-500">Valor neto (cubre deuda)</dt>
+          <dd class="mt-0.5 font-mono font-semibold text-slate-900">$ {{ formatMoney(detailRecibo.valor_neto) }}</dd>
+        </div>
       </dl>
 
       <!-- Conceptos de pago -->
@@ -303,6 +315,31 @@
                 <td class="px-3 py-2 text-slate-800 capitalize">{{ mp.medio_pago?.replace('_', ' ') }}</td>
                 <td class="px-3 py-2 text-slate-600">{{ mp.referencia ?? '—' }}</td>
                 <td class="px-3 py-2 text-right font-mono font-medium text-slate-900">$ {{ formatMoney(mp.valor) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Sobrecargos aplicados -->
+      <div v-if="detailRecibo.sobrecargos?.length">
+        <h3 class="mb-2 text-sm font-semibold text-slate-700">Recargos aplicados</h3>
+        <div class="overflow-auto rounded-lg border border-orange-200 bg-orange-50">
+          <table class="w-full text-xs">
+            <thead class="bg-orange-100">
+              <tr>
+                <th class="px-3 py-2 text-left font-medium text-orange-700">Concepto</th>
+                <th class="px-3 py-2 text-right font-medium text-orange-700">%</th>
+                <th class="px-3 py-2 text-right font-medium text-orange-700">Valor base</th>
+                <th class="px-3 py-2 text-right font-medium text-orange-700">Recargo</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-orange-100">
+              <tr v-for="sc in detailRecibo.sobrecargos" :key="sc.id" class="hover:bg-orange-100">
+                <td class="px-3 py-2 text-slate-800">{{ sc.nombre }}</td>
+                <td class="px-3 py-2 text-right font-mono text-slate-700">{{ sc.porcentaje }}%</td>
+                <td class="px-3 py-2 text-right font-mono text-slate-700">$ {{ formatMoney(sc.valor_base) }}</td>
+                <td class="px-3 py-2 text-right font-mono font-semibold text-orange-700">+ $ {{ sc.valor_sobrecargo_formatted ?? formatMoney(sc.valor_sobrecargo) }}</td>
               </tr>
             </tbody>
           </table>
@@ -524,7 +561,7 @@ async function openDetail(recibo) {
   showDetailModal.value = true
   detailLoading.value   = true
   try {
-    const res = await reciboPagoService.getById(recibo.id, { with: 'sede,cajero,conceptosPago,mediosPago' })
+    const res = await reciboPagoService.getById(recibo.id, { with: 'sede,cajero,conceptosPago,mediosPago,sobrecargos' })
     detailRecibo.value = res.data
   } catch {
     // Mantiene los datos del listado

@@ -671,310 +671,6 @@
       </div>
         </section>
 
-        <!-- ── Paso 3: Descuentos ────────────────────────────────────────────── -->
-        <section
-          v-show="formWizardStep === 3"
-          class="flex flex-col gap-4"
-          aria-labelledby="wizard-step-3-title"
-        >
-          <h3 id="wizard-step-3-title" class="sr-only">Paso 3: Descuentos</h3>
-          <p class="text-sm text-slate-600">
-            Paso final opcional: descuentos vinculados a esta lista. Al crear, los de la cola se registran al pulsar <strong>Guardar</strong>.
-            En edición puedes añadir descuentos ahora o aprobar los que estén en proceso.
-          </p>
-      <div class="rounded-xl border border-black/10 bg-slate-50/90 p-4">
-        <div class="mb-3">
-          <p class="text-sm font-semibold text-slate-900">Descuentos vinculados</p>
-          <p class="mt-1 max-w-prose text-xs text-slate-500">
-            Misma idea que <strong>productos y precios</strong>: tabla con desplazamiento horizontal. Al crear, la cola se envía al guardar con
-            <code class="rounded bg-slate-100 px-1">listas_precios</code>. En edición puedes registrar uno nuevo o aprobar los en proceso.
-          </p>
-        </div>
-
-        <!-- Cola (solo creación) -->
-        <template v-if="!editingLista">
-          <div v-if="descuentosPendientes.length" class="overflow-x-auto rounded-lg border border-black/10 bg-white shadow-sm">
-            <table class="w-full min-w-[960px] border-collapse text-left text-sm" aria-label="Descuentos en cola">
-              <thead class="sticky top-0 z-[1] bg-slate-100 shadow-[0_1px_0_0_rgba(0,0,0,0.06)]">
-                <tr class="border-b border-slate-200 text-xs font-semibold uppercase tracking-wide text-slate-600">
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 w-10">#</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[9rem]">Nombre</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[6rem]">Tipo</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[6rem]">Valor</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[7rem]">Aplicación</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[8rem]">Activación</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[7rem]">Días / código</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[6.5rem]">Desde</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[6.5rem]">Hasta</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 w-14 text-center">Acum.</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[8rem]">Alcance</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 w-20 text-right">Acción</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="(d, di) in descuentosPendientes"
-                  :key="'pd-' + di"
-                  class="border-b border-slate-100 align-top transition-colors hover:bg-slate-50/90"
-                >
-                  <td class="px-2 py-2 align-middle text-xs font-medium text-slate-500">{{ di + 1 }}</td>
-                  <td class="px-2 py-2 align-middle font-medium text-slate-900">{{ d.nombre }}</td>
-                  <td class="px-2 py-2 align-middle text-slate-700">{{ labelDescuentoOption(descuentoTipoOptions, d.tipo) }}</td>
-                  <td class="px-2 py-2 align-middle text-slate-700">{{ formatValorDescuentoCelda(d) }}</td>
-                  <td class="px-2 py-2 align-middle text-slate-700">{{ labelDescuentoOption(descuentoAplicacionOptions, d.aplicacion) }}</td>
-                  <td class="px-2 py-2 align-middle text-slate-700">{{ labelDescuentoOption(descuentoActivacionOptions, d.tipo_activacion) }}</td>
-                  <td class="px-2 py-2 align-middle text-xs text-slate-600">{{ descuentoExtraActivacion(d) }}</td>
-                  <td class="px-2 py-2 align-middle text-xs text-slate-600">{{ d.fecha_inicio }}</td>
-                  <td class="px-2 py-2 align-middle text-xs text-slate-600">{{ d.fecha_fin }}</td>
-                  <td class="px-2 py-2 align-middle text-center text-xs text-slate-600">{{ descuentoAcumulacionSiNo(d) }}</td>
-                  <td class="px-2 py-2 align-middle text-xs text-slate-600">{{ d._alcanceTexto }}</td>
-                  <td class="px-2 py-2 align-middle text-right">
-                    <button type="button" class="text-xs font-medium text-red-600 hover:underline focus:outline-none focus:ring-2 focus:ring-red-500" @click="descuentosPendientes.splice(di, 1)">Quitar</button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div v-else class="rounded-lg border border-dashed border-slate-200 bg-white py-4 text-center text-xs text-slate-500">
-            Sin descuentos en cola. Completa la fila <strong>Definir descuento</strong> y pulsa <strong>Añadir a la cola</strong>.
-          </div>
-        </template>
-
-        <!-- Listado en edición -->
-        <div v-if="editingLista" class="mt-3">
-          <p v-if="descuentosLoading" class="text-xs text-slate-400">Cargando descuentos…</p>
-          <div v-else-if="descuentosLista.length" class="overflow-x-auto rounded-lg border border-black/10 bg-white shadow-sm">
-            <table class="w-full min-w-[960px] border-collapse text-left text-sm" aria-label="Descuentos de la lista">
-              <thead class="sticky top-0 z-[1] bg-slate-100 shadow-[0_1px_0_0_rgba(0,0,0,0.06)]">
-                <tr class="border-b border-slate-200 text-xs font-semibold uppercase tracking-wide text-slate-600">
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 w-10">#</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[9rem]">Nombre</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[6rem]">Tipo</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[6rem]">Valor</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[7rem]">Aplicación</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[8rem]">Activación</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[7rem]">Días / código</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[6.5rem]">Desde</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[6.5rem]">Hasta</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 w-14 text-center">Acum.</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[10rem]">Alcance</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[6rem]">Estado</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 w-24 text-right">Acción</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="(d, di) in descuentosLista"
-                  :key="d.id"
-                  class="border-b border-slate-100 align-top transition-colors hover:bg-slate-50/90"
-                >
-                  <td class="px-2 py-2 align-middle text-xs font-medium text-slate-500">{{ di + 1 }}</td>
-                  <td class="px-2 py-2 align-middle">
-                    <p class="max-w-[14rem] truncate font-medium text-slate-900" :title="d.nombre">{{ d.nombre }}</p>
-                    <p v-if="d.productos?.length" class="mt-0.5 line-clamp-2 text-[11px] text-slate-500" :title="nombresProductosDescuento(d)">
-                      {{ nombresProductosDescuento(d) }}
-                    </p>
-                  </td>
-                  <td class="px-2 py-2 align-middle text-slate-700">{{ labelDescuentoOption(descuentoTipoOptions, d.tipo) }}</td>
-                  <td class="px-2 py-2 align-middle text-slate-700">{{ formatValorDescuentoCelda(d) }}</td>
-                  <td class="px-2 py-2 align-middle text-slate-700">{{ labelDescuentoOption(descuentoAplicacionOptions, d.aplicacion) }}</td>
-                  <td class="px-2 py-2 align-middle text-slate-700">{{ labelDescuentoOption(descuentoActivacionOptions, d.tipo_activacion) }}</td>
-                  <td class="px-2 py-2 align-middle text-xs text-slate-600">{{ descuentoExtraActivacion(d) }}</td>
-                  <td class="px-2 py-2 align-middle text-xs text-slate-600">{{ d.fecha_inicio }}</td>
-                  <td class="px-2 py-2 align-middle text-xs text-slate-600">{{ d.fecha_fin }}</td>
-                  <td class="px-2 py-2 align-middle text-center text-xs text-slate-600">{{ descuentoAcumulacionSiNo(d) }}</td>
-                  <td class="px-2 py-2 align-middle text-xs text-slate-600">
-                    <span v-if="d.productos?.length">{{ d.productos.length }} producto(s)</span>
-                    <span v-else>Todos</span>
-                  </td>
-                  <td class="px-2 py-2 align-middle text-xs text-slate-600">{{ d.status_text ?? d.tipo_activacion_text ?? d.tipo_activacion }}</td>
-                  <td class="px-2 py-2 align-middle text-right">
-                    <button
-                      v-if="d.status === 1"
-                      type="button"
-                      class="rounded border border-blue-200 bg-white px-2 py-0.5 text-xs font-medium text-blue-700 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      :disabled="descuentoActionLoading === d.id"
-                      @click="aprobarDescuentoDesdeForm(d)"
-                    >
-                      {{ descuentoActionLoading === d.id ? '…' : 'Aprobar' }}
-                    </button>
-                    <span v-else class="text-xs text-slate-400">—</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <p v-else class="mt-2 rounded-lg border border-dashed border-slate-200 bg-white py-4 text-center text-xs text-slate-500">
-            Sin descuentos asociados a esta lista.
-          </p>
-        </div>
-
-        <!-- Alta: una fila editable en tabla (como líneas de precio) -->
-        <div class="mt-4 rounded-lg border border-black/10 bg-white shadow-sm">
-          <p class="border-b border-slate-100 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-600">Definir descuento</p>
-          <div class="overflow-x-auto">
-            <table class="w-full min-w-[960px] border-collapse text-left text-sm" aria-label="Formulario nuevo descuento">
-              <thead class="bg-slate-50">
-                <tr class="border-b border-slate-200 text-xs font-semibold uppercase tracking-wide text-slate-600">
-                  <th scope="col" class="whitespace-nowrap px-2 py-2 min-w-[10rem]">
-                    <span class="inline-flex items-center gap-0.5">
-                      <span>Nombre *</span>
-                      <FormFieldHelp compact text="Nombre visible del descuento en listas y cobros." />
-                    </span>
-                  </th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2 min-w-[6.5rem]">
-                    <span class="inline-flex items-center gap-0.5">
-                      <span>Tipo *</span>
-                      <FormFieldHelp compact text="Porcentaje o valor fijo según cómo se calcule el descuento." />
-                    </span>
-                  </th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2 min-w-[6.5rem]">
-                    <span class="inline-flex items-center gap-0.5">
-                      <span>Valor *</span>
-                      <FormFieldHelp compact text="Magnitud del descuento (coherente con el tipo elegido)." />
-                    </span>
-                  </th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2 min-w-[7rem]">
-                    <span class="inline-flex items-center gap-0.5">
-                      <span>Aplicación *</span>
-                      <FormFieldHelp compact text="Sobre qué importe del cobro se aplica la rebaja." />
-                    </span>
-                  </th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2 min-w-[8rem]">
-                    <span class="inline-flex items-center gap-0.5">
-                      <span>Activación *</span>
-                      <FormFieldHelp compact text="Condición para que el descuento sea válido (anticipado, código, etc.)." />
-                    </span>
-                  </th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2 min-w-[7rem]">
-                    <span class="inline-flex items-center gap-0.5">
-                      <span>Días / código *</span>
-                      <FormFieldHelp compact text="Días de anticipo o código promocional, según el tipo de activación." />
-                    </span>
-                  </th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2 min-w-[6.5rem]">
-                    <span class="inline-flex items-center gap-0.5">
-                      <span>Desde *</span>
-                      <FormFieldHelp compact text="Fecha inicial en que el descuento puede aplicarse." />
-                    </span>
-                  </th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2 min-w-[6.5rem]">
-                    <span class="inline-flex items-center gap-0.5">
-                      <span>Hasta *</span>
-                      <FormFieldHelp compact text="Último día en que el descuento sigue vigente." />
-                    </span>
-                  </th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2 w-16 text-center">
-                    <span class="inline-flex items-center justify-center gap-0.5">
-                      <span>Acum.</span>
-                      <FormFieldHelp compact text="Si puede combinarse con otros descuentos en el mismo cobro." />
-                    </span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr class="border-b border-slate-100 align-top">
-                  <td class="px-2 py-2 align-middle">
-                    <FormInput v-model="descuentoDraft.nombre" label="" placeholder="Ej: Pronto pago 10%" maxlength="255" />
-                  </td>
-                  <td class="px-2 py-2 align-middle">
-                    <FormSelect v-model="descuentoDraft.tipo" label="" :options="descuentoTipoOptions" />
-                  </td>
-                  <td class="px-2 py-2 align-middle">
-                    <FormInput v-model="descuentoDraft.valor" label="" type="number" min="0" step="0.01" placeholder="0" />
-                  </td>
-                  <td class="px-2 py-2 align-middle">
-                    <FormSelect v-model="descuentoDraft.aplicacion" label="" :options="descuentoAplicacionOptions" />
-                  </td>
-                  <td class="px-2 py-2 align-middle">
-                    <FormSelect v-model="descuentoDraft.tipo_activacion" label="" :options="descuentoActivacionOptions" />
-                  </td>
-                  <td class="px-2 py-2 align-middle">
-                    <FormInput
-                      v-if="descuentoDraft.tipo_activacion === 'pago_anticipado'"
-                      v-model="descuentoDraft.dias_anticipacion"
-                      label=""
-                      type="number"
-                      min="1"
-                      placeholder="Días"
-                    />
-                    <FormInput
-                      v-else-if="descuentoDraft.tipo_activacion === 'codigo_promocional'"
-                      v-model="descuentoDraft.codigo_descuento"
-                      label=""
-                      placeholder="Código"
-                      maxlength="50"
-                    />
-                    <span v-else class="block py-2 text-center text-xs text-slate-400">—</span>
-                  </td>
-                  <td class="px-2 py-2 align-middle">
-                    <FormInput v-model="descuentoDraft.fecha_inicio" label="" type="date" />
-                  </td>
-                  <td class="px-2 py-2 align-middle">
-                    <FormInput v-model="descuentoDraft.fecha_fin" label="" type="date" />
-                  </td>
-                  <td class="px-2 py-2 align-middle text-center">
-                    <input
-                      v-model="descuentoDraft.permite_acumulacion"
-                      type="checkbox"
-                      class="rounded border-slate-300 text-[#213360] focus:ring-blue-500"
-                      aria-label="Permite acumulación con otros descuentos"
-                    />
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="space-y-3 border-t border-slate-100 px-3 py-3">
-            <FormSelect
-              v-model="descuentoDraft.descuentoAlcanceProductos"
-              label="Alcance del descuento sobre productos LP *"
-              :options="descuentoAlcanceProductosSelectOptions"
-              span="full"
-              help="Todos los productos de la lista o solo algunos que marques abajo."
-            />
-            <p class="-mt-1 text-xs text-slate-500">{{ textoHintAlcanceDescuento }}</p>
-            <template v-if="descuentoDraft.descuentoAlcanceProductos === 'seleccion'">
-              <FormCheckboxGroup
-                v-if="descuentoProductoCheckboxOptions.length"
-                v-model="descuentoDraft.producto_ids"
-                span="full"
-                label="Productos de esta lista *"
-                search-placeholder="Buscar producto…"
-                help="Solo los ítems con precio en esta lista a los que aplica el descuento."
-                :options="descuentoProductoCheckboxOptions"
-              />
-              <p
-                v-else
-                class="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900"
-              >
-                Añade al menos un producto con precio en el paso 2 para poder limitar el descuento a ítems concretos de esta lista.
-              </p>
-            </template>
-          </div>
-          <div class="flex flex-wrap gap-2 border-t border-slate-100 px-3 py-3">
-            <button
-              v-if="!editingLista"
-              type="button"
-              class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              @click="encolarDescuento"
-            >
-              Añadir a la cola
-            </button>
-            <button
-              v-else
-              type="button"
-              :disabled="descuentoRegistroLoading || !editingLista?.id"
-              class="rounded-lg bg-[#213360] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#1a294d] disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              @click="registrarDescuentoEnLista"
-            >
-              {{ descuentoRegistroLoading ? 'Registrando…' : 'Registrar descuento en esta lista' }}
-            </button>
-          </div>
-        </div>
-      </div>
-        </section>
-
         <!-- Error general -->
         <div v-if="formError" class="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
           <p class="font-medium">{{ formError }}</p>
@@ -1004,7 +700,7 @@
             ← Anterior
           </button>
           <button
-            v-if="formWizardStep < 3"
+            v-if="formWizardStep < 2"
             type="button"
             class="rounded-lg bg-[#213360] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] focus:outline-none focus:ring-2 focus:ring-blue-500"
             @click="wizardNext"
@@ -1012,7 +708,7 @@
             Siguiente →
           </button>
           <button
-            v-if="formWizardStep === 3"
+            v-if="formWizardStep === 2"
             type="button"
             :disabled="formLoading || form.poblaciones.length === 0"
             class="flex items-center gap-2 rounded-lg bg-[#213360] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1293,46 +989,6 @@
           </p>
         </div>
 
-        <!-- Descuentos vinculados (detalle) -->
-        <div class="mt-6 border-t border-black/10 pt-5">
-          <p class="mb-2 text-sm font-semibold text-slate-900">Descuentos vinculados</p>
-          <div v-if="detailDescuentosLoading" class="py-4 text-center text-xs text-slate-400">Cargando descuentos…</div>
-          <div v-else-if="detailDescuentos.length" class="overflow-x-auto rounded-lg border border-black/10 bg-white shadow-sm">
-            <table class="w-full min-w-[880px] border-collapse text-left text-sm" aria-label="Descuentos del detalle de lista">
-              <thead class="sticky top-0 z-[1] bg-slate-100 shadow-[0_1px_0_0_rgba(0,0,0,0.06)]">
-                <tr class="border-b border-slate-200 text-xs font-semibold uppercase tracking-wide text-slate-600">
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 w-10">#</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[9rem]">Nombre</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[5.5rem]">Tipo</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[5.5rem]">Valor</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[6.5rem]">Aplicación</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[7rem]">Activación</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[6rem]">Extra</th>
-                  <th scope="col" class="whitespace-nowrap px-2 py-2.5 min-w-[6rem]">Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="(d, di) in detailDescuentos"
-                  :key="d.id"
-                  class="border-b border-slate-100 align-top transition-colors hover:bg-slate-50/90"
-                >
-                  <td class="px-2 py-2 align-middle text-xs font-medium text-slate-500">{{ di + 1 }}</td>
-                  <td class="px-2 py-2 align-middle font-medium text-slate-900">{{ d.nombre }}</td>
-                  <td class="px-2 py-2 align-middle text-slate-700">{{ labelDescuentoOption(descuentoTipoOptions, d.tipo) }}</td>
-                  <td class="px-2 py-2 align-middle text-slate-700">{{ formatValorDescuentoCelda(d) }}</td>
-                  <td class="px-2 py-2 align-middle text-slate-700">{{ labelDescuentoOption(descuentoAplicacionOptions, d.aplicacion) }}</td>
-                  <td class="px-2 py-2 align-middle text-slate-700">{{ labelDescuentoOption(descuentoActivacionOptions, d.tipo_activacion) }}</td>
-                  <td class="px-2 py-2 align-middle text-xs text-slate-600">{{ descuentoExtraActivacion(d) }}</td>
-                  <td class="px-2 py-2 align-middle text-xs text-slate-600">{{ d.status_text ?? '' }}<template v-if="d.tipo_activacion_text || d.tipo_activacion"><span class="text-slate-400"> · </span>{{ d.tipo_activacion_text ?? d.tipo_activacion }}</template></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <p v-else class="rounded-lg border border-dashed border-slate-200 bg-slate-50 py-4 text-center text-xs text-slate-500">
-            Sin descuentos asociados a esta lista.
-          </p>
-        </div>
       </div>
     </div>
   </ModalBase>
@@ -1769,7 +1425,6 @@ import listaPrecioService       from '@/services/listaPrecioService.js'
 import precioProductoService    from '@/services/precioProductoService.js'
 import productoLpService        from '@/services/productoLpService.js'
 import productoReferenciaService from '@/services/productoReferenciaService.js'
-import descuentoService         from '@/services/descuentoService.js'
 import tipoProductoService      from '@/services/tipoProductoService.js'
 import cursoService       from '@/services/cursoService.js'
 import moduloService      from '@/services/moduloService.js'
@@ -1803,35 +1458,6 @@ function formatCOP(val) {
   }).format(num)
 }
 
-/** Etiqueta legible para selects de descuento (tablas paso 3 / detalle). */
-function labelDescuentoOption(options, value) {
-  if (value == null || value === '') return '—'
-  const o = options.find((x) => x.value === value)
-  return o?.label ?? String(value)
-}
-
-function formatValorDescuentoCelda(d) {
-  const v = d?.valor
-  const n = typeof v === 'number' ? v : parseFloat(String(v).replace(',', '.'))
-  if (d?.tipo === 'porcentual' && Number.isFinite(n)) return `${n}%`
-  if (Number.isFinite(n)) return formatCOP(n)
-  return '—'
-}
-
-function descuentoExtraActivacion(o) {
-  const ta = o?.tipo_activacion
-  if (ta === 'pago_anticipado') {
-    const di = o.dias_anticipacion
-    if (di != null && di !== '') return `${di} días`
-    return '—'
-  }
-  if (ta === 'codigo_promocional') return o.codigo_descuento?.trim() || '—'
-  return '—'
-}
-
-function descuentoAcumulacionSiNo(o) {
-  return o?.permite_acumulacion ? 'Sí' : 'No'
-}
 
 /** Tolerancia (COP): valor total (precio_contado) = matrícula + total financiado */
 const PRECIO_COHERENCIA_TOL = 0.5
@@ -1933,71 +1559,12 @@ const canAddPrecio    = ref(true)
 const canEditPrecio   = ref(true)
 const canDeletePrecio = ref(true)
 
-// ─── Elaboración lista: precios + descuentos (mismo modal crear/editar) ─────
+// ─── Elaboración lista: precios (modal crear/editar) ─────────────────────────
 const formPrecioLines = ref([])
 const initialPrecioIds = ref([])
 /** Filtro del catálogo LP y selects del paso 2 */
 const productosStep2Filter = ref('')
 const productosLoadError = ref('')
-
-const descuentosPendientes = ref([])
-const descuentosLista = ref([])
-const descuentosLoading = ref(false)
-const descuentoRegistroLoading = ref(false)
-const descuentoActionLoading = ref(null)
-
-const descuentoDraft = reactive({
-  nombre: '',
-  tipo: 'porcentual',
-  valor: '',
-  aplicacion: 'valor_total',
-  tipo_activacion: 'pago_anticipado',
-  dias_anticipacion: '15',
-  codigo_descuento: '',
-  fecha_inicio: '',
-  fecha_fin: '',
-  permite_acumulacion: false,
-  /** 'todos' = sin array productos (aplica a todo el catálogo en la lista); 'seleccion' = payload.productos */
-  descuentoAlcanceProductos: 'todos',
-  producto_ids: []
-})
-
-const descuentoTipoOptions = [
-  { value: 'porcentual', label: 'Porcentual' },
-  { value: 'valor_fijo', label: 'Valor fijo' }
-]
-const descuentoAplicacionOptions = [
-  { value: 'valor_total', label: 'Valor total' },
-  { value: 'matricula', label: 'Matrícula' },
-  { value: 'cuota', label: 'Cuota' }
-]
-const descuentoActivacionOptions = [
-  { value: 'pago_anticipado', label: 'Pago anticipado' },
-  { value: 'promocion_matricula', label: 'Promoción matrícula' },
-  { value: 'codigo_promocional', label: 'Código promocional' }
-]
-
-const descuentoAlcanceProductosOptions = [
-  {
-    value: 'todos',
-    label: 'Todos los productos de la lista',
-    hint: 'No se envía filtro por producto; el descuento aplica a cualquier ítem LP de las listas enlazadas.'
-  },
-  {
-    value: 'seleccion',
-    label: 'Solo productos LP seleccionados',
-    hint: 'Equivale a enviar productos: [id, …] en la API. Elige entre los productos con precio definido en el paso 2.'
-  }
-]
-
-const descuentoAlcanceProductosSelectOptions = computed(() =>
-  descuentoAlcanceProductosOptions.map((o) => ({ value: o.value, label: o.label }))
-)
-
-const textoHintAlcanceDescuento = computed(() => {
-  const o = descuentoAlcanceProductosOptions.find((x) => x.value === descuentoDraft.descuentoAlcanceProductos)
-  return o?.hint ?? ''
-})
 
 const quickProductOpen = ref(false)
 const quickTipoProductoId = ref('')
@@ -2069,22 +1636,6 @@ const productosCatalogFiltrados = computed(() => {
   return [...list].sort((a, b) => String(a.nombre ?? '').localeCompare(String(b.nombre ?? ''), 'es'))
 })
 
-function valorCuotaPreviewLine(line) {
-  if (!formLineEsFinanciable(line)) return '—'
-  const total = parseFloat(line.precio_total)
-  const cuotas = parseInt(line.numero_cuotas, 10)
-  if (!total || !cuotas || isNaN(total) || isNaN(cuotas) || cuotas <= 0) return '—'
-  const v = Math.round(total / cuotas / 100) * 100
-  return formatCOP(v)
-}
-
-const productoIdsParaDescuento = computed(() => {
-  const ids = formPrecioLines.value
-    .map((l) => (l.producto_id ? Number(l.producto_id) : null))
-    .filter(Boolean)
-  return [...new Set(ids)]
-})
-
 function labelProducto(id) {
   const p = productos.value.find((x) => x.id === id)
   return p ? p.nombre : `Producto #${id}`
@@ -2101,165 +1652,13 @@ function productoDetalleLinea(line) {
   return parts.join(' · ')
 }
 
-const descuentoProductoCheckboxOptions = computed(() =>
-  productoIdsParaDescuento.value.map((id) => ({ value: id, label: labelProducto(id) }))
-)
-
-function resetDescuentoDraft() {
-  descuentoDraft.nombre = ''
-  descuentoDraft.tipo = 'porcentual'
-  descuentoDraft.valor = ''
-  descuentoDraft.aplicacion = 'valor_total'
-  descuentoDraft.tipo_activacion = 'pago_anticipado'
-  descuentoDraft.dias_anticipacion = '15'
-  descuentoDraft.codigo_descuento = ''
-  descuentoDraft.fecha_inicio = ''
-  descuentoDraft.fecha_fin = ''
-  descuentoDraft.permite_acumulacion = false
-  descuentoDraft.descuentoAlcanceProductos = 'todos'
-  descuentoDraft.producto_ids = []
-}
-
-function textoAlcanceDescuentoPayload(payload) {
-  if (Array.isArray(payload.productos) && payload.productos.length) {
-    return `Solo ${payload.productos.length} producto(s) LP`
-  }
-  return 'Todos los productos de la lista'
-}
-
-function nombresProductosDescuento(d) {
-  const list = d.productos ?? []
-  if (!list.length) return ''
-  const labels = list.slice(0, 3).map((p) => p.nombre ?? `#${p.id}`)
-  const extra = list.length > 3 ? ` (+${list.length - 3})` : ''
-  return labels.join(', ') + extra
-}
-
-/** Listas enlazadas al descuento (API puede devolver snake o camel). */
-function listasDelDescuento(d) {
-  return d.listas_precios ?? d.listasPrecios ?? []
-}
-
-watch(
-  () => descuentoDraft.descuentoAlcanceProductos,
-  (v) => {
-    if (v === 'todos') descuentoDraft.producto_ids = []
-  }
-)
-
-function validateDescuentoDraft() {
-  if (!descuentoDraft.nombre?.trim()) return 'Indica el nombre del descuento.'
-  if (descuentoDraft.valor === '' || descuentoDraft.valor == null) return 'Indica el valor del descuento.'
-  if (!descuentoDraft.fecha_inicio || !descuentoDraft.fecha_fin) return 'Indica vigencia del descuento.'
-  if (descuentoDraft.tipo_activacion === 'pago_anticipado') {
-    const d = parseInt(descuentoDraft.dias_anticipacion, 10)
-    if (!d || d < 1) return 'Indica días de anticipación (mínimo 1).'
-  }
-  if (descuentoDraft.tipo_activacion === 'codigo_promocional' && !descuentoDraft.codigo_descuento?.trim()) {
-    return 'Indica el código promocional.'
-  }
-  if (descuentoDraft.descuentoAlcanceProductos === 'seleccion') {
-    if (!descuentoDraft.producto_ids?.length) {
-      return 'Selecciona al menos un producto LP o elige «Todos los productos de la lista».'
-    }
-  }
-  return null
-}
-
-function buildDescuentoPayload(listaIds) {
-  const payload = {
-    nombre: descuentoDraft.nombre.trim(),
-    tipo: descuentoDraft.tipo,
-    valor: parseFloat(descuentoDraft.valor) || 0,
-    aplicacion: descuentoDraft.aplicacion,
-    tipo_activacion: descuentoDraft.tipo_activacion,
-    permite_acumulacion: !!descuentoDraft.permite_acumulacion,
-    fecha_inicio: descuentoDraft.fecha_inicio,
-    fecha_fin: descuentoDraft.fecha_fin
-  }
-  if (descuentoDraft.tipo_activacion === 'pago_anticipado') {
-    payload.dias_anticipacion = parseInt(descuentoDraft.dias_anticipacion, 10) || 1
-  }
-  if (descuentoDraft.tipo_activacion === 'codigo_promocional') {
-    payload.codigo_descuento = descuentoDraft.codigo_descuento.trim()
-  }
-  if (listaIds?.length) payload.listas_precios = listaIds
-  if (descuentoDraft.descuentoAlcanceProductos === 'seleccion' && descuentoDraft.producto_ids?.length) {
-    payload.productos = descuentoDraft.producto_ids.map((id) => Number(id)).filter((n) => !Number.isNaN(n) && n > 0)
-  }
-  return payload
-}
-
-function encolarDescuento() {
-  formError.value = ''
-  const err = validateDescuentoDraft()
-  if (err) {
-    formError.value = err
-    return
-  }
-  const payload = buildDescuentoPayload([])
-  descuentosPendientes.value.push({ ...payload, _alcanceTexto: textoAlcanceDescuentoPayload(payload) })
-  resetDescuentoDraft()
-  notifySuccess('Descuento añadido a la cola. Se creará al guardar la lista.')
-}
-
-async function registrarDescuentoEnLista() {
-  if (!editingLista.value?.id) return
-  formError.value = ''
-  const err = validateDescuentoDraft()
-  if (err) {
-    formError.value = err
-    return
-  }
-  descuentoRegistroLoading.value = true
-  try {
-    const payload = buildDescuentoPayload([editingLista.value.id])
-    await descuentoService.create(payload, { _silent: true })
-    resetDescuentoDraft()
-    notifySuccess('Descuento registrado.')
-    await loadDescuentosLista(editingLista.value.id)
-  } catch (e) {
-    formError.value = e?.response?.data?.message ?? 'No se pudo registrar el descuento.'
-  } finally {
-    descuentoRegistroLoading.value = false
-  }
-}
-
-async function aprobarDescuentoDesdeForm(d) {
-  descuentoActionLoading.value = d.id
-  try {
-    await descuentoService.aprobar(d.id)
-    notifySuccess('Descuento aprobado.')
-    await loadDescuentosLista(editingLista.value.id)
-  } catch (e) {
-    formError.value = e?.response?.data?.message ?? 'No se pudo aprobar el descuento.'
-  } finally {
-    descuentoActionLoading.value = null
-  }
-}
-
-async function loadDescuentosLista(listaId) {
-  if (!listaId) {
-    descuentosLista.value = []
-    return
-  }
-  descuentosLoading.value = true
-  try {
-    const res = await descuentoService.getAll({
-      relations: 'listasPrecios,productos',
-      per_page: 200,
-      sort_by: 'created_at',
-      sort_direction: 'desc'
-    })
-    const all = res.data ?? []
-    descuentosLista.value = all.filter((disc) =>
-      listasDelDescuento(disc).some((lp) => lp.id === listaId)
-    )
-  } catch {
-    descuentosLista.value = []
-  } finally {
-    descuentosLoading.value = false
-  }
+function valorCuotaPreviewLine(line) {
+  if (!formLineEsFinanciable(line)) return '—'
+  const total = parseFloat(line.precio_total)
+  const cuotas = parseInt(line.numero_cuotas, 10)
+  if (!total || !cuotas || isNaN(total) || isNaN(cuotas) || cuotas <= 0) return '—'
+  const v = Math.round(total / cuotas / 100) * 100
+  return formatCOP(v)
 }
 
 function validateFormPrecioLines() {
@@ -2362,14 +1761,6 @@ async function syncPreciosLista(listaId) {
       await precioProductoService.create(buildPrecioPayloadForCreate(line, listaId), { _silent: true })
     }
   }
-}
-
-async function crearDescuentosTrasLista(listaId) {
-  for (const raw of descuentosPendientes.value) {
-    const { _alcanceTexto: _a, ...payload } = raw
-    await descuentoService.create({ ...payload, listas_precios: [listaId] }, { _silent: true })
-  }
-  descuentosPendientes.value = []
 }
 
 async function loadPreciosParaFormulario(listaId) {
@@ -2771,11 +2162,6 @@ const WIZARD_STEPS = [
     id: 2,
     label: 'Productos y precios',
     hint: 'Catálogo LP para elegir producto; aquí importes y cuotas si aplica.'
-  },
-  {
-    id: 3,
-    label: 'Descuentos',
-    hint: 'Opcional: revisa y define descuentos en tabla (cola al crear o registro al editar).'
   }
 ]
 
@@ -2787,7 +2173,7 @@ const wizardStepDescription = computed(() => {
   const hint = step?.hint ?? ''
   const modo = editingLista.value
     ? ' Estás editando una lista existente; guarda en el último paso.'
-    : ' Al guardar en el último paso se crea la lista y se envían precios y descuentos en cola.'
+    : ' Al guardar en el último paso se crea la lista con los precios indicados.'
   return `${base} ${hint}${modo}`
 })
 
@@ -2808,14 +2194,6 @@ function wizardNext() {
     }
     formWizardStep.value = 2
     return
-  }
-  if (formWizardStep.value === 2) {
-    const err = validateFormPrecioLines()
-    if (err) {
-      formError.value = err
-      return
-    }
-    formWizardStep.value = 3
   }
 }
 
@@ -2847,12 +2225,9 @@ function resetForm() {
   fieldErrors.value = {}
   formPrecioLines.value = []
   initialPrecioIds.value = []
-  descuentosPendientes.value = []
-  descuentosLista.value = []
   quickProductOpen.value = false
   productosStep2Filter.value = ''
   productosLoadError.value = ''
-  resetDescuentoDraft()
   formWizardStep.value = 1
 }
 
@@ -2876,8 +2251,7 @@ async function openEdit(lista) {
   await Promise.all([
     loadPoblaciones(),
     loadProductos(true),
-    loadPreciosParaFormulario(lista.id),
-    loadDescuentosLista(lista.id)
+    loadPreciosParaFormulario(lista.id)
   ])
 }
 
@@ -2913,8 +2287,7 @@ async function submitForm() {
       const listaId = extractListaIdFromResponse(res)
       if (!listaId) throw new Error('La API no devolvió el id de la lista.')
       await crearPreciosTrasLista(listaId)
-      await crearDescuentosTrasLista(listaId)
-      notifySuccess(`La lista "${form.nombre}" fue creada con sus precios y descuentos en cola.`)
+      notifySuccess(`La lista "${form.nombre}" fue creada correctamente.`)
     }
     showFormModal.value = false
     await Promise.all([loadListas(pagination.currentPage), loadStatistics()])
@@ -2948,40 +2321,14 @@ const showDetailModal = ref(false)
 const detailLista     = ref(null)
 const detailPrecios   = ref([])
 const preciosLoading  = ref(false)
-const detailDescuentos = ref([])
-const detailDescuentosLoading = ref(false)
-
-async function loadDetailDescuentos(listaId) {
-  detailDescuentosLoading.value = true
-  detailDescuentos.value = []
-  try {
-    const res = await descuentoService.getAll({
-      relations: 'listasPrecios,productos',
-      per_page: 200,
-      sort_by: 'created_at',
-      sort_direction: 'desc'
-    })
-    const all = res.data ?? []
-    detailDescuentos.value = all.filter((disc) =>
-      listasDelDescuento(disc).some((lp) => lp.id === listaId)
-    )
-  } catch {
-    detailDescuentos.value = []
-  } finally {
-    detailDescuentosLoading.value = false
-  }
-}
-
 async function openDetail(lista) {
   detailLista.value      = lista
   detailPrecios.value    = []
-  detailDescuentos.value = []
   sinPrecioProductos.value = []
   showDetailModal.value  = true
   await Promise.all([
     loadDetailFull(lista.id),
     loadPrecios(lista.id),
-    loadDetailDescuentos(lista.id),
     ...[1, 2].includes(Number(lista.status)) ? [loadSinPrecio(lista.id)] : []
   ])
 }

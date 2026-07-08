@@ -43,7 +43,10 @@
           <!-- Búsqueda de estudiante por nombre o documento -->
           <div class="min-w-0 flex-1 sm:max-w-xs">
             <div class="flex flex-col gap-2">
-              <span class="text-sm font-medium text-slate-900">Estudiante:</span>
+              <span class="flex items-center gap-1 text-sm font-medium text-slate-900">
+                Estudiante:
+                <FormFieldHelp text="Busca por nombre completo o número de documento. Escribe al menos 3 caracteres para ver sugerencias." />
+              </span>
 
               <!-- Estudiante seleccionado -->
               <div
@@ -103,8 +106,27 @@
             <FormSelect
               v-model="filters.status"
               label="Estado:"
-              help="Filtra por estado de la cuota en el cobro."
+              help="Activa: pendiente de pago. Abonada: con pagos parciales. Cerrada: saldo en cero. Anulada: cuota revertida. En Acuerdo: incluida en un plan de pago negociado."
               :options="statusFilterOptions"
+            />
+          </div>
+
+          <div class="w-full sm:w-[200px]">
+            <FormSelect
+              v-model="filters.curso_id"
+              label="Curso:"
+              help="Muestra solo las matrículas del programa académico seleccionado. Al elegir un curso se habilita el filtro de ciclo."
+              :options="cursosOptions"
+            />
+          </div>
+
+          <div class="w-full sm:w-[200px]">
+            <FormSelect
+              v-model="filters.ciclo_id"
+              label="Ciclo:"
+              help="Filtra por la cohorte o ciclo de apertura del curso. Selecciona primero un curso para ver los ciclos disponibles."
+              :options="ciclosOptions"
+              :disabled="!filters.curso_id"
             />
           </div>
 
@@ -113,7 +135,7 @@
               v-model="filters.fecha_desde"
               label="Vence desde:"
               type="date"
-              help="Inicio del rango de vencimiento."
+              help="Muestra cuotas cuya fecha de vencimiento es igual o posterior a este día."
               @change="loadCartera(1)"
             />
           </div>
@@ -123,7 +145,7 @@
               v-model="filters.fecha_hasta"
               label="Vence hasta:"
               type="date"
-              help="Fin del rango de vencimiento."
+              help="Muestra cuotas cuya fecha de vencimiento es igual o anterior a este día."
               @change="loadCartera(1)"
             />
           </div>
@@ -131,6 +153,7 @@
           <div class="flex w-full items-end gap-2 sm:w-auto">
             <button
               type="button"
+              title="Muestra únicamente cuotas con saldo pendiente de pago (estado Activa o Abonada)."
               class="flex h-9 items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
               :class="filters.solo_pendientes
                 ? 'border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100'
@@ -142,6 +165,7 @@
 
             <button
               type="button"
+              title="Muestra únicamente cuotas con saldo pendiente cuya fecha de vencimiento ya pasó."
               class="flex h-9 items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
               :class="filters.solo_vencidas
                 ? 'border-red-300 bg-red-50 text-red-700 hover:bg-red-100'
@@ -432,10 +456,13 @@ import SectionHeader from '@/components/activos/SectionHeader.vue'
 import StatusBadge   from '@/components/activos/StatusBadge.vue'
 import FormInput     from '@/components/forms/FormInput.vue'
 import FormSelect    from '@/components/forms/FormSelect.vue'
+import FormFieldHelp from '@/components/forms/FormFieldHelp.vue'
 import NavIcon       from '@/components/icons/NavIcon.vue'
 import ModalBase     from '@/components/ModalBase.vue'
 import carteraService from '@/services/carteraService.js'
 import userService    from '@/services/userService.js'
+import cursoService   from '@/services/cursoService.js'
+import cicloService   from '@/services/cicloService.js'
 
 // ─── Estado del listado ───────────────────────────────────────────────────────
 const grupos             = ref([])
@@ -452,6 +479,8 @@ const stats      = reactive({ total: 0, activas: 0, abonadas: 0, cerradas: 0, to
 const filters = reactive({
   estudiante_id:   '',
   status:          '',
+  curso_id:        '',
+  ciclo_id:        '',
   fecha_desde:     '',
   fecha_hasta:     '',
   solo_pendientes: false,
@@ -467,8 +496,37 @@ const statusFilterOptions = [
   { value: '4',  label: 'En Acuerdo' },
 ]
 
+// ─── Cursos y Ciclos (filtros) ────────────────────────────────────────────────
+const cursosRef = ref([])
+const ciclosRef = ref([])
+
+const cursosOptions = computed(() =>
+  [{ value: '', label: 'Todos los cursos' }, ...cursosRef.value.map(c => ({ value: String(c.id), label: c.nombre }))]
+)
+
+const ciclosOptions = computed(() =>
+  [{ value: '', label: 'Todos los ciclos' }, ...ciclosRef.value.map(c => ({ value: String(c.id), label: c.nombre }))]
+)
+
+async function loadCursos() {
+  try {
+    const res = await cursoService.getAll({ status: 1, per_page: 200 })
+    cursosRef.value = res.data ?? []
+  } catch { /* silencioso */ }
+}
+
+async function loadCiclosPorCurso(cursoId) {
+  ciclosRef.value = []
+  if (!cursoId) return
+  try {
+    const res = await cicloService.getAll({ curso_id: cursoId, status: 1, per_page: 100 })
+    ciclosRef.value = res.data ?? []
+  } catch { /* silencioso */ }
+}
+
 const hayFiltros = computed(() =>
   filters.estudiante_id || filters.status !== '' ||
+  filters.curso_id || filters.ciclo_id ||
   filters.fecha_desde || filters.fecha_hasta ||
   filters.solo_pendientes || filters.solo_vencidas
 )
@@ -511,6 +569,8 @@ async function loadCartera(page = 1) {
     const params = { page, per_page: pagination.perPage }
     if (filters.estudiante_id)   params.estudiante_id    = filters.estudiante_id
     if (filters.status !== '')   params.status           = filters.status
+    if (filters.curso_id)        params.curso_id         = filters.curso_id
+    if (filters.ciclo_id)        params.ciclo_id         = filters.ciclo_id
     if (filters.fecha_desde)     params.fecha_desde      = filters.fecha_desde
     if (filters.fecha_hasta)     params.fecha_hasta      = filters.fecha_hasta
     if (filters.solo_pendientes) params.solo_pendientes  = true
@@ -627,6 +687,9 @@ function limpiarFiltros() {
   sinResultadosEst.value       = false
   filters.estudiante_id        = ''
   filters.status               = ''
+  filters.curso_id             = ''
+  filters.ciclo_id             = ''
+  ciclosRef.value              = []
   filters.fecha_desde          = ''
   filters.fecha_hasta          = ''
   filters.solo_pendientes      = false
@@ -638,8 +701,15 @@ function goToPage(page) {
 }
 
 watch(() => filters.status,          () => loadCartera(1))
+watch(() => filters.ciclo_id,        () => loadCartera(1))
 watch(() => filters.solo_pendientes, () => loadCartera(1))
 watch(() => filters.solo_vencidas,   () => loadCartera(1))
+
+watch(() => filters.curso_id, async (val) => {
+  filters.ciclo_id = ''
+  await loadCiclosPorCurso(val)
+  loadCartera(1)
+})
 
 // ─── Modal Detalle ────────────────────────────────────────────────────────────
 const showDetailModal = ref(false)
@@ -662,7 +732,7 @@ async function openDetail(cuota) {
 
 // ─── Ciclo de vida ────────────────────────────────────────────────────────────
 onMounted(async () => {
-  await loadCartera(1)
+  await Promise.all([loadCartera(1), loadCursos()])
   if (!apiError.value) {
     await loadStatistics()
   }

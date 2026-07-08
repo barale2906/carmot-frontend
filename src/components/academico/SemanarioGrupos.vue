@@ -20,14 +20,14 @@
 
       <div class="min-w-[700px]">
         <!-- Leyenda -->
-        <div class="flex gap-4 px-4 py-2 border-b border-slate-100 text-xs">
+        <div class="flex flex-wrap gap-4 px-4 py-2 border-b border-slate-100 text-xs">
           <span class="flex items-center gap-1.5">
             <span class="inline-block size-4 rounded bg-emerald-200 border border-emerald-400" />
             Disponible
           </span>
           <span class="flex items-center gap-1.5">
-            <span class="inline-block size-4 rounded bg-red-200 border border-red-400" />
-            Ocupado
+            <span class="inline-block size-4 rounded bg-amber-100 border border-amber-400" />
+            Con grupos asignados
           </span>
           <span class="flex items-center gap-1.5">
             <span class="inline-block size-4 rounded bg-blue-200 border-2 border-blue-500 ring-1 ring-blue-300" />
@@ -64,21 +64,21 @@
                 class="px-1 py-0.5"
               >
                 <button
-                  v-if="isAvailable(dia, slot)"
+                  v-if="isWithinHours(dia, slot)"
                   type="button"
                   :class="getSlotClasses(dia, slot)"
-                  :title="`${capitalizar(dia)} ${formatHora(slot)} – Disponible`"
+                  :title="getSlotTitle(dia, slot)"
                   @click="onSlotClick(dia, slot)"
                 >
-                  <span class="sr-only">{{ capitalizar(dia) }} {{ formatHora(slot) }} disponible</span>
+                  <span
+                    v-if="getOccupiedGroups(dia, slot).length"
+                    class="block truncate px-0.5 text-[10px] leading-tight"
+                  >
+                    {{ getOccupiedGroups(dia, slot).map((g) => truncate(g.grupo_nombre, 9)).join(', ') }}
+                  </span>
+                  <span v-else class="sr-only">{{ capitalizar(dia) }} {{ formatHora(slot) }}</span>
                 </button>
-                <div
-                  v-else
-                  :class="getOccupiedClasses(dia, slot)"
-                  :title="getOccupiedTitle(dia, slot)"
-                >
-                  {{ getOccupiedLabel(dia, slot) }}
-                </div>
+                <div v-else class="block min-h-[32px] rounded" />
               </td>
             </tr>
           </tbody>
@@ -99,7 +99,9 @@ const props = defineProps({
   selectedHorarios: {
     type: Array,
     default: () => []
-  }
+  },
+  /** Modo solo lectura: muestra el calendario sin permitir seleccionar/deseleccionar */
+  readonly: { type: Boolean, default: false }
 })
 
 const emit = defineEmits(['select-slot', 'remove-slot'])
@@ -136,26 +138,33 @@ function minutesToTime(minutes) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 
-/** Verifica si un slot está disponible (no ocupado) */
-function isAvailable(dia, slot) {
+/** Verifica si un slot cae dentro del horario de atención de la sede */
+function isWithinHours(dia, slot) {
   const porDia = props.semanarioData?.por_dia?.[dia]
   if (!porDia) return false
 
-  const slotStart = timeToMinutes(slot)
-  const slotEnd = slotStart + 60
-
-  const ocupados = porDia.ocupados ?? []
-  for (const o of ocupados) {
-    const oInicio = timeToMinutes(o.hora_inicio)
-    const oFin = o.hora_fin ? timeToMinutes(o.hora_fin) : oInicio + (o.duracion_horas ?? 1) * 60
-    if (slotStart < oFin && slotEnd > oInicio) return false
-  }
-
   const disp = porDia.disponible
   if (!disp) return true
+
+  const slotStart = timeToMinutes(slot)
+  const slotEnd = slotStart + 60
   const dInicio = timeToMinutes(disp.inicio)
   const dFin = timeToMinutes(disp.fin)
   return slotStart >= dInicio && slotEnd <= dFin
+}
+
+/** Retorna los grupos que ya ocupan un slot (puede haber varios) */
+function getOccupiedGroups(dia, slot) {
+  const porDia = props.semanarioData?.por_dia?.[dia]
+  const ocupados = porDia?.ocupados ?? []
+  const slotStart = timeToMinutes(slot)
+  const slotEnd = slotStart + 60
+
+  return ocupados.filter((o) => {
+    const oInicio = timeToMinutes(o.hora_inicio)
+    const oFin = o.hora_fin ? timeToMinutes(o.hora_fin) : oInicio + (o.duracion_horas ?? 1) * 60
+    return slotStart < oFin && slotEnd > oInicio
+  })
 }
 
 /** Verifica si el slot está en los horarios seleccionados por el usuario */
@@ -168,48 +177,41 @@ function isSelected(dia, slot) {
 }
 
 function getSlotClasses(dia, slot) {
-  const base = 'block w-full min-h-[32px] rounded border transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1'
-  if (isSelected(dia, slot)) {
-    return `${base} bg-blue-200 border-blue-500 hover:bg-blue-300 cursor-pointer`
+  const cursor = props.readonly ? 'cursor-default' : 'cursor-pointer'
+  const base = `block w-full min-h-[32px] rounded border transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${cursor}`
+  const occupied = getOccupiedGroups(dia, slot).length > 0
+  const selected = isSelected(dia, slot)
+
+  if (selected && occupied) {
+    return `${base} bg-blue-200 border-blue-500 hover:bg-blue-300 ring-1 ring-amber-400`
   }
-  return `${base} bg-emerald-100 border-emerald-300 hover:bg-emerald-200 hover:border-emerald-400 cursor-pointer`
+  if (selected) {
+    return `${base} bg-blue-200 border-blue-500 hover:bg-blue-300`
+  }
+  if (occupied) {
+    return `${base} bg-amber-100 border-amber-400 hover:bg-amber-200 text-amber-900`
+  }
+  return `${base} bg-emerald-100 border-emerald-300 hover:bg-emerald-200 hover:border-emerald-400`
 }
 
-function getOccupiedClasses(dia, slot) {
-  const base = 'block w-full min-h-[32px] rounded border border-red-300 bg-red-100 text-red-800 text-xs flex items-center justify-center px-1 py-0.5 text-center leading-tight'
-  return base
-}
+function getSlotTitle(dia, slot) {
+  const groups = getOccupiedGroups(dia, slot)
+  const selected = isSelected(dia, slot)
+  const hora = formatHora(slot)
+  const diaLabel = capitalizar(dia)
 
-function getOccupiedLabel(dia, slot) {
-  const porDia = props.semanarioData?.por_dia?.[dia]
-  const ocupados = porDia?.ocupados ?? []
-  const slotStart = timeToMinutes(slot)
-  const slotEnd = slotStart + 60
-
-  for (const o of ocupados) {
-    const oInicio = timeToMinutes(o.hora_inicio)
-    const oFin = o.hora_fin ? timeToMinutes(o.hora_fin) : oInicio + (o.duracion_horas ?? 1) * 60
-    if (slotStart < oFin && slotEnd > oInicio) {
-      return o.grupo_nombre ? truncate(o.grupo_nombre, 10) : 'Ocupado'
-    }
+  if (groups.length && selected) {
+    const nombres = groups.map((g) => g.grupo_nombre || 'Grupo').join(', ')
+    return `${diaLabel} ${hora} – Seleccionado. También asignado a: ${nombres}`
   }
-  return ''
-}
-
-function getOccupiedTitle(dia, slot) {
-  const porDia = props.semanarioData?.por_dia?.[dia]
-  const ocupados = porDia?.ocupados ?? []
-  const slotStart = timeToMinutes(slot)
-  const slotEnd = slotStart + 60
-
-  for (const o of ocupados) {
-    const oInicio = timeToMinutes(o.hora_inicio)
-    const oFin = o.hora_fin ? timeToMinutes(o.hora_fin) : oInicio + (o.duracion_horas ?? 1) * 60
-    if (slotStart < oFin && slotEnd > oInicio) {
-      return `${o.grupo_nombre || 'Ocupado'} (${formatHora(o.hora_inicio)}–${minutesToTime(oFin)})`
-    }
+  if (groups.length) {
+    const nombres = groups.map((g) => g.grupo_nombre || 'Grupo').join(', ')
+    return `${diaLabel} ${hora} – Grupos asignados: ${nombres}. Haz clic para agregar este grupo.`
   }
-  return 'Ocupado'
+  if (selected) {
+    return `${diaLabel} ${hora} – Seleccionado`
+  }
+  return `${diaLabel} ${hora} – Disponible`
 }
 
 function truncate(str, len) {
@@ -218,6 +220,7 @@ function truncate(str, len) {
 }
 
 function onSlotClick(dia, slot) {
+  if (props.readonly) return
   if (isSelected(dia, slot)) {
     emit('remove-slot', { dia, hora: slot })
   } else {

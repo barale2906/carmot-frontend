@@ -22,6 +22,7 @@ const navItems = [
   { label: 'Listas de precios', to: '/financiero/listas-precios' },
   { label: 'Conceptos de pago', to: '/financiero/conceptos-pago' },
   { label: 'Recibos de pago',   to: '/financiero/recibos-pago' },
-  { label: 'Cartera',           to: '/financiero/cartera' },
+  { label: 'Cartera',               to: '/financiero/cartera' },
+  { label: 'Descuentos/Sobrecargos', to: '/financiero/descuentos' },
 ]
 </script>

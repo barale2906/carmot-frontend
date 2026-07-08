@@ -485,6 +485,7 @@
     <ModalBase
       v-model="showDetailModal"
       title="Detalle del grupo"
+      size="xl"
     >
       <template #icon>
         <span class="flex size-5 shrink-0 items-center justify-center text-[#213360]">
@@ -539,17 +540,34 @@
             <dd class="mt-0.5 text-slate-900">{{ formatDate(detailGrupo.updated_at) }}</dd>
           </div>
           <div v-if="detailGrupo.horarios?.length" class="col-span-2">
-            <dt class="font-medium text-slate-500">Horarios</dt>
-            <dd class="mt-2 space-y-2">
-              <div
-                v-for="h in detailGrupo.horarios"
-                :key="h.id"
-                class="flex items-center justify-between rounded-lg border border-black/10 bg-slate-50 px-3 py-2 text-sm"
-              >
-                <span class="font-medium text-slate-900">{{ h.area?.nombre ?? '—' }}</span>
-                <span class="shrink-0 rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700">
-                  {{ h.dia }} {{ h.hora }}
-                </span>
+            <dt class="font-medium text-slate-500 mb-2">Horarios</dt>
+            <dd>
+              <div v-if="detailSemanarioLoading" class="py-4 text-center text-sm text-slate-500">
+                Cargando calendario...
+              </div>
+              <div v-else-if="detailSemanarioEntries.length" class="space-y-4">
+                <SemanarioGrupos
+                  v-for="entry in detailSemanarioEntries"
+                  :key="entry.areaId"
+                  :semanario-data="entry.data"
+                  :loading="false"
+                  error=""
+                  :selected-horarios="detailGrupo.horarios.filter((h) => (h.area_id ?? h.area?.id) === entry.areaId)"
+                  :readonly="true"
+                />
+              </div>
+              <!-- Fallback lista mientras carga o si falla el semanario -->
+              <div v-else class="space-y-2">
+                <div
+                  v-for="h in detailGrupo.horarios"
+                  :key="h.id"
+                  class="flex items-center justify-between rounded-lg border border-black/10 bg-slate-50 px-3 py-2 text-sm"
+                >
+                  <span class="font-medium text-slate-900">{{ h.area?.nombre ?? '—' }}</span>
+                  <span class="shrink-0 rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700">
+                    {{ h.dia }} {{ h.hora }}
+                  </span>
+                </div>
               </div>
             </dd>
           </div>
@@ -922,6 +940,13 @@ async function openEdit(grupo) {
       status: h.status ?? 1
     }))
     if (form.horarios.length === 0) form.horarios = []
+
+    // Auto-cargar semanario del área del primer horario existente
+    const firstAreaId = form.horarios[0]?.area_id
+    if (firstAreaId && form.sede_id) {
+      semanarioAreaId.value = firstAreaId
+      loadSemanario()
+    }
   } catch {
     form.horarios = []
   }
@@ -1041,15 +1066,44 @@ async function confirmRestaurar() {
 // ─── Modal Detalle ────────────────────────────────────────────────────────────
 const showDetailModal = ref(false)
 const detailGrupo = ref(null)
+const detailSemanarios = ref({})
+const detailSemanarioLoading = ref(false)
+
+const detailSemanarioEntries = computed(() =>
+  Object.entries(detailSemanarios.value).map(([areaId, data]) => ({
+    areaId: Number(areaId),
+    data
+  }))
+)
 
 async function openDetail(grupo) {
   detailGrupo.value = grupo
+  detailSemanarios.value = {}
+  detailSemanarioLoading.value = false
   showDetailModal.value = true
   try {
     const res = await grupoService.getById(grupo.id, { with: 'sede,modulo,profesor,horarios.area' })
     detailGrupo.value = res.data
+
+    const horarios = res.data?.horarios ?? []
+    const sedeId = res.data?.sede_id ?? res.data?.sede?.id
+    if (sedeId && horarios.length) {
+      const areaIds = [...new Set(horarios.map((h) => h.area_id ?? h.area?.id).filter(Boolean))]
+      detailSemanarioLoading.value = true
+      const results = await Promise.all(
+        areaIds.map((areaId) =>
+          horarioService.getSemanario(sedeId, areaId)
+            .then((r) => ({ areaId, data: r.data ?? r }))
+            .catch(() => null)
+        )
+      )
+      const map = {}
+      results.forEach((r) => { if (r) map[r.areaId] = r.data })
+      detailSemanarios.value = map
+      detailSemanarioLoading.value = false
+    }
   } catch {
-    // Mantener datos del listado
+    detailSemanarioLoading.value = false
   }
 }
 

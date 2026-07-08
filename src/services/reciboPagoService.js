@@ -85,6 +85,24 @@ const reciboPagoService = {
   async getReportes(params = {}) {
     const { data } = await api.get(`${BASE}/reportes`, { params })
     return data
+  },
+
+  /**
+   * POST /financiero/recibos-pago/precalcular-sobrecargos
+   * Payload: { medios_pago: [{ medio_pago, tipo_tarjeta, valor }] }
+   */
+  async precalcularSobrecargos(payload) {
+    const { data } = await api.post(`${BASE}/precalcular-sobrecargos`, payload)
+    return data
+  },
+
+  /**
+   * POST /financiero/recibos-pago/{id}/agregar-medio-pago
+   * Payload: { medio_pago, tipo_tarjeta, valor, referencia, banco }
+   */
+  async agregarMedioPago(id, payload) {
+    const { data } = await api.post(`${BASE}/${id}/agregar-medio-pago`, payload)
+    return data
   }
 }
 

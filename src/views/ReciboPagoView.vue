@@ -257,10 +257,19 @@
               v-if="recargoTarjeta && (form.medio_pago === 'tarjeta_debito' || form.medio_pago === 'tarjeta_credito')"
               class="mt-2 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2"
             >
-              <div class="flex justify-between text-xs">
-                <span class="text-slate-700">Recargo tarjeta {{ recargoTarjeta.porcentaje }}%:</span>
-                <span class="font-mono text-orange-700">+ $ {{ formatMoney(recargoTarjeta.recargo) }}</span>
-              </div>
+              <template v-if="recargoTarjeta.sobrecargos?.length">
+                <div
+                  v-for="sc in recargoTarjeta.sobrecargos"
+                  :key="sc.descuento_id"
+                  class="flex justify-between text-xs"
+                >
+                  <span class="text-slate-700">{{ sc.nombre }} ({{ sc.porcentaje }}%):</span>
+                  <span class="font-mono text-orange-700">+ $ {{ formatMoney(sc.valor_sobrecargo) }}</span>
+                </div>
+              </template>
+              <template v-else>
+                <div class="text-xs text-green-700">Sin recargo por tarjeta</div>
+              </template>
               <div class="mt-1 flex justify-between border-t border-orange-200 pt-1 text-sm font-bold">
                 <span class="text-slate-800">Total final:</span>
                 <span class="font-mono text-[#213360]">$ {{ formatMoney(recargoTarjeta.total) }}</span>
@@ -461,6 +470,7 @@
     <!-- Modales de métodos de pago -->
     <ModalPagoTarjeta
       v-model="modalTarjetaOpen"
+      :medio-pago="form.medio_pago"
       :valor-base="Number(form.monto_a_pagar) || 0"
       @confirm="onConfirmarTarjeta"
     />
@@ -540,7 +550,8 @@ const itemsCargados = ref([])   // [{ tipo, label, valor?, cantidad?, saldo?, pa
 const modalTarjetaOpen        = ref(false)
 const modalConsignacionOpen   = ref(false)
 const modalTransferenciaOpen  = ref(false)
-const recargoTarjeta          = ref(null)   // { porcentaje, recargo, total }
+// { sobrecargos: [{descuento_id, ...}], marcaTarjeta, totalSobrecargo, total }
+const recargoTarjeta          = ref(null)
 const referenciaConsignacion  = ref('')
 const referenciaTransferencia = ref('')
 
@@ -822,7 +833,7 @@ function recalcular() {
 
 // ─── Modales de pago ─────────────────────────────────────────────────────────
 function onConfirmarTarjeta(payload) {
-  recargoTarjeta.value = { porcentaje: payload.porcentajeRecargo, recargo: payload.recargo, total: payload.total }
+  recargoTarjeta.value = payload  // { sobrecargos, marcaTarjeta, totalSobrecargo, total }
 }
 function onConfirmarConsignacion(payload)  { referenciaConsignacion.value  = payload.referencia }
 function onConfirmarTransferencia(payload) { referenciaTransferencia.value = payload.referencia }
@@ -855,10 +866,27 @@ async function onSubmit() {
   if (medioPago === 'consignacion')  referencia = referenciaConsignacion.value  || null
   if (medioPago === 'transferencia') referencia = referenciaTransferencia.value || null
 
-  // Si hay recargo por tarjeta, el medio de pago cubre el total con recargo
-  const montoFinal = (medioPago === 'tarjeta_debito' || medioPago === 'tarjeta_credito') && recargoTarjeta.value
+  const esTarjeta = medioPago === 'tarjeta_debito' || medioPago === 'tarjeta_credito'
+
+  // El total bruto incluye el recargo cuando hay sobrecargos configurados
+  const montoFinal = esTarjeta && recargoTarjeta.value?.total
     ? recargoTarjeta.value.total
     : Number(form.monto_a_pagar)
+
+  const medioPagoEntry = {
+    medio_pago: medioPago,
+    valor:      montoFinal,
+    ...(referencia ? { referencia } : {}),
+    ...(esTarjeta && recargoTarjeta.value?.marcaTarjeta ? { tipo_tarjeta: recargoTarjeta.value.marcaTarjeta } : {}),
+  }
+
+  // Sobrecargos seleccionados (solo tarjeta con API de sobrecargos)
+  const sobrecargosPayload = (esTarjeta && recargoTarjeta.value?.sobrecargos?.length)
+    ? recargoTarjeta.value.sobrecargos.map(sc => ({
+        descuento_id:     sc.descuento_id,
+        medio_pago_index: 0,
+      }))
+    : undefined
 
   const payload = {
     sede_id:           sedeId,
@@ -873,11 +901,8 @@ async function onSubmit() {
       concepto_pago_id: c.concepto_id,
       cantidad:         c.cantidad,
     })),
-    medios_pago: [{
-      medio_pago: medioPago,
-      valor:      montoFinal,
-      ...(referencia ? { referencia } : {}),
-    }],
+    medios_pago: [medioPagoEntry],
+    ...(sobrecargosPayload ? { sobrecargos: sobrecargosPayload } : {}),
   }
 
   guardando.value = true

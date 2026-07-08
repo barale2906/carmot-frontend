@@ -107,6 +107,9 @@
             <button type="button" class="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500" title="Ver detalle" @click="openDetail(row)">
               <NavIcon name="eye" class="size-4" />
             </button>
+            <button v-if="!row.deleted_at" type="button" class="rounded p-1.5 text-slate-500 transition-colors hover:bg-amber-100 hover:text-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500" title="Aplazamientos" @click="openAplazar(row)">
+              <NavIcon name="calendario" class="size-4" />
+            </button>
             <button v-if="!row.deleted_at" type="button" class="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500" title="Editar" @click="openEdit(row)">
               <NavIcon name="pencil" class="size-4" />
             </button>
@@ -497,6 +500,13 @@
     </div>
   </ModalBase>
 
+  <!-- ── Modal: Aplazamientos del ciclo ────────────────────────────────── -->
+  <AplazarCicloModal
+    v-model="showAplazarModal"
+    :ciclo="targetAplazarCiclo"
+    @updated="loadCiclos(pagination.currentPage)"
+  />
+
   <!-- ── Modal: Detalle del grupo ───────────────────────────────────────── -->
   <ModalBase
     v-model="showGrupoDetalleModal"
@@ -570,6 +580,7 @@ import FormSelect from '@/components/forms/FormSelect.vue'
 import FormFieldHelp from '@/components/forms/FormFieldHelp.vue'
 import NavIcon from '@/components/icons/NavIcon.vue'
 import ModalBase from '@/components/ModalBase.vue'
+import AplazarCicloModal from '@/components/academico/AplazarCicloModal.vue'
 import cicloService from '@/services/cicloService.js'
 import sedeService from '@/services/sedeService.js'
 import cursoService from '@/services/cursoService.js'
@@ -997,6 +1008,15 @@ async function openDetail(ciclo) {
   } catch {
     // Mantener datos del listado
   }
+}
+
+// ─── Modal Aplazamientos ──────────────────────────────────────────────────────
+const showAplazarModal = ref(false)
+const targetAplazarCiclo = ref(null)
+
+function openAplazar(ciclo) {
+  targetAplazarCiclo.value = ciclo
+  showAplazarModal.value = true
 }
 
 // ─── Modal Detalle del Grupo ──────────────────────────────────────────────────
