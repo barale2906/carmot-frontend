@@ -33,6 +33,11 @@ const descuentoService = {
     return data
   },
 
+  async activar(id) {
+    const { data } = await api.post(`${BASE}/${id}/activar`)
+    return data
+  },
+
   /** GET /financiero/descuentos/sobrecargos/por-medio-pago?medio_pago=X&tipo_tarjeta=Y&valor_base=Z */
   async getSobrecargosPorMedioPago(params = {}) {
     const { data } = await api.get(`${BASE}/sobrecargos/por-medio-pago`, { params })

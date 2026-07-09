@@ -97,6 +97,16 @@ const reciboPagoService = {
   },
 
   /**
+   * POST /financiero/recibos-pago/precalcular-descuento
+   * Payload: { matricula_id, monto_a_pagar, fecha_transaccion? }
+   * Retorna: { aplica, valor, motivo, descuento }
+   */
+  async precalcularDescuento(payload) {
+    const { data } = await api.post(`${BASE}/precalcular-descuento`, payload)
+    return data
+  },
+
+  /**
    * POST /financiero/recibos-pago/{id}/agregar-medio-pago
    * Payload: { medio_pago, tipo_tarjeta, valor, referencia, banco }
    */

@@ -186,14 +186,25 @@
         <section class="rounded-[10px] border border-black/10 bg-white px-5 py-4">
           <h3 class="mb-3 text-sm font-semibold text-[#213360]">Ítems a cobrar en este recibo</h3>
 
-          <!-- Placeholder antes de calcular -->
+          <!-- Calculando... -->
           <div
-            v-if="!calculado"
+            v-if="calculando"
+            class="flex min-h-[160px] items-center justify-center rounded-lg border-2 border-dashed border-slate-200"
+          >
+            <svg class="size-5 animate-spin text-slate-400" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            <span class="ml-2 text-sm text-slate-400">Calculando…</span>
+          </div>
+
+          <!-- Placeholder sin datos -->
+          <div
+            v-else-if="!calculado"
             class="flex min-h-[160px] items-center justify-center rounded-lg border-2 border-dashed border-slate-200"
           >
             <p class="px-4 text-center text-sm text-slate-400">
-              Ingresa el valor, agrega conceptos opcionales<br>
-              y haz clic en <strong class="text-slate-600">Calcular</strong> para previsualizar.
+              Ingresa el valor a pagar para previsualizar la distribución.
             </p>
           </div>
 
@@ -252,27 +263,22 @@
               <span class="font-mono text-base font-bold text-[#213360]">$ {{ formatMoney(totalItemsCargados) }}</span>
             </div>
 
-            <!-- Recargo tarjeta (si aplica) -->
+            <!-- Recargos por tarjeta (si hay entradas de tarjeta con sobrecargo) -->
             <div
-              v-if="recargoTarjeta && (form.medio_pago === 'tarjeta_debito' || form.medio_pago === 'tarjeta_credito')"
+              v-if="totalSobrecargo > 0"
               class="mt-2 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2"
             >
-              <template v-if="recargoTarjeta.sobrecargos?.length">
-                <div
-                  v-for="sc in recargoTarjeta.sobrecargos"
-                  :key="sc.descuento_id"
-                  class="flex justify-between text-xs"
-                >
-                  <span class="text-slate-700">{{ sc.nombre }} ({{ sc.porcentaje }}%):</span>
-                  <span class="font-mono text-orange-700">+ $ {{ formatMoney(sc.valor_sobrecargo) }}</span>
-                </div>
-              </template>
-              <template v-else>
-                <div class="text-xs text-green-700">Sin recargo por tarjeta</div>
-              </template>
+              <div
+                v-for="sc in sobrecargosAgregados"
+                :key="sc.descuento_id"
+                class="flex justify-between text-xs"
+              >
+                <span class="text-slate-700">{{ sc.nombre }} ({{ sc.porcentaje }}%):</span>
+                <span class="font-mono text-orange-700">+ $ {{ formatMoney(sc.valor_sobrecargo) }}</span>
+              </div>
               <div class="mt-1 flex justify-between border-t border-orange-200 pt-1 text-sm font-bold">
-                <span class="text-slate-800">Total final:</span>
-                <span class="font-mono text-[#213360]">$ {{ formatMoney(recargoTarjeta.total) }}</span>
+                <span class="text-slate-800">Total final (con recargos):</span>
+                <span class="font-mono text-[#213360]">$ {{ formatMoney(totalItemsCargados + totalSobrecargo) }}</span>
               </div>
             </div>
           </div>
@@ -355,10 +361,15 @@
             type="number"
             min="0"
             step="1"
-            :help="minimoAPagar > 0 ? `Mínimo sugerido: $ ${formatMoney(minimoAPagar)}` : 'Monto que entrega el estudiante hoy.'"
             :error="fieldErrors.monto_a_pagar?.[0]"
             required
-          />
+          >
+            <template v-if="minimoAPagar > 0" #label-suffix>
+              <span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                Mín. $ {{ formatMoney(minimoAPagar) }}
+              </span>
+            </template>
+          </FormInput>
           <FormInput
             v-model="form.fecha_recibo"
             label="Fecha de pago *"
@@ -367,52 +378,112 @@
             :error="fieldErrors.fecha_recibo?.[0]"
             required
           />
-          <FormSelect
-            v-model="form.medio_pago"
-            label="Método de pago *"
-            help="Medio por el cual paga el estudiante."
-            :options="mediosPagoOpciones"
-            required
-          />
-          <div v-if="form.medio_pago === 'tarjeta_debito' || form.medio_pago === 'tarjeta_credito'" class="flex items-end">
-            <button
-              type="button"
-              class="rounded text-sm font-medium text-[#213360] underline hover:no-underline focus:outline-none focus:ring-2 focus:ring-blue-500"
-              @click="modalTarjetaOpen = true"
+        </div>
+
+        <!-- Lista dinámica de medios de pago -->
+        <div class="mt-5">
+          <div class="mb-2 flex items-center justify-between">
+            <span class="text-sm font-medium text-slate-700">Métodos de pago *</span>
+            <span
+              class="font-mono text-xs"
+              :class="Math.abs(sumaMediosPago - Number(form.monto_a_pagar)) < 1 ? 'text-green-600' : 'text-amber-600'"
             >
-              Configurar recargo por tarjeta
-            </button>
-          </div>
-          <div v-else-if="form.medio_pago === 'consignacion'" class="flex items-end">
-            <button
-              type="button"
-              class="rounded text-sm font-medium text-[#213360] underline hover:no-underline focus:outline-none focus:ring-2 focus:ring-blue-500"
-              @click="modalConsignacionOpen = true"
-            >
-              Ingresar datos de consignación
-              <span v-if="referenciaConsignacion" class="ml-1 text-xs text-green-600">(✓)</span>
-            </button>
-          </div>
-          <div v-else-if="form.medio_pago === 'transferencia'" class="flex items-end">
-            <button
-              type="button"
-              class="rounded text-sm font-medium text-[#213360] underline hover:no-underline focus:outline-none focus:ring-2 focus:ring-blue-500"
-              @click="modalTransferenciaOpen = true"
-            >
-              Ingresar datos de transferencia
-              <span v-if="referenciaTransferencia" class="ml-1 text-xs text-green-600">(✓)</span>
-            </button>
+              Suma: $ {{ formatMoney(sumaMediosPago) }} / Total: $ {{ formatMoney(form.monto_a_pagar) }}
+            </span>
           </div>
 
-          <!-- Responsable: automático, solo lectura -->
-          <div class="flex flex-col gap-1">
-            <span class="text-sm font-medium text-slate-700">Responsable del recibo</span>
-            <div class="flex h-9 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700">
-              {{ currentUser?.name ?? '—' }}
+          <div class="space-y-3">
+            <div
+              v-for="(mp, idx) in mediosPago"
+              :key="mp._id"
+              class="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3"
+            >
+              <div class="flex flex-wrap items-end gap-3">
+                <div class="min-w-[160px] flex-1">
+                  <label class="mb-1 block text-xs font-medium text-slate-700">Método</label>
+                  <select
+                    v-model="mp.medio_pago"
+                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    @change="onMedioPagoEntradaChange(idx)"
+                  >
+                    <option v-for="op in mediosPagoOpciones" :key="op.value" :value="op.value">{{ op.label }}</option>
+                  </select>
+                </div>
+                <div class="w-40">
+                  <label class="mb-1 block text-xs font-medium text-slate-700">Valor</label>
+                  <input
+                    v-model.number="mp.valor"
+                    type="number"
+                    min="0"
+                    step="1"
+                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    @change="calcularSobrecargoEntrada(idx)"
+                  />
+                </div>
+                <button
+                  v-if="mediosPago.length > 1"
+                  type="button"
+                  class="mb-1 text-xs text-red-500 hover:text-red-700 focus:outline-none"
+                  @click="quitarMedioPagoEntrada(idx)"
+                >
+                  Quitar
+                </button>
+              </div>
+
+              <!-- Sobrecargo tarjeta -->
+              <div
+                v-if="mp.medio_pago === 'tarjeta_debito' || mp.medio_pago === 'tarjeta_credito'"
+                class="mt-2 flex flex-wrap items-center gap-3 text-xs"
+              >
+                <template v-if="mp.total_sobrecargo > 0">
+                  <span class="font-medium text-orange-700">Recargo: + $ {{ formatMoney(mp.total_sobrecargo) }}</span>
+                  <span class="text-slate-500">(bruto: $ {{ formatMoney(mp.valor + mp.total_sobrecargo) }})</span>
+                </template>
+                <span v-else class="text-green-700">Sin recargo por tarjeta</span>
+                <button
+                  type="button"
+                  class="text-[#213360] underline hover:no-underline focus:outline-none"
+                  @click="abrirModalTarjeta(idx)"
+                >
+                  Configurar recargo por tarjeta
+                </button>
+              </div>
+
+              <!-- Referencia consignación -->
+              <div v-if="mp.medio_pago === 'consignacion'" class="mt-2">
+                <button
+                  type="button"
+                  class="text-sm text-[#213360] underline hover:no-underline focus:outline-none"
+                  @click="abrirModalConsignacion(idx)"
+                >
+                  Ingresar datos de consignación
+                  <span v-if="mp.referencia" class="ml-1 text-xs text-green-600">(✓)</span>
+                </button>
+              </div>
+
+              <!-- Referencia transferencia -->
+              <div v-if="mp.medio_pago === 'transferencia'" class="mt-2">
+                <button
+                  type="button"
+                  class="text-sm text-[#213360] underline hover:no-underline focus:outline-none"
+                  @click="abrirModalTransferencia(idx)"
+                >
+                  Ingresar datos de transferencia
+                  <span v-if="mp.referencia" class="ml-1 text-xs text-green-600">(✓)</span>
+                </button>
+              </div>
             </div>
-            <p class="text-xs text-slate-400">Corresponde al usuario conectado al sistema.</p>
           </div>
+
+          <button
+            type="button"
+            class="mt-3 text-sm font-medium text-[#213360] underline hover:no-underline focus:outline-none focus:ring-2 focus:ring-blue-500"
+            @click="agregarMedioPagoEntrada"
+          >
+            + Agregar otro método de pago
+          </button>
         </div>
+
       </section>
 
       <!-- ── Error general ───────────────────────────────────────────────────── -->
@@ -430,39 +501,18 @@
           Cancelar
         </button>
 
-        <!-- Antes de calcular -->
         <button
-          v-if="!calculado"
           type="button"
-          :disabled="!puedeCalcular"
-          class="flex items-center gap-2 rounded-lg border border-[#213360] px-4 py-2 text-sm font-medium text-[#213360] transition-colors hover:bg-blue-50 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          @click="calcular"
+          :disabled="guardando || !puedeCalcular"
+          class="flex items-center gap-2 rounded-lg bg-[#213360] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          @click="onSubmit"
         >
-          Calcular y previsualizar
+          <svg v-if="guardando" class="size-4 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          {{ guardando ? 'Guardando...' : 'Generar recibo' }}
         </button>
-
-        <!-- Después de calcular -->
-        <template v-else>
-          <button
-            type="button"
-            class="flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            @click="recalcular"
-          >
-            Recalcular
-          </button>
-          <button
-            type="button"
-            :disabled="guardando"
-            class="flex items-center gap-2 rounded-lg bg-[#213360] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            @click="onSubmit"
-          >
-            <svg v-if="guardando" class="size-4 animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-            {{ guardando ? 'Guardando...' : 'Generar recibo' }}
-          </button>
-        </template>
       </div>
 
     </template>
@@ -470,8 +520,8 @@
     <!-- Modales de métodos de pago -->
     <ModalPagoTarjeta
       v-model="modalTarjetaOpen"
-      :medio-pago="form.medio_pago"
-      :valor-base="Number(form.monto_a_pagar) || 0"
+      :medio-pago="mediosPago[modalTargetIndex]?.medio_pago"
+      :valor-base="Number(mediosPago[modalTargetIndex]?.valor) || 0"
       @confirm="onConfirmarTarjeta"
     />
     <ModalPagoConsignacion
@@ -537,30 +587,40 @@ const detalleInfo       = ref(null)
 
 // ─── Conceptos adicionales ────────────────────────────────────────────────────
 const conceptosDisponibles  = ref([])
-const conceptoCarteraNombre = ref('')   // Nombre del concepto estándar de tipo Cartera (tipo 0)
 const conceptoSeleccionado  = ref(null)
 const cantidadConcepto      = ref(1)
 const conceptosAdicionales  = ref([])   // [{ concepto_id, nombre, valor, cantidad }]
 
 // ─── Distribución previsualizada ──────────────────────────────────────────────
 const calculado     = ref(false)
+const calculando    = ref(false)
 const itemsCargados = ref([])   // [{ tipo, label, valor?, cantidad?, saldo?, pagado }]
 
 // ─── Modales de pago ─────────────────────────────────────────────────────────
-const modalTarjetaOpen        = ref(false)
-const modalConsignacionOpen   = ref(false)
-const modalTransferenciaOpen  = ref(false)
-// { sobrecargos: [{descuento_id, ...}], marcaTarjeta, totalSobrecargo, total }
-const recargoTarjeta          = ref(null)
-const referenciaConsignacion  = ref('')
-const referenciaTransferencia = ref('')
+const modalTarjetaOpen       = ref(false)
+const modalConsignacionOpen  = ref(false)
+const modalTransferenciaOpen = ref(false)
+const modalTargetIndex       = ref(0)
 
 // ─── Formulario ──────────────────────────────────────────────────────────────
 const form = reactive({
   fecha_recibo:  today(),
   monto_a_pagar: 0,
-  medio_pago:    'efectivo',
 })
+
+// ─── Lista de medios de pago ─────────────────────────────────────────────────
+function nuevoMedioPago() {
+  return {
+    _id:             Date.now() + Math.random(),
+    medio_pago:      'efectivo',
+    valor:           0,
+    tipo_tarjeta:    null,
+    referencia:      null,
+    sobrecargos:     [],
+    total_sobrecargo: 0,
+  }
+}
+const mediosPago = ref([nuevoMedioPago()])
 
 const guardando   = ref(false)
 const formError   = ref('')
@@ -605,10 +665,40 @@ const puedeCalcular = computed(() =>
   Number(form.monto_a_pagar) > 0 && !!form.fecha_recibo
 )
 
-// Resetear la previsualización si cambia el monto, fecha o la lista de conceptos
+/** Suma de valores de todos los medios de pago ingresados */
+const sumaMediosPago = computed(() =>
+  mediosPago.value.reduce((sum, mp) => sum + Number(mp.valor || 0), 0)
+)
+
+/** Todos los sobrecargos aplanados de entradas de tipo tarjeta */
+const sobrecargosAgregados = computed(() =>
+  mediosPago.value.flatMap(mp => mp.sobrecargos ?? [])
+)
+
+/** Suma total de sobrecargos por tarjeta */
+const totalSobrecargo = computed(() =>
+  mediosPago.value.reduce((sum, mp) => sum + (mp.total_sobrecargo ?? 0), 0)
+)
+
+// Cuando hay exactamente un medio de pago, sincronizar su valor con el monto total
+watch(() => form.monto_a_pagar, (monto) => {
+  if (mediosPago.value.length === 1) {
+    mediosPago.value[0].valor = Number(monto) || 0
+    calcularSobrecargoEntrada(0)
+  }
+})
+
+// Auto-calcular preview con debounce al cambiar el monto
+let calcularTimer = null
+watch(() => form.monto_a_pagar, () => {
+  clearTimeout(calcularTimer)
+  calcularTimer = setTimeout(() => { if (puedeCalcular.value) calcular() }, 500)
+})
+
+// Recalcular inmediatamente al cambiar fecha o conceptos adicionales
 watch(
-  [() => form.monto_a_pagar, () => form.fecha_recibo, () => conceptosAdicionales.value.length],
-  () => { if (calculado.value) recalcular() }
+  [() => form.fecha_recibo, () => conceptosAdicionales.value.length],
+  () => { if (puedeCalcular.value) calcular() }
 )
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -695,8 +785,6 @@ async function cargarDeudas() {
 async function seleccionarDeuda(deuda) {
   deudaSeleccionada.value = deuda
   await cargarDetalleDeuda(deuda.matricula_id)
-  // Precargar con el mínimo sugerido; si no hay mora, con el saldo total
-  form.monto_a_pagar = minimoAPagar.value || Number(deuda.total_saldo) || 0
 }
 
 function cambiarDeuda() {
@@ -740,10 +828,8 @@ async function cargarConceptos() {
   try {
     const res  = await conceptoPagoService.getAll({ per_page: 200 })
     const todos = res.data ?? []
-    // El concepto tipo 0 (Cartera) lo asigna el backend automáticamente; guardamos su nombre para el preview
-    const cartera = todos.find(c => c.tipo === 0)
-    if (cartera) conceptoCarteraNombre.value = cartera.nombre
-    // Solo los no-cartera quedan disponibles para conceptos adicionales
+    // Solo los conceptos no-Cartera quedan disponibles para conceptos adicionales;
+    // el backend asigna automáticamente el concepto de Cartera (Matrícula/Mensualidad).
     conceptosDisponibles.value = todos.filter(c => c.tipo !== 0)
   } catch { /* no bloquea el flujo */ }
 }
@@ -773,14 +859,17 @@ function quitarConcepto(idx) {
 /**
  * Simula la distribución que hará el backend:
  * primero cubre conceptos adicionales, luego cuotas de más antigua a más reciente.
+ * Llama a precalcular-descuento para obtener el descuento real con el monto y fecha actuales.
  */
-function calcular() {
+async function calcular() {
   formError.value = ''
   if (!puedeCalcular.value) return
+  calculando.value = true
 
   const monto = Number(form.monto_a_pagar)
   if (monto < totalConceptosAdicionales.value) {
-    formError.value = `El valor ($${formatMoney(monto)}) es menor al total de conceptos adicionales ($${formatMoney(totalConceptosAdicionales.value)}).`
+    formError.value  = `El valor ($${formatMoney(monto)}) es menor al total de conceptos adicionales ($${formatMoney(totalConceptosAdicionales.value)}).`
+    calculando.value = false
     return
   }
 
@@ -799,10 +888,13 @@ function calcular() {
     if (restante <= 0) break
     const saldo  = Number(cuota.saldo)
     const pagado = Math.min(restante, saldo)
+    // cuota.concepto viene del backend (CarteraResource): 'Matrícula' o 'Pago de mensualidad'
+    const conceptoNombre = cuota.concepto
+      || (cuota.numero_cuota === 0 ? 'Matrícula' : 'Pago de mensualidad')
     items.push({
       tipo:          'cuota',
       label:         cuota.numero_cuota === 0 ? 'Matrícula' : `Cuota ${cuota.numero_cuota}`,
-      conceptoNombre: conceptoCarteraNombre.value,
+      conceptoNombre,
       numero_cuota:  cuota.numero_cuota,
       saldo,
       pagado,
@@ -810,33 +902,106 @@ function calcular() {
     restante -= pagado
   }
 
-  // Mostrar descuento por pronto pago si aplica (calculado por el backend en detalle-matricula)
-  const desc = detalleInfo.value?.descuento_disponible
-  if (desc?.aplica && items.some(i => i.tipo === 'cuota')) {
-    items.push({
-      tipo:    'descuento',
-      label:   desc.descuento?.nombre ?? 'Descuento pronto pago',
-      motivo:  desc.motivo ?? '',
-      valor:   desc.valor,
-      pagado:  0,  // no afecta el monto que paga el estudiante; lo absorbe la institución
-    })
+  // Consultar descuento con el monto y fecha reales para reflejar las condiciones actuales
+  if (items.some(i => i.tipo === 'cuota') && deudaSeleccionada.value?.matricula_id) {
+    try {
+      const descRes = await reciboPagoService.precalcularDescuento({
+        matricula_id:      deudaSeleccionada.value.matricula_id,
+        monto_a_pagar:     monto,
+        fecha_transaccion: form.fecha_recibo,
+      })
+      const desc = descRes.data
+      if (desc?.aplica) {
+        items.push({
+          tipo:   'descuento',
+          label:  desc.descuento?.nombre ?? 'Descuento pronto pago',
+          motivo: desc.motivo ?? '',
+          valor:  desc.valor,
+          pagado: 0,
+        })
+      }
+    } catch { /* no bloquea el flujo */ }
   }
 
   itemsCargados.value = items
   calculado.value     = true
+  calculando.value    = false
 }
 
 function recalcular() {
   calculado.value     = false
   itemsCargados.value = []
+  calcular()
+}
+
+// ─── Medios de pago: gestión de entradas ─────────────────────────────────────
+function agregarMedioPagoEntrada() {
+  mediosPago.value.push(nuevoMedioPago())
+}
+
+function quitarMedioPagoEntrada(idx) {
+  mediosPago.value.splice(idx, 1)
+}
+
+function onMedioPagoEntradaChange(idx) {
+  const mp = mediosPago.value[idx]
+  if (!mp) return
+  const esTarjeta = mp.medio_pago === 'tarjeta_debito' || mp.medio_pago === 'tarjeta_credito'
+  mp.sobrecargos      = []
+  mp.total_sobrecargo = 0
+  mp.tipo_tarjeta     = null
+  mp.referencia       = null
+  if (esTarjeta && mp.valor > 0) calcularSobrecargoEntrada(idx)
+}
+
+async function calcularSobrecargoEntrada(idx) {
+  const mp = mediosPago.value[idx]
+  if (!mp) return
+  const esTarjeta = mp.medio_pago === 'tarjeta_debito' || mp.medio_pago === 'tarjeta_credito'
+  if (!esTarjeta || Number(mp.valor) <= 0) return
+  try {
+    const res  = await reciboPagoService.precalcularSobrecargos({
+      medios_pago: [{ medio_pago: mp.medio_pago, tipo_tarjeta: mp.tipo_tarjeta, valor: mp.valor }],
+    })
+    const datos = res.data
+    mp.sobrecargos      = datos.sobrecargos     ?? []
+    mp.total_sobrecargo = datos.total_sobrecargo ?? 0
+  } catch { /* no bloquea */ }
 }
 
 // ─── Modales de pago ─────────────────────────────────────────────────────────
-function onConfirmarTarjeta(payload) {
-  recargoTarjeta.value = payload  // { sobrecargos, marcaTarjeta, totalSobrecargo, total }
+function abrirModalTarjeta(idx) {
+  modalTargetIndex.value = idx
+  modalTarjetaOpen.value = true
 }
-function onConfirmarConsignacion(payload)  { referenciaConsignacion.value  = payload.referencia }
-function onConfirmarTransferencia(payload) { referenciaTransferencia.value = payload.referencia }
+
+function abrirModalConsignacion(idx) {
+  modalTargetIndex.value  = idx
+  modalConsignacionOpen.value = true
+}
+
+function abrirModalTransferencia(idx) {
+  modalTargetIndex.value      = idx
+  modalTransferenciaOpen.value = true
+}
+
+function onConfirmarTarjeta(payload) {
+  const mp = mediosPago.value[modalTargetIndex.value]
+  if (!mp) return
+  mp.sobrecargos      = payload.sobrecargos    ?? []
+  mp.tipo_tarjeta     = payload.marcaTarjeta   ?? null
+  mp.total_sobrecargo = payload.totalSobrecargo ?? 0
+}
+
+function onConfirmarConsignacion(payload) {
+  const mp = mediosPago.value[modalTargetIndex.value]
+  if (mp) mp.referencia = payload.referencia ?? null
+}
+
+function onConfirmarTransferencia(payload) {
+  const mp = mediosPago.value[modalTargetIndex.value]
+  if (mp) mp.referencia = payload.referencia ?? null
+}
 
 // ─── Envío del recibo ─────────────────────────────────────────────────────────
 async function onSubmit() {
@@ -861,32 +1026,25 @@ async function onSubmit() {
     ?? detalleInfo.value?.proximas?.[0]?.sede_id
     ?? null
 
-  const medioPago = form.medio_pago
-  let referencia  = null
-  if (medioPago === 'consignacion')  referencia = referenciaConsignacion.value  || null
-  if (medioPago === 'transferencia') referencia = referenciaTransferencia.value || null
+  // Construir medios_pago y sobrecargos desde la lista dinámica
+  const sobrecargosPayload = []
+  const mediosPagoPayload  = mediosPago.value.map((mp, idx) => {
+    const esTarjeta = mp.medio_pago === 'tarjeta_debito' || mp.medio_pago === 'tarjeta_credito'
+    const valorBruto = esTarjeta ? Number(mp.valor) + (mp.total_sobrecargo ?? 0) : Number(mp.valor)
+    if (esTarjeta && mp.sobrecargos?.length) {
+      mp.sobrecargos.forEach(sc =>
+        sobrecargosPayload.push({ descuento_id: sc.descuento_id, medio_pago_index: idx })
+      )
+    }
+    return {
+      medio_pago:   mp.medio_pago,
+      valor:        valorBruto,
+      ...(mp.tipo_tarjeta ? { tipo_tarjeta: mp.tipo_tarjeta } : {}),
+      ...(mp.referencia   ? { referencia:   mp.referencia   } : {}),
+    }
+  })
 
-  const esTarjeta = medioPago === 'tarjeta_debito' || medioPago === 'tarjeta_credito'
-
-  // El total bruto incluye el recargo cuando hay sobrecargos configurados
-  const montoFinal = esTarjeta && recargoTarjeta.value?.total
-    ? recargoTarjeta.value.total
-    : Number(form.monto_a_pagar)
-
-  const medioPagoEntry = {
-    medio_pago: medioPago,
-    valor:      montoFinal,
-    ...(referencia ? { referencia } : {}),
-    ...(esTarjeta && recargoTarjeta.value?.marcaTarjeta ? { tipo_tarjeta: recargoTarjeta.value.marcaTarjeta } : {}),
-  }
-
-  // Sobrecargos seleccionados (solo tarjeta con API de sobrecargos)
-  const sobrecargosPayload = (esTarjeta && recargoTarjeta.value?.sobrecargos?.length)
-    ? recargoTarjeta.value.sobrecargos.map(sc => ({
-        descuento_id:     sc.descuento_id,
-        medio_pago_index: 0,
-      }))
-    : undefined
+  const montoTotalBruto = mediosPagoPayload.reduce((sum, mp) => sum + mp.valor, 0)
 
   const payload = {
     sede_id:           sedeId,
@@ -895,14 +1053,14 @@ async function onSubmit() {
     origen:            1,
     fecha_recibo:      form.fecha_recibo,
     fecha_transaccion: form.fecha_recibo,
-    monto_a_pagar:     montoFinal,
+    monto_a_pagar:     montoTotalBruto,
     aplicar_descuento: true,
     conceptos_adicionales: conceptosAdicionales.value.map(c => ({
       concepto_pago_id: c.concepto_id,
       cantidad:         c.cantidad,
     })),
-    medios_pago: [medioPagoEntry],
-    ...(sobrecargosPayload ? { sobrecargos: sobrecargosPayload } : {}),
+    medios_pago: mediosPagoPayload,
+    ...(sobrecargosPayload.length ? { sobrecargos: sobrecargosPayload } : {}),
   }
 
   guardando.value = true
@@ -930,17 +1088,17 @@ function onCancel() {
 function resetForm() {
   form.fecha_recibo  = today()
   form.monto_a_pagar = 0
-  form.medio_pago    = 'efectivo'
-  recargoTarjeta.value          = null
-  referenciaConsignacion.value  = ''
-  referenciaTransferencia.value = ''
-  conceptosAdicionales.value    = []
-  conceptoSeleccionado.value    = null
-  cantidadConcepto.value        = 1
-  formError.value               = ''
-  fieldErrors.value             = {}
-  calculado.value               = false
-  itemsCargados.value           = []
+  mediosPago.value          = [nuevoMedioPago()]
+  modalTargetIndex.value    = 0
+  conceptosAdicionales.value = []
+  conceptoSeleccionado.value = null
+  cantidadConcepto.value     = 1
+  formError.value            = ''
+  fieldErrors.value          = {}
+  calculado.value            = false
+  calculando.value           = false
+  itemsCargados.value        = []
+  clearTimeout(calcularTimer)
 }
 
 // ─── Inicialización ───────────────────────────────────────────────────────────
@@ -974,7 +1132,6 @@ onMounted(async () => {
 
     if (detalleInfo.value?.total_saldo != null) {
       deudaSeleccionada.value = { ...deudaSeleccionada.value, total_saldo: detalleInfo.value.total_saldo }
-      form.monto_a_pagar = minimoAPagar.value || Number(detalleInfo.value.total_saldo) || 0
     }
 
     // Enriquecer con el nombre del curso desde deudas-estudiante
@@ -986,9 +1143,6 @@ onMounted(async () => {
           ...deudaSeleccionada.value,
           curso:       deudaMatch.curso,
           total_saldo: deudaMatch.total_saldo,
-        }
-        if (!form.monto_a_pagar) {
-          form.monto_a_pagar = minimoAPagar.value || Number(deudaMatch.total_saldo) || 0
         }
       }
     } catch { /* no bloquea */ }

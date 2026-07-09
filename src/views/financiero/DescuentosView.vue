@@ -148,6 +148,16 @@
             </button>
 
             <button
+              v-if="row.status === 2 && canAprobar"
+              type="button"
+              class="rounded p-1.5 text-slate-500 transition-colors hover:bg-blue-100 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              title="Activar"
+              @click="openActivar(row)"
+            >
+              <NavIcon name="check" class="size-4" />
+            </button>
+
+            <button
               v-if="row.status !== 0 && canDelete"
               type="button"
               class="rounded p-1.5 text-slate-500 transition-colors hover:bg-red-100 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -457,6 +467,15 @@
       >
         Aprobar
       </button>
+      <button
+        v-if="detailItem?.status === 2 && canAprobar"
+        type="button"
+        :disabled="actionLoading"
+        class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        @click="openActivarDesdeDetalle"
+      >
+        Activar
+      </button>
     </template>
   </ModalBase>
 
@@ -485,6 +504,35 @@
         @click="confirmAprobar"
       >
         {{ actionLoading ? 'Aprobando...' : 'Aprobar' }}
+      </button>
+    </template>
+  </ModalBase>
+
+  <!-- ── Modal: Activar ───────────────────────────────────────────────────── -->
+  <ModalBase
+    v-model="showActivarModal"
+    title="Activar ajuste"
+    description="El ajuste pasará a estado Activo y comenzará a aplicarse en los recibos de pago."
+  >
+    <div class="pb-2">
+      <p class="text-sm text-slate-700">
+        ¿Confirmas que deseas activar <strong>{{ targetItem?.nombre }}</strong>?
+      </p>
+      <div v-if="actionError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{{ actionError }}</div>
+    </div>
+    <template #footer>
+      <button
+        type="button"
+        class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        @click="showActivarModal = false"
+      >Cancelar</button>
+      <button
+        type="button"
+        :disabled="actionLoading"
+        class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        @click="confirmActivar"
+      >
+        {{ actionLoading ? 'Activando...' : 'Activar' }}
       </button>
     </template>
   </ModalBase>
@@ -884,6 +932,37 @@ async function confirmAprobar() {
     await Promise.all([loadDescuentos(pagination.currentPage), loadStatistics()])
   } catch (e) {
     actionError.value = e?.response?.data?.message ?? 'Error al aprobar el ajuste.'
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+// ─── Activar ──────────────────────────────────────────────────────────────────
+const showActivarModal = ref(false)
+
+function openActivar(item) {
+  targetItem.value     = item
+  actionError.value    = ''
+  showActivarModal.value = true
+}
+
+function openActivarDesdeDetalle() {
+  targetItem.value      = detailItem.value
+  actionError.value     = ''
+  showDetailModal.value  = false
+  showActivarModal.value = true
+}
+
+async function confirmActivar() {
+  actionLoading.value = true
+  actionError.value   = ''
+  try {
+    await descuentoService.activar(targetItem.value.id)
+    notifySuccess(`"${targetItem.value.nombre}" activado. Ya aplica en los recibos de pago.`)
+    showActivarModal.value = false
+    await Promise.all([loadDescuentos(pagination.currentPage), loadStatistics()])
+  } catch (e) {
+    actionError.value = e?.response?.data?.message ?? 'Error al activar el ajuste.'
   } finally {
     actionLoading.value = false
   }
