@@ -419,6 +419,36 @@
           <p class="text-xs text-slate-500">
             La duración del curso se calcula automáticamente como la suma de las duraciones de los módulos seleccionados.
           </p>
+
+          <!-- ── Orden de ejecución (drag & drop) ──────────────────────────── -->
+          <div v-if="moduloOrdenEdicion.length > 0" class="flex flex-col gap-1.5">
+            <div class="flex items-center gap-1">
+              <p class="text-sm font-medium text-slate-900">Orden de ejecución</p>
+              <FormFieldHelp text="Arrastra los módulos para definir el orden en que se dictarán en el ciclo. Este orden determina las fechas calculadas automáticamente." />
+            </div>
+            <div class="space-y-1 rounded-lg border border-black/10 bg-slate-50 p-2">
+              <div
+                v-for="(mod, idx) in moduloOrdenEdicion"
+                :key="mod.id"
+                draggable="true"
+                class="flex cursor-grab items-center gap-2 rounded-md border border-transparent bg-white px-2 py-1.5 text-sm active:cursor-grabbing"
+                :class="moduloOrdenDragIdx === idx ? 'opacity-40 border-blue-200 bg-blue-50' : 'hover:border-slate-200'"
+                @dragstart="moduloOrdenDragIdx = idx"
+                @dragover.prevent="onModuloOrdenDragOver(idx)"
+                @dragend="moduloOrdenDragIdx = null"
+              >
+                <svg class="size-4 shrink-0 text-slate-300" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm8 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM8 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm8 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM8 22a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm8 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" />
+                </svg>
+                <span class="flex size-5 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-bold text-slate-600">
+                  {{ idx + 1 }}
+                </span>
+                <span class="min-w-0 flex-1 truncate font-medium text-slate-900">{{ mod.nombre }}</span>
+                <span v-if="mod.duracion != null" class="shrink-0 text-xs text-slate-400">{{ mod.duracion }}h</span>
+              </div>
+            </div>
+            <p class="text-xs text-slate-400">El orden se guardará junto con los cambios del curso.</p>
+          </div>
         </div>
 
         <!-- Duración: siempre editable. Con módulos muestra la sumatoria como referencia. -->
@@ -642,24 +672,73 @@
             <dd class="mt-0.5 text-slate-900">{{ formatDate(detailCurso.updated_at) }}</dd>
           </div>
           <div v-if="detailCurso.modulos?.length" class="col-span-2">
-            <dt class="font-medium text-slate-500">Módulos del curso</dt>
-            <dd class="mt-2 space-y-2">
-              <button
-                v-for="mod in detailCurso.modulos"
+            <dt class="mb-2 flex items-center justify-between font-medium text-slate-500">
+              <span>Módulos del curso</span>
+              <span class="text-xs font-normal text-slate-400">Arrastra para definir el orden de ejecución</span>
+            </dt>
+
+            <!-- Aviso: orden canónico no definido -->
+            <div
+              v-if="modulosOrdenPendienteCurso"
+              class="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800"
+            >
+              ⚠️ El orden de ejecución de los módulos aún no está definido. Arrástralos para establecer la secuencia antes de crear el primer ciclo.
+            </div>
+
+            <dd class="space-y-1.5">
+              <div
+                v-for="(mod, idx) in cursoOrdenModulos"
                 :key="mod.id"
-                type="button"
-                class="flex w-full items-center justify-between rounded-lg border border-black/10 bg-slate-50 px-3 py-2 text-sm transition-colors hover:bg-slate-100 hover:border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                @click="openModuloArbol(mod.id, mod.nombre)"
+                draggable="true"
+                class="flex cursor-grab items-center gap-2 rounded-lg border border-black/10 bg-slate-50 px-3 py-2 text-sm active:cursor-grabbing"
+                :class="cursoOrdenDragIdx === idx ? 'opacity-40 border-blue-300 bg-blue-50' : 'hover:border-blue-200'"
+                @dragstart="cursoOrdenDragIdx = idx"
+                @dragover.prevent="onModuloCursoOrdenDragOver(idx)"
+                @dragend="cursoOrdenDragIdx = null"
               >
-                <span class="font-medium text-slate-900">{{ mod.nombre }}</span>
-                <span class="flex items-center gap-2">
+                <span class="text-slate-300">
+                  <svg class="size-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm8 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM8 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm8 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM8 22a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm8 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></svg>
+                </span>
+                <span class="flex size-5 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-bold text-slate-600">
+                  {{ idx + 1 }}
+                </span>
+                <span class="min-w-0 flex-1 font-medium text-slate-900">{{ mod.nombre }}</span>
+                <span class="flex items-center gap-2 shrink-0">
                   <span class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">
                     {{ mod.duracion != null ? `${mod.duracion}h` : '—' }}
                   </span>
-                  <NavIcon name="eye" class="size-4 text-slate-500" />
+                  <button
+                    type="button"
+                    class="rounded p-0.5 text-slate-400 transition-colors hover:text-slate-600 focus:outline-none"
+                    title="Ver estructura"
+                    @click.stop="openModuloArbol(mod.id, mod.nombre)"
+                  >
+                    <NavIcon name="eye" class="size-4" />
+                  </button>
                 </span>
-              </button>
+              </div>
             </dd>
+
+            <!-- Guardar orden de módulos -->
+            <div v-if="cursoOrdenCambiado" class="mt-3 flex items-center gap-2">
+              <button
+                type="button"
+                :disabled="cursoOrdenLoading"
+                class="flex h-8 items-center gap-1.5 rounded-lg bg-[#213360] px-3 text-xs font-medium text-white transition-colors hover:bg-[#1a294d] disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                @click="guardarOrdenModulosCurso"
+              >
+                {{ cursoOrdenLoading ? 'Guardando...' : 'Guardar orden de módulos' }}
+              </button>
+              <button
+                type="button"
+                class="h-8 rounded-lg px-3 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                @click="resetOrdenModulosCurso"
+              >
+                Descartar
+              </button>
+              <span v-if="cursoOrdenError" class="text-xs text-red-600">{{ cursoOrdenError }}</span>
+              <span v-if="cursoOrdenSuccess" class="text-xs text-emerald-600">Orden guardado correctamente.</span>
+            </div>
           </div>
           <div v-if="detailCurso.referidos?.length" class="col-span-2">
             <dt class="font-medium text-slate-500">Referidos asociados</dt>
@@ -1068,6 +1147,10 @@ function addModulo(rawId) {
 
 function selectModulo(mod) {
   addModulo(mod.id)
+  // Agregar al final de la lista de orden
+  if (!moduloOrdenEdicion.value.find((m) => m.id === mod.id)) {
+    moduloOrdenEdicion.value.push({ id: mod.id, nombre: mod.nombre, duracion: mod.duracion ?? null })
+  }
   moduloSearch.value = ''
   moduloHighlightedIndex.value = -1
   showModuloDropdown.value = true
@@ -1131,6 +1214,21 @@ function handleModuloComboboxKeydown(e) {
 function removeModulo(id) {
   const idx = form.moduloIds.indexOf(id)
   if (idx !== -1) form.moduloIds.splice(idx, 1)
+  moduloOrdenEdicion.value = moduloOrdenEdicion.value.filter((m) => m.id !== id)
+}
+
+// ─── Orden de módulos en el formulario (drag & drop) ──────────────────────────
+const moduloOrdenEdicion  = ref([])
+const moduloOrdenDragIdx  = ref(null)
+
+function onModuloOrdenDragOver(idx) {
+  const from = moduloOrdenDragIdx.value
+  if (from === null || from === idx) return
+  const arr = [...moduloOrdenEdicion.value]
+  const [moved] = arr.splice(from, 1)
+  arr.splice(idx, 0, moved)
+  moduloOrdenEdicion.value = arr
+  moduloOrdenDragIdx.value = idx
 }
 
 function resetForm() {
@@ -1141,6 +1239,7 @@ function resetForm() {
   form.moduloIds.splice(0)
   moduloSearch.value = ''
   modulosDelCurso.value = []
+  moduloOrdenEdicion.value = []
   formError.value = ''
   fieldErrors.value = {}
 }
@@ -1160,6 +1259,7 @@ async function openEdit(curso) {
   form.status = curso.status ?? 1
   form.moduloIds.splice(0)
   modulosDelCurso.value = []
+  moduloOrdenEdicion.value = []
   formError.value = ''
   fieldErrors.value = {}
 
@@ -1180,6 +1280,14 @@ async function openEdit(curso) {
   if (moduloIds.length === 0 && data.duracion != null) {
     form.duracion = data.duracion
   }
+
+  // Inicializar el orden de edición respetando pivot.orden actual
+  const sorted = [...modulos].sort((a, b) => (a.pivot?.orden ?? 0) - (b.pivot?.orden ?? 0))
+  moduloOrdenEdicion.value = sorted.map((m) => ({
+    id: m.id,
+    nombre: m.nombre ?? getModuloNombre(m.id),
+    duracion: m.duracion ?? getModuloDuracion(m.id) ?? null
+  }))
 
   showFormModal.value = true
 }
@@ -1209,11 +1317,23 @@ async function submitForm() {
 
   formLoading.value = true
   try {
+    const ordenPayload = moduloOrdenEdicion.value.map((m, idx) => ({
+      modulo_id: m.id,
+      orden: idx + 1
+    }))
+
     if (editingCurso.value) {
       await cursoService.update(editingCurso.value.id, payload, { _silent: true })
+      if (ordenPayload.length) {
+        await cursoService.setModulosOrden(editingCurso.value.id, ordenPayload, { _silent: true })
+      }
       notifySuccess(`El curso "${form.nombre}" fue actualizado correctamente.`)
     } else {
-      await cursoService.create(payload, { _silent: true })
+      const res = await cursoService.create(payload, { _silent: true })
+      const newId = res?.data?.id ?? res?.id
+      if (newId && ordenPayload.length) {
+        await cursoService.setModulosOrden(newId, ordenPayload, { _silent: true })
+      }
       notifySuccess(`El curso "${form.nombre}" fue creado correctamente.`)
     }
     showFormModal.value = false
@@ -1344,15 +1464,79 @@ watch(showArbolModal, (visible) => {
 })
 
 // ─── Modal Detalle ────────────────────────────────────────────────────────────
-const showDetailModal = ref(false)
-const detailCurso = ref(null)
+const showDetailModal   = ref(false)
+const detailCurso       = ref(null)
+const cursoOrdenModulos = ref([])
+const cursoOrdenOriginal = ref([])
+const cursoOrdenDragIdx  = ref(null)
+const cursoOrdenLoading  = ref(false)
+const cursoOrdenError    = ref('')
+const cursoOrdenSuccess  = ref(false)
+
+const modulosOrdenPendienteCurso = computed(() =>
+  cursoOrdenModulos.value.length > 0 &&
+  cursoOrdenModulos.value.every((m) => (m.pivot?.orden ?? 0) === 0)
+)
+
+const cursoOrdenCambiado = computed(() => {
+  const current  = cursoOrdenModulos.value.map((m) => m.id)
+  const original = cursoOrdenOriginal.value
+  return current.length > 0 && current.some((id, i) => id !== original[i])
+})
+
+function syncCursoOrdenModulos(modulos) {
+  const sorted = [...(modulos ?? [])].sort((a, b) => (a.pivot?.orden ?? 0) - (b.pivot?.orden ?? 0))
+  cursoOrdenModulos.value  = sorted
+  cursoOrdenOriginal.value = sorted.map((m) => m.id)
+  cursoOrdenError.value   = ''
+  cursoOrdenSuccess.value = false
+}
+
+function onModuloCursoOrdenDragOver(idx) {
+  const from = cursoOrdenDragIdx.value
+  if (from === null || from === idx) return
+  const arr = [...cursoOrdenModulos.value]
+  const [moved] = arr.splice(from, 1)
+  arr.splice(idx, 0, moved)
+  cursoOrdenModulos.value = arr
+  cursoOrdenDragIdx.value = idx
+}
+
+function resetOrdenModulosCurso() {
+  const byId = Object.fromEntries(cursoOrdenModulos.value.map((m) => [m.id, m]))
+  cursoOrdenModulos.value = cursoOrdenOriginal.value.map((id) => byId[id]).filter(Boolean)
+  cursoOrdenError.value   = ''
+  cursoOrdenSuccess.value = false
+}
+
+async function guardarOrdenModulosCurso() {
+  if (!detailCurso.value?.id) return
+  cursoOrdenLoading.value = true
+  cursoOrdenError.value   = ''
+  cursoOrdenSuccess.value = false
+  try {
+    const modulos = cursoOrdenModulos.value.map((m, idx) => ({ modulo_id: m.id, orden: idx + 1 }))
+    await cursoService.setModulosOrden(detailCurso.value.id, modulos, { _silent: true })
+    cursoOrdenOriginal.value = cursoOrdenModulos.value.map((m) => m.id)
+    cursoOrdenModulos.value.forEach((m, idx) => {
+      if (m.pivot) m.pivot.orden = idx + 1
+    })
+    cursoOrdenSuccess.value = true
+  } catch (e) {
+    cursoOrdenError.value = e?.response?.data?.message ?? 'Error al guardar el orden.'
+  } finally {
+    cursoOrdenLoading.value = false
+  }
+}
 
 async function openDetail(curso) {
   detailCurso.value = curso
+  syncCursoOrdenModulos(curso.modulos)
   showDetailModal.value = true
   try {
     const res = await cursoService.getById(curso.id, { with: 'referidos,estudiantes,modulos' })
     detailCurso.value = res.data
+    syncCursoOrdenModulos(res.data?.modulos)
   } catch {
     // Mantener datos del listado si falla el detalle
   }

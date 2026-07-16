@@ -99,18 +99,17 @@ export const authService = {
    */
   async getUserPermissions() {
     try {
-      // Primero intentar obtener los permisos del endpoint específico
-      // Si no existe, extraerlos de la respuesta del usuario
       const userData = await this.getUser()
 
+      // Normaliza cada permiso a string (maneja tanto strings como objetos {name})
+      const toName = (p) => (typeof p === 'string' ? p : (p?.name ?? ''))
+
       if (Array.isArray(userData.permissions)) {
-        return userData.permissions
+        return userData.permissions.map(toName).filter(Boolean)
       }
 
-      // Si es un objeto con un array de permisos dentro
       if (userData.roles && Array.isArray(userData.roles)) {
-        // Extraer permisos de los roles si está disponible
-        return userData.roles.flatMap((role) => role.permissions || [])
+        return userData.roles.flatMap((role) => (role.permissions || []).map(toName)).filter(Boolean)
       }
 
       return []

@@ -53,6 +53,11 @@ const cursoService = {
     return data
   },
 
+  async setModulosOrden(id, modulos, config = {}) {
+    const { data } = await api.put(`${BASE}/${id}/modulos-orden`, { modulos }, config)
+    return data
+  },
+
   async duplicate(id) {
     const res = await cursoService.getById(id, { with: 'modulos' })
     const original = res.data ?? res
