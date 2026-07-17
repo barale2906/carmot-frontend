@@ -1,0 +1,20 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/mnt/trabajo/repos/Front/carmot-frontend/.claude/scripts/run-tests-if-source.sh",
+            "asyncRewake": true,
+            "timeout": 90,
+            "statusMessage": "Verificando tests...",
+            "rewakeMessage": "Los tests fallaron después del último cambio. Revisa y corrige antes de continuar:\n",
+            "rewakeSummary": "Tests fallidos — revisión requerida"
+          }
+        ]
+      }
+    ]
+  }
+}

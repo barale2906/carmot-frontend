@@ -6,7 +6,7 @@ GREEN = \033[0;32m
 YELLOW = \033[0;33m
 NC = \033[0m
 
-.PHONY: up down stop start restart show-urls npm vue day-end day-start build-staging build-production build
+.PHONY: up down stop start restart show-urls npm vue day-end day-start build-staging build-production build test test-run test-coverage
 
 up:
 	@echo -e '$(GREEN)=> Iniciando contenedores Docker$(NC)'
@@ -61,6 +61,22 @@ build:
 	@echo -e "$(GREEN)=> Generando build con API=$(BACKEND_URL)/api$(NC)"
 	docker compose run --rm --no-deps -e VITE_API_URL=$(BACKEND_URL)/api vue sh -c "npm ci && npm run build"
 	@echo -e "$(GREEN)=> dist/ listo. Sube su contenido al directorio raíz del servidor web.$(NC)"
+
+# Tests — requiere contenedor en ejecución (make start primero)
+test:
+	@echo -e '$(GREEN)=> Tests en modo watch (Ctrl+C para salir)$(NC)'
+	docker compose exec vue npm test
+
+# Tests — una sola pasada; no requiere contenedor previo
+test-run:
+	@echo -e '$(GREEN)=> Ejecutando tests (una pasada)$(NC)'
+	docker compose run --rm --no-deps vue sh -c "npm install --silent && npm run test:run"
+
+# Cobertura — genera reporte HTML en coverage/
+test-coverage:
+	@echo -e '$(GREEN)=> Generando reporte de cobertura$(NC)'
+	docker compose run --rm --no-deps vue sh -c "npm install --silent && npm run test:coverage"
+	@echo -e '$(GREEN)=> Reporte en coverage/index.html$(NC)'
 
 # Instalar dependencias dentro del contenedor
 npm:
