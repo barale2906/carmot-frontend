@@ -661,7 +661,7 @@
                     label="Modalidad"
                     :value="precioSeleccionado.numero_cuotas ? 'Financiado' : 'Contado'"
                   />
-                  <InfoItem label="Monto"  :value="formatCOP(precioSeleccionado.precio_contado)" />
+                  <InfoItem label="Monto" :value="formatCOP(precioSeleccionado.precio_contado)" />
                   <InfoItem v-if="precioSeleccionado.numero_cuotas"
                     label="Cuotas"
                     :value="`${precioSeleccionado.numero_cuotas} × ${formatCOP(precioSeleccionado.valor_cuota)}`"

@@ -1174,7 +1174,10 @@ function openGrupoDetalle(grupo) {
 // ─── Utilidades ───────────────────────────────────────────────────────────────
 function formatDate(value) {
   if (!value) return '—'
-  const d = new Date(value)
+  // Las fechas "YYYY-MM-DD" se parsean como UTC medianoche; usar los componentes
+  // directamente evita que la conversión a hora local retroceda un día.
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value)
+  const d = dateOnly ? new Date(`${value}T00:00:00`) : new Date(value)
   if (isNaN(d.getTime())) return value
   return d.toLocaleDateString('es-CO', { day: 'numeric', month: 'numeric', year: 'numeric' })
 }

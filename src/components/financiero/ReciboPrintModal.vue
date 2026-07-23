@@ -107,15 +107,19 @@
                   <tbody class="divide-y divide-slate-100">
                     <tr v-for="(cp, idx) in recibo.conceptos_pago" :key="idx">
                       <td class="py-2 text-slate-800">
-                        <span class="font-medium">{{ cp.nombre }}</span>
-                        <!-- Detalle de cuota para conceptos de cartera -->
-                        <span v-if="cp.observaciones" class="ml-1 text-slate-500">— {{ cp.observaciones }}</span>
-                        <!-- Estado de la cuota de cartera -->
-                        <span
-                          v-if="cp._status_text"
-                          class="ml-2 inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold"
-                          :class="statusCarteraClass(cp._status)"
-                        >{{ cp._status_text }}</span>
+                        <div class="flex flex-wrap items-center gap-x-1 gap-y-0.5">
+                          <span class="font-medium">{{ cpNombre(cp) }}</span>
+                          <span v-if="cp.observaciones" class="text-slate-500">— {{ cp.observaciones }}</span>
+                          <span
+                            v-if="cp.status_cartera != null"
+                            class="rounded px-1.5 py-0.5 text-[10px] font-semibold"
+                            :class="statusCarteraClass(cp.status_cartera)"
+                          >{{ cp.status_cartera === 2 ? 'Pagada' : statusCarteraText(cp.status_cartera) }}</span>
+                          <span
+                            v-if="cp.status_cartera === 1 && cp.saldo_cartera"
+                            class="text-[10px] font-medium text-amber-700"
+                          >· Saldo: $ {{ formatMoney(cp.saldo_cartera) }}</span>
+                        </div>
                       </td>
                       <td class="py-2 text-right text-slate-700">{{ cp.cantidad }}</td>
                       <td class="py-2 text-right font-mono text-slate-700">$ {{ formatMoney(cp.unitario) }}</td>
@@ -311,6 +315,15 @@ function formatMoney(val) {
   return Number(val).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 }
 
+/** Nombre legible del concepto de cartera en el recibo. */
+function cpNombre(cp) {
+  const nombre = cp.nombre ?? ''
+  // Cuota 0 siempre es la matrícula inicial
+  if (cp.observaciones?.includes('cuota 0') || nombre === 'Matrícula') return 'Matrícula'
+  if (nombre === 'Pago de mensualidad') return 'Pago mes'
+  return nombre || '—'
+}
+
 function statusCarteraClass(status) {
   // 0=Activa 1=Abonada 2=Cerrada 3=Anulada 4=En Acuerdo
   const map = {
@@ -321,6 +334,11 @@ function statusCarteraClass(status) {
     4: 'bg-purple-100 text-purple-800',
   }
   return map[status] ?? 'bg-slate-100 text-slate-600'
+}
+
+function statusCarteraText(status) {
+  const map = { 0: 'Activa', 1: 'Abonada', 2: 'Cerrada', 3: 'Anulada', 4: 'En Acuerdo' }
+  return map[status] ?? ''
 }
 
 /**

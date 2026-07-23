@@ -343,15 +343,15 @@ const PrintField = {
   }
 
   /*
-   * zoom: 0.68 reduce el contenido al 68 % para que quepa en una sola hoja
-   * carta. width: 147% (≈ 100/0.68) compensa el encogimiento del zoom para
+   * zoom: 0.62 reduce el contenido al 62 % para que quepa en una sola hoja
+   * carta. width: 162% (≈ 100/0.62) compensa el encogimiento del zoom para
    * que el bloque siga llenando el ancho de la página imprimible.
    * El selector de ID gana en especificidad sobre la clase .print-reset
    * aunque ambos usen !important, así que el width aquí prevalece.
    */
   #matricula-print-overlay {
-    zoom: 0.68;
-    width: 147% !important;
+    zoom: 0.62;
+    width: 162% !important;
   }
 
   #matricula-print-sheet {
@@ -378,9 +378,13 @@ const PrintField = {
 
   .no-print { display: none !important; }
 
+  /* Reduce espaciado de firmas y footer para que entren en la misma hoja */
+  #matricula-print-sheet .mt-10 { margin-top: 1rem !important; }
+  #matricula-print-sheet .mt-8  { margin-top: 0.5rem !important; }
+
   @page {
     size: letter portrait;
-    margin: 5mm;
+    margin: 4mm;
   }
 }
 </style>

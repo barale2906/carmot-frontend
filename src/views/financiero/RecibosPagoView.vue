@@ -285,9 +285,19 @@
             <tbody class="divide-y divide-black/5">
               <tr v-for="cp in detailRecibo.conceptos_pago" :key="cp.id" class="hover:bg-slate-50">
                 <td class="px-3 py-2">
-                  <span class="text-slate-800">{{ cp.nombre }}</span>
-                  <!-- Para conceptos de cartera el backend guarda el detalle de cuota en observaciones -->
-                  <span v-if="cp.observaciones" class="ml-1.5 text-slate-500">— {{ cp.observaciones }}</span>
+                  <div class="flex flex-wrap items-center gap-x-1 gap-y-0.5">
+                    <span class="font-medium text-slate-800">{{ cpNombre(cp) }}</span>
+                    <span v-if="cp.observaciones" class="text-slate-500">— {{ cp.observaciones }}</span>
+                    <span
+                      v-if="cp.status_cartera != null"
+                      class="rounded px-1.5 py-0.5 text-[10px] font-semibold"
+                      :class="statusConceptoClass(cp.status_cartera)"
+                    >{{ cp.status_cartera === 2 ? 'Pagada' : statusCarteraText(cp.status_cartera) }}</span>
+                    <span
+                      v-if="cp.status_cartera === 1 && cp.saldo_cartera"
+                      class="text-[10px] font-medium text-amber-700"
+                    >· Saldo: $ {{ formatMoney(cp.saldo_cartera) }}</span>
+                  </div>
                 </td>
                 <td class="px-3 py-2 text-right text-slate-800">{{ cp.cantidad }}</td>
                 <td class="px-3 py-2 text-right font-mono text-slate-800">$ {{ formatMoney(cp.unitario) }}</td>
@@ -430,7 +440,6 @@ import NavIcon                 from '@/components/icons/NavIcon.vue'
 import ModalBase               from '@/components/ModalBase.vue'
 import ReciboPrintModal        from '@/components/financiero/ReciboPrintModal.vue'
 import reciboPagoService       from '@/services/reciboPagoService.js'
-import carteraService          from '@/services/carteraService.js'
 import { useNotification }     from '@/composables/useNotification'
 
 const router = useRouter()
@@ -474,6 +483,29 @@ function statusBadgeVariant(status) {
 function formatMoney(val) {
   if (val == null) return '0.00'
   return Number(val).toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function cpNombre(cp) {
+  const nombre = cp.nombre ?? ''
+  if (cp.observaciones?.includes('cuota 0') || nombre === 'Matrícula') return 'Matrícula'
+  if (nombre === 'Pago de mensualidad') return 'Pago mes'
+  return nombre || '—'
+}
+
+function statusConceptoClass(status) {
+  const map = {
+    0: 'bg-blue-100 text-blue-800',
+    1: 'bg-amber-100 text-amber-800',
+    2: 'bg-green-100 text-green-800',
+    3: 'bg-slate-100 text-slate-500',
+    4: 'bg-purple-100 text-purple-800',
+  }
+  return map[status] ?? 'bg-slate-100 text-slate-600'
+}
+
+function statusCarteraText(status) {
+  const map = { 0: 'Activa', 1: 'Abonada', 2: 'Cerrada', 3: 'Anulada', 4: 'En Acuerdo' }
+  return map[status] ?? ''
 }
 
 // ─── Carga del listado ────────────────────────────────────────────────────────
@@ -561,7 +593,7 @@ async function openDetail(recibo) {
   showDetailModal.value = true
   detailLoading.value   = true
   try {
-    const res = await reciboPagoService.getById(recibo.id, { with: 'sede,cajero,conceptosPago,mediosPago,sobrecargos' })
+    const res = await reciboPagoService.getById(recibo.id, { with: 'sede,cajero,conceptosPago,mediosPago,sobrecargos,matricula' })
     detailRecibo.value = res.data
   } catch {
     // Mantiene los datos del listado
@@ -627,32 +659,10 @@ const printLoading    = ref(false)
 async function descargarPdf(recibo) {
   printLoading.value = true
   try {
-    const res        = await reciboPagoService.getById(recibo.id, {
+    const res = await reciboPagoService.getById(recibo.id, {
       with: 'sede,cajero,conceptosPago,mediosPago,matricula',
     })
-    const reciboData = res.data
-
-    // Enriquecer conceptos de cartera (id_relacional != null) con el estado
-    // actual de cada cuota para que aparezca en el impreso.
-    const conceptosCartera = (reciboData.conceptos_pago ?? [])
-      .filter(cp => cp.id_relacional != null)
-
-    if (conceptosCartera.length && reciboData.matricula_id) {
-      try {
-        const carteraRes = await carteraService.getAll({
-          matricula_id: reciboData.matricula_id,
-          per_page: 50,
-        })
-        const carteras = carteraRes.data ?? []
-        reciboData.conceptos_pago = reciboData.conceptos_pago.map(cp => {
-          if (cp.id_relacional == null) return cp
-          const cartera = carteras.find(c => c.id === cp.id_relacional)
-          return cartera ? { ...cp, _status: cartera.status, _status_text: cartera.status_text } : cp
-        })
-      } catch { /* no bloquea la impresión si falla */ }
-    }
-
-    printRecibo.value    = reciboData
+    printRecibo.value    = res.data
     showPrintModal.value = true
   } catch {
     // El toast global de api.js cubre el error
