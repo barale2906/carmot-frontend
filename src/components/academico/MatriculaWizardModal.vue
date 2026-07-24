@@ -578,6 +578,7 @@
                   <FormInput  v-model="datosPersonales.empresa"         label="Empresa / Institución"   placeholder="Nombre de la empresa"              :error="fieldErrors.empresa?.[0]" />
                   <FormInput  v-model="datosPersonales.estrato"         label="Estrato"                 type="number" min="1" max="6" placeholder="1 – 6" :error="fieldErrors.estrato?.[0]" />
                   <FormSelect v-model="datosPersonales.regimen_salud"   label="Régimen de salud"        placeholder="Seleccionar..."                    :options="catalogOpts.regimenesSalud" :error="fieldErrors.regimen_salud?.[0]" />
+                  <FormSelect v-model="datosPersonales.eps_id"          label="EPS"                     placeholder="Seleccionar EPS..."                :options="epsOpciones" help="Entidad Promotora de Salud del estudiante." :error="fieldErrors.eps_id?.[0]" />
                 </div>
                 <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <WizardCheckbox v-model="datosPersonales.enfermedad_prioritaria">
@@ -922,7 +923,7 @@ const {
 
   // Paso 4 — Datos personales
   datosPersonales, catalogsLoading, catalogsError,
-  catalogOpts, departamentosOpciones, ciudadesExpedicionOpciones, lugarOrigenOpciones,
+  catalogOpts, departamentosOpciones, ciudadesExpedicionOpciones, lugarOrigenOpciones, epsOpciones,
 
   // Paso 5 — Detalles
   detalles, comercialesOpciones, comercialesMap, fechaInicioError,

@@ -104,6 +104,7 @@
                 <PrintField label="Nivel de estudios" :value="data.academico.nivelEducacion" />
                 <PrintField label="Ocupación"         :value="data.academico.ocupacion" />
                 <PrintField label="Régimen de salud"  :value="data.academico.regimenSalud" />
+                <PrintField label="EPS"               :value="data.academico.eps" />
                 <PrintField label="Empresa"           :value="data.academico.empresa" />
                 <PrintField label="Estrato"           :value="data.academico.estrato" />
               </PrintSection>

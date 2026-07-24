@@ -47,10 +47,10 @@ const reciboPagoService = {
 
   /**
    * POST /financiero/recibos-pago/{id}/anular
-   * Solo desde estado Creado (1). Sin body.
+   * Solo desde estado Creado (1). Requiere motivo_anulacion.
    */
-  async anular(id) {
-    const { data } = await api.post(`${BASE}/${id}/anular`)
+  async anular(id, motivo) {
+    const { data } = await api.post(`${BASE}/${id}/anular`, { motivo_anulacion: motivo })
     return data
   },
 

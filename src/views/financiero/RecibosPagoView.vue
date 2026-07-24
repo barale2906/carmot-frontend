@@ -269,6 +269,12 @@
         </div>
       </dl>
 
+      <!-- Motivo de anulación -->
+      <div v-if="detailRecibo.esta_anulado && detailRecibo.motivo_anulacion" class="rounded-lg border border-red-200 bg-red-50 p-3">
+        <p class="text-xs font-semibold uppercase tracking-wide text-red-700">Motivo de anulación</p>
+        <p class="mt-1 text-sm text-red-800">{{ detailRecibo.motivo_anulacion }}</p>
+      </div>
+
       <!-- Conceptos de pago -->
       <div v-if="detailRecibo.conceptos_pago?.length">
         <h3 class="mb-2 text-sm font-semibold text-slate-700">Conceptos de pago</h3>
@@ -395,16 +401,30 @@
     title="Anular recibo de pago"
     description="Esta acción no se puede deshacer. El recibo quedará sin efecto contable."
   >
-    <div class="pb-2">
+    <div class="space-y-4 pb-2">
       <p class="text-sm text-slate-700">
         ¿Confirmas que deseas anular el recibo
         <strong>{{ targetRecibo?.numero_recibo }}</strong>
         por <strong>$ {{ formatMoney(targetRecibo?.valor_total) }}</strong>?
       </p>
-      <p class="mt-2 text-xs text-slate-500">
+      <div>
+        <label for="motivo-anulacion" class="mb-1 block text-sm font-medium text-slate-700">
+          Motivo de anulación <span class="text-red-500">*</span>
+        </label>
+        <textarea
+          id="motivo-anulacion"
+          v-model="motivoAnulacion"
+          rows="3"
+          maxlength="500"
+          placeholder="Describe el motivo por el cual se anula este recibo..."
+          class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50"
+        />
+        <p class="mt-1 text-right text-xs text-slate-400">{{ motivoAnulacion.length }}/500</p>
+      </div>
+      <p class="text-xs text-slate-500">
         Solo pueden anularse recibos en estado Creado. Los recibos cerrados (en cierre de caja) no pueden anularse.
       </p>
-      <div v-if="actionError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+      <div v-if="actionError" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
         {{ actionError }}
       </div>
     </div>
@@ -416,7 +436,7 @@
       >Cancelar</button>
       <button
         type="button"
-        :disabled="actionLoading"
+        :disabled="actionLoading || !motivoAnulacion.trim()"
         class="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-red-500"
         @click="confirmAnular"
       >
@@ -603,19 +623,22 @@ async function openDetail(recibo) {
 }
 
 // ─── Modal Anular ─────────────────────────────────────────────────────────────
-const showAnularModal = ref(false)
-const targetRecibo    = ref(null)
-const actionLoading   = ref(false)
-const actionError     = ref('')
+const showAnularModal  = ref(false)
+const targetRecibo     = ref(null)
+const motivoAnulacion  = ref('')
+const actionLoading    = ref(false)
+const actionError      = ref('')
 
 function openAnular(recibo) {
   targetRecibo.value    = recibo
+  motivoAnulacion.value = ''
   actionError.value     = ''
   showAnularModal.value = true
 }
 
 function openAnularDesdeDetalle() {
   targetRecibo.value    = detailRecibo.value
+  motivoAnulacion.value = ''
   actionError.value     = ''
   showDetailModal.value = false
   showAnularModal.value = true
@@ -625,7 +648,7 @@ async function confirmAnular() {
   actionLoading.value = true
   actionError.value   = ''
   try {
-    await reciboPagoService.anular(targetRecibo.value.id)
+    await reciboPagoService.anular(targetRecibo.value.id, motivoAnulacion.value.trim())
     notifySuccess(`Recibo ${targetRecibo.value.numero_recibo} anulado correctamente.`)
     showAnularModal.value = false
     await Promise.all([loadRecibos(pagination.currentPage), loadStatistics()])

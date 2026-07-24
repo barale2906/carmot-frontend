@@ -14,6 +14,7 @@ import userService           from '@/services/userService.js'
 import matriculaService      from '@/services/matriculaService.js'
 import precioProductoService from '@/services/precioProductoService.js'
 import poblacionService      from '@/services/poblacionService.js'
+import epsService            from '@/services/epsService.js'
 import { nombreCompleto }    from '@/utils/formatters.js'
 import { authService }       from '@/services/authService.js'
 
@@ -123,7 +124,8 @@ export function buildPrintDataFromRecord(record, { catalogs = {}, poblaciones = 
       ocupacion:      record.ocupacion,
       empresa:        record.empresa,
       estrato:        record.estrato,
-      regimenSalud:   record.regimen_salud_texto ?? catalogs.regimenes_salud?.[record.regimen_salud] ?? ''
+      regimenSalud:   record.regimen_salud_texto ?? catalogs.regimenes_salud?.[record.regimen_salud] ?? '',
+      eps:            record.eps?.nombre ?? ''
     },
 
     medica: {
@@ -176,7 +178,7 @@ const FIELD_STEP_MAP = {
   tipo_identificacion: 4, departamento_expedicion: 4, ciudad_expedicion: 4,
   fecha_nacimiento: 4, genero: 4, estado_civil: 4, grupo_sanguineo: 4, rh: 4,
   direccion: 4, lugar_origen_id: 4, celular: 4, telefono: 4,
-  nivel_educacion: 4, ocupacion: 4, empresa: 4, estrato: 4, regimen_salud: 4,
+  nivel_educacion: 4, ocupacion: 4, empresa: 4, estrato: 4, regimen_salud: 4, eps_id: 4,
   enfermedad_prioritaria: 4, discapacidad: 4, foto: 4,
   // Paso 3 — estudiante (matrícula duplicada detectada por el backend)
   estudiante_id: 3,
@@ -253,7 +255,8 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     rhs:                  {},
     niveles_educacion:    {},
     regimenes_salud:      {},
-    poblaciones:          []
+    poblaciones:          [],
+    eps:                  []
   })
 
   const datosPersonales = reactive({
@@ -274,6 +277,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     empresa:                 '',
     estrato:                 '',
     regimen_salud:           '',
+    eps_id:                  '',
     enfermedad_prioritaria:  false,
     discapacidad:            false,
     foto:                    null
@@ -356,6 +360,10 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     nivelesEducacion:    objectToOptions(catalogs.niveles_educacion),
     regimenesSalud:      objectToOptions(catalogs.regimenes_salud)
   }))
+
+  const epsOpciones = computed(() =>
+    catalogs.eps.map(e => ({ value: String(e.id), label: e.nombre }))
+  )
 
   const departamentosOpciones = computed(() => {
     const provincias = [...new Set(
@@ -710,6 +718,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
         empresa:                 d.empresa                 ?? '',
         estrato:                 d.estrato                 ?? '',
         regimen_salud:           d.regimen_salud           ?? '',
+        eps_id:                  d.eps_id ? String(d.eps_id) : '',
         enfermedad_prioritaria:  Boolean(d.enfermedad_prioritaria),
         discapacidad:            Boolean(d.discapacidad)
       })
@@ -761,9 +770,10 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     catalogsLoading.value = true
     catalogsError.value   = false
     try {
-      const [filtersRes, pobRes] = await Promise.allSettled([
+      const [filtersRes, pobRes, epsRes] = await Promise.allSettled([
         matriculaService.getFilters(),
-        fetchAllPoblaciones()
+        fetchAllPoblaciones(),
+        epsService.getActivas()
       ])
 
       if (filtersRes.status === 'fulfilled') {
@@ -781,6 +791,10 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
 
       if (pobRes.status === 'fulfilled') {
         catalogs.poblaciones = pobRes.value
+      }
+
+      if (epsRes.status === 'fulfilled') {
+        catalogs.eps = epsRes.value?.data ?? []
       }
     } catch {
       catalogsError.value = true
@@ -1020,7 +1034,8 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
       ocupacion:       str(datosPersonales.ocupacion),
       empresa:         str(datosPersonales.empresa),
       estrato:         num(datosPersonales.estrato),
-      regimen_salud:   str(datosPersonales.regimen_salud)
+      regimen_salud:   str(datosPersonales.regimen_salud),
+      eps_id:          num(datosPersonales.eps_id)
     }
 
     // Elimina los campos opcionales que son undefined (no enviados al backend)
@@ -1075,7 +1090,8 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
         ocupacion:      datosPersonales.ocupacion,
         empresa:        datosPersonales.empresa,
         estrato:        datosPersonales.estrato,
-        regimenSalud:   findLabel(catalogOpts.value.regimenesSalud, datosPersonales.regimen_salud)
+        regimenSalud:   findLabel(catalogOpts.value.regimenesSalud, datosPersonales.regimen_salud),
+        eps:            findLabel(epsOpciones.value, datosPersonales.eps_id)
       },
 
       medica: {
@@ -1204,7 +1220,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
 
     // Paso 4 — Datos personales
     catalogs, datosPersonales, catalogsLoading, catalogsError,
-    catalogOpts, departamentosOpciones, ciudadesExpedicionOpciones, lugarOrigenOpciones,
+    catalogOpts, departamentosOpciones, ciudadesExpedicionOpciones, lugarOrigenOpciones, epsOpciones,
 
     // Paso 5 — Detalles de matrícula
     detalles, comercialesOpciones, comercialesMap, sedeDelCiclo,
@@ -1238,7 +1254,7 @@ function _defaultDatosPersonales() {
     tipo_identificacion: '', departamento_expedicion: '', ciudad_expedicion: '',
     fecha_nacimiento: '', genero: '', estado_civil: '', grupo_sanguineo: '', rh: '',
     direccion: '', lugar_origen_id: '', celular: '', telefono: '',
-    nivel_educacion: '', ocupacion: '', empresa: '', estrato: '', regimen_salud: '',
+    nivel_educacion: '', ocupacion: '', empresa: '', estrato: '', regimen_salud: '', eps_id: '',
     enfermedad_prioritaria: false, discapacidad: false, foto: null
   }
 }
