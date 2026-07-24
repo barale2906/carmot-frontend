@@ -111,6 +111,15 @@
             />
           </div>
 
+          <div class="w-full sm:w-[180px]">
+            <FormSelect
+              v-model="filters.concepto"
+              label="Concepto:"
+              help="Matrícula: cargo inicial (cuota 0). Mensualidad: cuotas periódicas (1 en adelante)."
+              :options="conceptoFilterOptions"
+            />
+          </div>
+
           <div class="w-full sm:w-[200px]">
             <FormSelect
               v-model="filters.curso_id"
@@ -479,6 +488,7 @@ const stats      = reactive({ total: 0, activas: 0, abonadas: 0, cerradas: 0, to
 const filters = reactive({
   estudiante_id:   '',
   status:          '',
+  concepto:        '',
   curso_id:        '',
   ciclo_id:        '',
   fecha_desde:     '',
@@ -494,6 +504,12 @@ const statusFilterOptions = [
   { value: '2',  label: 'Cerrada' },
   { value: '3',  label: 'Anulada' },
   { value: '4',  label: 'En Acuerdo' },
+]
+
+const conceptoFilterOptions = [
+  { value: '',             label: 'Todos los conceptos' },
+  { value: 'matricula',   label: 'Matrícula' },
+  { value: 'mensualidad', label: 'Mensualidad' },
 ]
 
 // ─── Cursos y Ciclos (filtros) ────────────────────────────────────────────────
@@ -525,7 +541,7 @@ async function loadCiclosPorCurso(cursoId) {
 }
 
 const hayFiltros = computed(() =>
-  filters.estudiante_id || filters.status !== '' ||
+  filters.estudiante_id || filters.status !== '' || filters.concepto ||
   filters.curso_id || filters.ciclo_id ||
   filters.fecha_desde || filters.fecha_hasta ||
   filters.solo_pendientes || filters.solo_vencidas
@@ -569,6 +585,7 @@ async function loadCartera(page = 1) {
     const params = { page, per_page: pagination.perPage }
     if (filters.estudiante_id)   params.estudiante_id    = filters.estudiante_id
     if (filters.status !== '')   params.status           = filters.status
+    if (filters.concepto)        params.concepto         = filters.concepto
     if (filters.curso_id)        params.curso_id         = filters.curso_id
     if (filters.ciclo_id)        params.ciclo_id         = filters.ciclo_id
     if (filters.fecha_desde)     params.fecha_desde      = filters.fecha_desde
@@ -687,6 +704,7 @@ function limpiarFiltros() {
   sinResultadosEst.value       = false
   filters.estudiante_id        = ''
   filters.status               = ''
+  filters.concepto             = ''
   filters.curso_id             = ''
   filters.ciclo_id             = ''
   ciclosRef.value              = []
@@ -701,6 +719,7 @@ function goToPage(page) {
 }
 
 watch(() => filters.status,          () => loadCartera(1))
+watch(() => filters.concepto,        () => loadCartera(1))
 watch(() => filters.ciclo_id,        () => loadCartera(1))
 watch(() => filters.solo_pendientes, () => loadCartera(1))
 watch(() => filters.solo_vencidas,   () => loadCartera(1))

@@ -9,8 +9,9 @@ const BASE = '/financiero/carteras'
 const carteraService = {
   /**
    * GET /financiero/carteras
-   * Params: matricula_id, estudiante_id, sede_id, status, fecha_desde, fecha_hasta,
-   *         solo_pendientes, solo_vencidas, sort_by, per_page, page, with
+   * Params: matricula_id, estudiante_id, sede_id, ciclo_id, curso_id, status,
+   *         concepto (matricula|mensualidad), fecha_desde, fecha_hasta,
+   *         solo_pendientes, solo_vencidas, per_page, page
    */
   async getAll(params = {}) {
     const { data } = await api.get(BASE, { params })
