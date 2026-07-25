@@ -80,7 +80,9 @@
             <span class="font-mono font-medium text-slate-900">$ {{ formatMoney(sc.valor_base) }}</span>
           </div>
           <div class="mt-1 flex justify-between text-sm">
-            <span class="text-slate-700">Recargo {{ sc.porcentaje }}%:</span>
+            <span class="text-slate-700">
+              {{ sc.tipo === 'valor_fijo' ? `Recargo $ ${formatMoney(sc.valor)} fijo` : `Recargo ${sc.valor}%` }}:
+            </span>
             <span class="font-mono font-medium text-orange-600">+ $ {{ formatMoney(sc.valor_sobrecargo) }}</span>
           </div>
         </div>

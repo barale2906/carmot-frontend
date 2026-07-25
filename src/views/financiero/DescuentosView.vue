@@ -221,9 +221,8 @@
         required
       />
 
-      <!-- Tipo de valor (solo porcentual para sobrecargos) -->
+      <!-- Tipo de valor -->
       <FormSelect
-        v-if="createForm.tipo_movimiento === 'descuento'"
         v-model="createForm.tipo"
         label="Tipo de valor *"
         help="Porcentual: se calcula sobre una base. Valor fijo: monto fijo en pesos."
@@ -856,7 +855,7 @@ async function submitCreate() {
   const payload = {
     tipo_movimiento:     createForm.tipo_movimiento,
     nombre:              createForm.nombre,
-    tipo:                createForm.tipo_movimiento === 'sobrecargo' ? 'porcentual' : createForm.tipo,
+    tipo:                createForm.tipo,
     valor:               Number(createForm.valor),
     aplicacion:          createForm.aplicacion,
     tipo_activacion:     createForm.tipo_activacion,

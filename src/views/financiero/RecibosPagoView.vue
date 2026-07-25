@@ -345,7 +345,7 @@
             <thead class="bg-orange-100">
               <tr>
                 <th class="px-3 py-2 text-left font-medium text-orange-700">Concepto</th>
-                <th class="px-3 py-2 text-right font-medium text-orange-700">%</th>
+                <th class="px-3 py-2 text-right font-medium text-orange-700">Recargo</th>
                 <th class="px-3 py-2 text-right font-medium text-orange-700">Valor base</th>
                 <th class="px-3 py-2 text-right font-medium text-orange-700">Recargo</th>
               </tr>
@@ -353,7 +353,9 @@
             <tbody class="divide-y divide-orange-100">
               <tr v-for="sc in detailRecibo.sobrecargos" :key="sc.id" class="hover:bg-orange-100">
                 <td class="px-3 py-2 text-slate-800">{{ sc.nombre }}</td>
-                <td class="px-3 py-2 text-right font-mono text-slate-700">{{ sc.porcentaje }}%</td>
+                <td class="px-3 py-2 text-right font-mono text-slate-700">
+                  {{ sc.tipo === 'valor_fijo' ? `$ ${formatMoney(sc.valor)}` : `${sc.valor ?? sc.porcentaje}%` }}
+                </td>
                 <td class="px-3 py-2 text-right font-mono text-slate-700">$ {{ formatMoney(sc.valor_base) }}</td>
                 <td class="px-3 py-2 text-right font-mono font-semibold text-orange-700">+ $ {{ sc.valor_sobrecargo_formatted ?? formatMoney(sc.valor_sobrecargo) }}</td>
               </tr>

@@ -208,78 +208,109 @@
             </p>
           </div>
 
-          <!-- Lista calculada -->
+          <!-- Tabla calculada — mismo formato que el recibo final -->
           <div v-else>
             <div v-if="itemsCargados.length === 0" class="py-4 text-center text-sm text-slate-500">
               El monto ingresado no cubre ningún ítem pendiente.
             </div>
-            <div v-else class="divide-y divide-black/5">
-              <template v-for="(item, i) in itemsCargados" :key="i">
-                <!-- Ítem de cartera o concepto -->
-                <div
-                  v-if="item.tipo !== 'descuento'"
-                  class="flex items-center justify-between py-2.5"
-                >
-                  <div>
-                    <!-- Para cuotas: muestra el concepto estándar como título y el detalle de cuota como subtítulo -->
-                    <template v-if="item.tipo === 'cuota'">
-                      <p class="text-sm font-medium text-slate-800">
-                        {{ item.conceptoNombre || item.label }}
-                      </p>
-                      <p v-if="item.conceptoNombre" class="text-xs text-slate-500">
-                        {{ item.label }}
-                      </p>
-                    </template>
-                    <template v-else>
-                      <p class="text-sm font-medium text-slate-800">{{ item.label }}</p>
-                      <p class="text-xs text-slate-500">
-                        {{ item.cantidad }} × $ {{ formatMoney(item.valor) }}
-                      </p>
-                    </template>
-                  </div>
-                  <span class="font-mono text-sm font-semibold text-slate-900">$ {{ formatMoney(item.pagado) }}</span>
-                </div>
 
-                <!-- Ítem de descuento por pronto pago -->
-                <div
-                  v-else
-                  class="flex items-start justify-between rounded-lg bg-emerald-50 px-2 py-2.5"
-                >
-                  <div>
-                    <p class="text-sm font-semibold text-emerald-700">{{ item.label }}</p>
-                    <p class="text-xs text-emerald-600">{{ item.motivo }}</p>
-                    <p class="mt-0.5 text-[11px] text-emerald-500">La institución absorbe este valor al generar el recibo.</p>
-                  </div>
-                  <span class="ml-4 shrink-0 font-mono text-sm font-semibold text-emerald-700">
-                    − $ {{ formatMoney(item.valor) }}
-                  </span>
-                </div>
-              </template>
+            <div v-else class="overflow-x-auto">
+              <table class="w-full border-collapse text-sm">
+                <thead>
+                  <tr class="border-b border-black/10 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <th class="py-2 text-left">Concepto</th>
+                    <th class="py-2 pr-2 text-right">Cant.</th>
+                    <th class="py-2 pr-2 text-right">Valor unit.</th>
+                    <th class="py-2 text-right">Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-black/5">
+                  <template v-for="(item, i) in itemsCargados" :key="i">
+                    <!-- Cuota de cartera -->
+                    <tr v-if="item.tipo === 'cuota'" class="text-slate-800">
+                      <td class="py-2.5 pr-3">
+                        <span class="font-medium">{{ item.conceptoNombre || item.label }}</span>
+                        <span v-if="item.conceptoNombre" class="text-slate-400"> — {{ item.label }}</span>
+                        <span
+                          v-if="item.pagado >= item.saldo"
+                          class="ml-1.5 inline-flex rounded px-1.5 py-0.5 text-[10px] font-semibold bg-[#213360] text-white"
+                        >Pagada</span>
+                        <span
+                          v-else
+                          class="ml-1.5 inline-flex rounded px-1.5 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700"
+                        >Abona</span>
+                      </td>
+                      <td class="py-2.5 pr-2 text-right font-mono">1</td>
+                      <td class="py-2.5 pr-2 text-right font-mono">$ {{ formatMoney(item.pagado) }}</td>
+                      <td class="py-2.5 text-right font-mono font-semibold">$ {{ formatMoney(item.pagado) }}</td>
+                    </tr>
+
+                    <!-- Concepto adicional -->
+                    <tr v-else-if="item.tipo === 'concepto'" class="text-slate-800">
+                      <td class="py-2.5 pr-3 font-medium">{{ item.label }}</td>
+                      <td class="py-2.5 pr-2 text-right font-mono">{{ item.cantidad }}</td>
+                      <td class="py-2.5 pr-2 text-right font-mono">$ {{ formatMoney(item.valor) }}</td>
+                      <td class="py-2.5 text-right font-mono font-semibold">$ {{ formatMoney(item.pagado) }}</td>
+                    </tr>
+
+                    <!-- Descuento -->
+                    <tr v-else class="bg-emerald-50 text-emerald-700">
+                      <td class="py-2 pr-3 text-xs">
+                        <span class="font-semibold">{{ item.label }}</span>
+                        <span v-if="item.motivo" class="text-emerald-600"> — {{ item.motivo }}</span>
+                        <span
+                          v-if="item.hayAbonadasEnDist"
+                          class="mt-0.5 block text-[10px] text-emerald-500"
+                        >Calculado sobre el valor bruto de la cuota, no sobre el saldo pendiente.</span>
+                      </td>
+                      <td class="py-2 pr-2 text-right font-mono text-xs">1</td>
+                      <td class="py-2 pr-2 text-right font-mono text-xs">$ {{ formatMoney(item.valor) }}</td>
+                      <td class="py-2 text-right font-mono text-xs font-semibold"></td>
+                    </tr>
+                  </template>
+                </tbody>
+                <tfoot>
+                  <!-- Descuento aplicado total -->
+                  <tr v-if="totalDescuentosAplicados > 0" class="border-t border-emerald-100 text-emerald-700">
+                    <td colspan="3" class="py-2 text-right text-xs font-medium">Descuento aplicado:</td>
+                    <td class="py-2 text-right font-mono text-xs font-semibold">− $ {{ formatMoney(totalDescuentosAplicados) }}</td>
+                  </tr>
+
+                  <!-- Total pagado -->
+                  <tr class="border-t border-black/10 bg-slate-50">
+                    <td colspan="3" class="py-2.5 text-right text-sm font-bold text-slate-800">Total pagado:</td>
+                    <td class="py-2.5 text-right font-mono text-base font-bold text-[#213360]">$ {{ formatMoney(totalItemsCargados) }}</td>
+                  </tr>
+
+                  <!-- Recargos por tarjeta -->
+                  <template v-if="totalSobrecargo > 0">
+                    <tr
+                      v-for="sc in sobrecargosAgregados"
+                      :key="sc.descuento_id"
+                      class="text-orange-700"
+                    >
+                      <td class="py-1.5 pr-3 text-xs">
+                        {{ sc.nombre }}{{ sc.tipo !== 'valor_fijo' ? ` (${sc.valor}%)` : '' }}
+                      </td>
+                      <td class="py-1.5 pr-2 text-right font-mono text-xs">1</td>
+                      <td class="py-1.5 pr-2 text-right font-mono text-xs">$ {{ formatMoney(sc.valor_sobrecargo) }}</td>
+                      <td class="py-1.5 text-right font-mono text-xs font-semibold">+ $ {{ formatMoney(sc.valor_sobrecargo) }}</td>
+                    </tr>
+                    <tr class="border-t border-orange-200 bg-orange-50">
+                      <td colspan="3" class="py-2.5 text-right text-sm font-bold text-slate-800">Total final (con recargos):</td>
+                      <td class="py-2.5 text-right font-mono text-base font-bold text-[#213360]">$ {{ formatMoney(totalItemsCargados + totalSobrecargo) }}</td>
+                    </tr>
+                  </template>
+                </tfoot>
+              </table>
             </div>
 
-            <!-- Total distribución -->
-            <div class="mt-3 flex items-center justify-between rounded-lg bg-slate-100 px-3 py-2.5">
-              <span class="text-sm font-semibold text-slate-700">Total a cobrar:</span>
-              <span class="font-mono text-base font-bold text-[#213360]">$ {{ formatMoney(totalItemsCargados) }}</span>
-            </div>
-
-            <!-- Recargos por tarjeta (si hay entradas de tarjeta con sobrecargo) -->
+            <!-- Aviso cuando el descuento de pronto pago no aplica por días insuficientes -->
             <div
-              v-if="totalSobrecargo > 0"
-              class="mt-2 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2"
+              v-if="descuentoMotivo"
+              class="mt-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700"
             >
-              <div
-                v-for="sc in sobrecargosAgregados"
-                :key="sc.descuento_id"
-                class="flex justify-between text-xs"
-              >
-                <span class="text-slate-700">{{ sc.nombre }} ({{ sc.porcentaje }}%):</span>
-                <span class="font-mono text-orange-700">+ $ {{ formatMoney(sc.valor_sobrecargo) }}</span>
-              </div>
-              <div class="mt-1 flex justify-between border-t border-orange-200 pt-1 text-sm font-bold">
-                <span class="text-slate-800">Total final (con recargos):</span>
-                <span class="font-mono text-[#213360]">$ {{ formatMoney(totalItemsCargados + totalSobrecargo) }}</span>
-              </div>
+              {{ descuentoMotivo }}
             </div>
           </div>
         </section>
@@ -592,9 +623,10 @@ const cantidadConcepto      = ref(1)
 const conceptosAdicionales  = ref([])   // [{ concepto_id, nombre, valor, cantidad }]
 
 // ─── Distribución previsualizada ──────────────────────────────────────────────
-const calculado     = ref(false)
-const calculando    = ref(false)
-const itemsCargados = ref([])   // [{ tipo, label, valor?, cantidad?, saldo?, pagado }]
+const calculado        = ref(false)
+const calculando       = ref(false)
+const itemsCargados    = ref([])   // [{ tipo, label, valor?, cantidad?, saldo?, pagado }]
+const descuentoMotivo  = ref('')   // motivo cuando precalcular-descuento devuelve aplica:false
 
 // ─── Modales de pago ─────────────────────────────────────────────────────────
 const modalTarjetaOpen       = ref(false)
@@ -659,6 +691,12 @@ const totalItemsCargados = computed(() =>
   itemsCargados.value
     .filter(i => i.tipo !== 'descuento')
     .reduce((sum, item) => sum + item.pagado, 0)
+)
+
+const totalDescuentosAplicados = computed(() =>
+  itemsCargados.value
+    .filter(i => i.tipo === 'descuento')
+    .reduce((sum, i) => sum + (i.valor ?? 0), 0)
 )
 
 const puedeCalcular = computed(() =>
@@ -862,7 +900,8 @@ function quitarConcepto(idx) {
  * Llama a precalcular-descuento para obtener el descuento real con el monto y fecha actuales.
  */
 async function calcular() {
-  formError.value = ''
+  formError.value      = ''
+  descuentoMotivo.value = ''
   if (!puedeCalcular.value) return
   calculando.value = true
 
@@ -897,6 +936,8 @@ async function calcular() {
       conceptoNombre,
       numero_cuota:  cuota.numero_cuota,
       saldo,
+      valorBruto:    Number(cuota.valor) || saldo,
+      esAbonada:     cuota.status === 1,
       pagado,
     })
     restante -= pagado
@@ -911,12 +952,29 @@ async function calcular() {
         fecha_transaccion: form.fecha_recibo,
       })
       const desc = descRes.data
+
+      // Descuento pronto pago (cuotas mensuales numero_cuota >= 1)
       if (desc?.aplica) {
         items.push({
+          tipo:               'descuento',
+          label:              desc.descuento?.nombre ?? 'Descuento pronto pago',
+          motivo:             desc.motivo ?? '',
+          valor:              desc.valor,
+          pagado:             0,
+          hayAbonadasEnDist:  items.some(i => i.tipo === 'cuota' && i.esAbonada),
+        })
+      } else if (desc?.motivo) {
+        descuentoMotivo.value = desc.motivo
+      }
+
+      // Descuento de matrícula automático (cuota numero_cuota = 0)
+      const descMat = desc?.descuento_matricula
+      if (descMat?.aplica) {
+        items.push({
           tipo:   'descuento',
-          label:  desc.descuento?.nombre ?? 'Descuento pronto pago',
-          motivo: desc.motivo ?? '',
-          valor:  desc.valor,
+          label:  descMat.descuento?.nombre ?? 'Descuento matrícula',
+          motivo: descMat.motivo ?? '',
+          valor:  descMat.valor,
           pagado: 0,
         })
       }
@@ -929,8 +987,9 @@ async function calcular() {
 }
 
 function recalcular() {
-  calculado.value     = false
-  itemsCargados.value = []
+  calculado.value       = false
+  itemsCargados.value   = []
+  descuentoMotivo.value = ''
   calcular()
 }
 
@@ -1026,11 +1085,11 @@ async function onSubmit() {
     ?? detalleInfo.value?.proximas?.[0]?.sede_id
     ?? null
 
-  // Construir medios_pago y sobrecargos desde la lista dinámica
+  // Construir medios_pago y sobrecargos desde la lista dinámica.
+  // mp.valor es siempre el monto base; el sobrecargo lo calcula el backend sobre ese valor.
   const sobrecargosPayload = []
   const mediosPagoPayload  = mediosPago.value.map((mp, idx) => {
     const esTarjeta = mp.medio_pago === 'tarjeta_debito' || mp.medio_pago === 'tarjeta_credito'
-    const valorBruto = esTarjeta ? Number(mp.valor) + (mp.total_sobrecargo ?? 0) : Number(mp.valor)
     if (esTarjeta && mp.sobrecargos?.length) {
       mp.sobrecargos.forEach(sc =>
         sobrecargosPayload.push({ descuento_id: sc.descuento_id, medio_pago_index: idx })
@@ -1038,7 +1097,7 @@ async function onSubmit() {
     }
     return {
       medio_pago:   mp.medio_pago,
-      valor:        valorBruto,
+      valor:        Number(mp.valor),
       ...(mp.tipo_tarjeta ? { tipo_tarjeta: mp.tipo_tarjeta } : {}),
       ...(mp.referencia   ? { referencia:   mp.referencia   } : {}),
     }
