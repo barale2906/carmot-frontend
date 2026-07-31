@@ -113,7 +113,65 @@ const reciboPagoService = {
   async agregarMedioPago(id, payload) {
     const { data } = await api.post(`${BASE}/${id}/agregar-medio-pago`, payload)
     return data
-  }
+  },
+
+  /**
+   * DELETE /financiero/recibos-pago/{id}
+   * Solo funciona si el recibo está en status 4 (pendiente) o 5 (rechazado).
+   */
+  async eliminar(id) {
+    const { data } = await api.delete(`${BASE}/${id}`)
+    return data
+  },
+
+  // ── Flujo de transferencias ──────────────────────────────────────────────────
+
+  /**
+   * GET /financiero/recibos-pago/pendientes-transferencia
+   * Requiere permiso fin_reciboPagoAprobar. Devuelve recibos en status 4 (FIFO).
+   * Params opcionales: sede_id, per_page
+   */
+  async getPendientesTransferencia(params = {}) {
+    const { data } = await api.get(`${BASE}/pendientes-transferencia`, { params })
+    return data
+  },
+
+  /**
+   * POST /financiero/recibos-pago/{id}/notificar-transferencia
+   * Notifica a los validadores que el comprobante está listo para revisión.
+   */
+  async notificarTransferencia(id) {
+    const { data } = await api.post(`${BASE}/${id}/notificar-transferencia`)
+    return data
+  },
+
+  /**
+   * POST /financiero/recibos-pago/{id}/aprobar-transferencia
+   * Distribuye el pago, asigna número de recibo y cierra el recibo (status → 2).
+   */
+  async aprobarTransferencia(id) {
+    const { data } = await api.post(`${BASE}/${id}/aprobar-transferencia`)
+    return data
+  },
+
+  /**
+   * POST /financiero/recibos-pago/{id}/rechazar-transferencia
+   * Payload: { motivo_rechazo } (requerido, máx. 500 chars)
+   */
+  async rechazarTransferencia(id, motivo) {
+    const { data } = await api.post(`${BASE}/${id}/rechazar-transferencia`, { motivo_rechazo: motivo })
+    return data
+  },
+
+  /**
+   * POST /financiero/recibos-pago/{id}/reenviar-transferencia
+   * Corrige un recibo rechazado (status 5) y lo reenvía a aprobación.
+   * Payload (multipart/form-data): banco_id?, numero_transaccion?, comprobante?
+   */
+  async reenviarTransferencia(id, payload, config = {}) {
+    const { data } = await api.post(`${BASE}/${id}/reenviar-transferencia`, payload, config)
+    return data
+  },
 }
 
 export default reciboPagoService

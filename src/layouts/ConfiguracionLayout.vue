@@ -35,6 +35,9 @@ const navItems = computed(() => {
   if (userPermissions.value.includes('co_eps')) {
     items.push({ label: 'EPS', to: '/configuracion/eps' })
   }
+  if (userPermissions.value.includes('co_bancos')) {
+    items.push({ label: 'Bancos', to: '/configuracion/bancos' })
+  }
   return items
 })
 </script>

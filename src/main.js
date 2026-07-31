@@ -36,6 +36,8 @@ import ListaPrecioView from './views/financiero/ListaPrecioView.vue'
 import RecibosPagoView from './views/financiero/RecibosPagoView.vue'
 import CarteraView from './views/financiero/CarteraView.vue'
 import DescuentosView from './views/financiero/DescuentosView.vue'
+import TransferenciasPendientesView from './views/financiero/TransferenciasPendientesView.vue'
+import BancosView from './views/configuracion/BancosView.vue'
 import MatriculaView from './views/academico/MatriculaView.vue'
 import './assets/styles/main.css'
 
@@ -217,6 +219,11 @@ const routes = [
             path: 'descuentos',
             name: 'Descuentos',
             component: DescuentosView
+          },
+          {
+            path: 'transferencias-pendientes',
+            name: 'TransferenciasPendientes',
+            component: TransferenciasPendientesView
           }
         ]
       },
@@ -277,6 +284,11 @@ const routes = [
         path: 'eps',
         name: 'Eps',
         component: EpsView
+      },
+      {
+        path: 'bancos',
+        name: 'Bancos',
+        component: BancosView
       }
     ]
   }

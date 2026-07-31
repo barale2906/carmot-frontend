@@ -187,6 +187,44 @@
             >
               <NavIcon name="close" class="size-4" />
             </button>
+
+            <!-- Notificar (status 4 — pendiente aprobación) -->
+            <button
+              v-if="row.status === 4"
+              type="button"
+              class="rounded p-1.5 text-slate-500 transition-colors hover:bg-amber-100 hover:text-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
+              title="Notificar al validador"
+              :disabled="notificarLoadingId === row.id"
+              @click="notificarTransferencia(row)"
+            >
+              <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+            </button>
+
+            <!-- Reenviar (status 5 — rechazado) -->
+            <button
+              v-if="row.status === 5"
+              type="button"
+              class="rounded p-1.5 text-slate-500 transition-colors hover:bg-blue-100 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              title="Corregir y reenviar"
+              @click="openReenviar(row)"
+            >
+              <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
+
+            <!-- Eliminar (status 4 ó 5) -->
+            <button
+              v-if="row.status === 4 || row.status === 5"
+              type="button"
+              class="rounded p-1.5 text-slate-500 transition-colors hover:bg-red-100 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+              title="Eliminar recibo"
+              @click="openEliminar(row)"
+            >
+              <NavIcon name="trash" class="size-4" />
+            </button>
           </template>
         </DataTable>
 
@@ -267,12 +305,34 @@
           <dt class="font-medium text-slate-500">Valor neto (cubre deuda)</dt>
           <dd class="mt-0.5 font-mono font-semibold text-slate-900">$ {{ formatMoney(detailRecibo.valor_neto) }}</dd>
         </div>
+        <div v-if="detailRecibo.fecha_aprobacion">
+          <dt class="font-medium text-slate-500">Fecha aprobación</dt>
+          <dd class="mt-0.5 text-slate-900">{{ detailRecibo.fecha_aprobacion }}</dd>
+        </div>
+        <div v-if="detailRecibo.aprobado_por">
+          <dt class="font-medium text-slate-500">Aprobado por</dt>
+          <dd class="mt-0.5 text-slate-900">{{ detailRecibo.aprobado_por?.name ?? detailRecibo.aprobado_por_id }}</dd>
+        </div>
       </dl>
 
       <!-- Motivo de anulación -->
       <div v-if="detailRecibo.esta_anulado && detailRecibo.motivo_anulacion" class="rounded-lg border border-red-200 bg-red-50 p-3">
         <p class="text-xs font-semibold uppercase tracking-wide text-red-700">Motivo de anulación</p>
         <p class="mt-1 text-sm text-red-800">{{ detailRecibo.motivo_anulacion }}</p>
+      </div>
+
+      <!-- Motivo de rechazo (transferencia rechazada) -->
+      <div v-if="detailRecibo.esta_rechazado && detailRecibo.motivo_rechazo" class="rounded-lg border border-red-200 bg-red-50 p-3">
+        <p class="text-xs font-semibold uppercase tracking-wide text-red-700">Motivo de rechazo</p>
+        <p class="mt-1 text-sm text-red-800">{{ detailRecibo.motivo_rechazo }}</p>
+      </div>
+
+      <!-- Pendiente de aprobación (aviso) -->
+      <div v-if="detailRecibo.esta_pendiente_aprobacion" class="rounded-lg border border-amber-200 bg-amber-50 p-3">
+        <p class="text-xs font-semibold uppercase tracking-wide text-amber-700">Pendiente de aprobación</p>
+        <p class="mt-1 text-sm text-amber-800">
+          Este recibo está en espera de validación. El número de recibo se asignará al ser aprobado.
+        </p>
       </div>
 
       <!-- Conceptos de pago -->
@@ -328,8 +388,41 @@
             </thead>
             <tbody class="divide-y divide-black/5">
               <tr v-for="mp in detailRecibo.medios_pago" :key="mp.id" class="hover:bg-slate-50">
-                <td class="px-3 py-2 text-slate-800 capitalize">{{ mp.medio_pago?.replace('_', ' ') }}</td>
-                <td class="px-3 py-2 text-slate-600">{{ mp.referencia ?? '—' }}</td>
+                <td class="px-3 py-2 text-slate-800 capitalize">{{ mp.medio_pago?.replace(/_/g, ' ') }}</td>
+                <td class="px-3 py-2 text-slate-600">
+                  <template v-if="mp.medio_pago === 'transferencia'">
+                    <div v-if="mp.banco_nombre" class="font-medium text-slate-800">{{ mp.banco_nombre }}</div>
+                    <div v-if="mp.numero_transaccion" class="text-xs text-slate-500">Trans: {{ mp.numero_transaccion }}</div>
+                    <template v-if="mp.comprobante_url">
+                      <a
+                        v-if="isImageUrl(mp.comprobante_url)"
+                        :href="mp.comprobante_url"
+                        target="_blank"
+                        rel="noopener"
+                        class="mt-1 block"
+                      >
+                        <img
+                          :src="mp.comprobante_url"
+                          alt="Comprobante"
+                          class="h-20 w-auto max-w-[160px] rounded border border-slate-200 object-cover"
+                        />
+                      </a>
+                      <a
+                        v-else
+                        :href="mp.comprobante_url"
+                        target="_blank"
+                        rel="noopener"
+                        class="mt-1 inline-flex items-center gap-1.5 text-xs text-blue-600 underline"
+                      >
+                        <svg class="size-3.5 shrink-0 text-red-500" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM6 20V4h5v7h7v9H6z"/>
+                        </svg>
+                        Ver comprobante PDF
+                      </a>
+                    </template>
+                  </template>
+                  <template v-else>{{ mp.referencia ?? '—' }}</template>
+                </td>
                 <td class="px-3 py-2 text-right font-mono font-medium text-slate-900">$ {{ formatMoney(mp.valor) }}</td>
               </tr>
             </tbody>
@@ -386,6 +479,33 @@
         @click="openAnularDesdeDetalle"
       >
         Anular
+      </button>
+
+      <!-- Acciones para transferencias pendientes / rechazadas -->
+      <button
+        v-if="detailRecibo?.esta_pendiente_aprobacion"
+        type="button"
+        :disabled="notificarLoadingId === detailRecibo?.id"
+        class="flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-700 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-amber-500"
+        @click="notificarTransferencia(detailRecibo)"
+      >
+        Notificar al validador
+      </button>
+      <button
+        v-if="detailRecibo?.esta_rechazado"
+        type="button"
+        class="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        @click="openReenviar(detailRecibo); showDetailModal = false"
+      >
+        Corregir y reenviar
+      </button>
+      <button
+        v-if="detailRecibo?.esta_pendiente_aprobacion || detailRecibo?.esta_rechazado"
+        type="button"
+        class="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+        @click="openEliminar(detailRecibo); showDetailModal = false"
+      >
+        Eliminar
       </button>
     </template>
   </ModalBase>
@@ -446,10 +566,105 @@
       </button>
     </template>
   </ModalBase>
+
+  <!-- ── Modal: Corregir y reenviar transferencia ────────────────────────── -->
+  <ModalBase
+    v-model="showReenviarModal"
+    title="Corregir y reenviar transferencia"
+    description="Actualiza los datos del recibo rechazado y reenvíalo a aprobación."
+  >
+    <div class="space-y-4 pb-2">
+      <div v-if="actionError" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">{{ actionError }}</div>
+
+      <!-- Banco -->
+      <div>
+        <label class="mb-1 block text-sm font-medium text-slate-700">Banco origen <span class="text-red-500">*</span></label>
+        <select
+          v-model="reenviarForm.banco_id"
+          class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        >
+          <option :value="null">-- Sin cambio --</option>
+          <option v-for="b in bancosActivos" :key="b.id" :value="b.id">
+            {{ b.nombre }}{{ b.codigo ? ` (${b.codigo})` : '' }}
+          </option>
+        </select>
+      </div>
+
+      <!-- Número de transacción -->
+      <div>
+        <label class="mb-1 block text-sm font-medium text-slate-700">Número de transacción <span class="text-red-500">*</span></label>
+        <input
+          v-model="reenviarForm.numero_transaccion"
+          type="text"
+          placeholder="Nuevo número de transacción"
+          class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        />
+      </div>
+
+      <!-- Comprobante -->
+      <div>
+        <label class="mb-1 block text-sm font-medium text-slate-700">Nuevo comprobante <span class="text-red-500">*</span></label>
+        <input
+          type="file"
+          accept=".jpg,.jpeg,.png,.pdf,.webp"
+          class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 file:mr-3 file:rounded file:border-0 file:bg-slate-100 file:px-2 file:py-1 file:text-sm file:font-medium file:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          @change="onReenviarFileChange"
+        />
+        <p class="mt-1 text-xs text-slate-400">Reemplaza el comprobante anterior. JPG, PNG, PDF o WebP · máx. 5 MB.</p>
+      </div>
+    </div>
+    <template #footer>
+      <button
+        type="button"
+        class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        @click="showReenviarModal = false"
+      >Cancelar</button>
+      <button
+        type="button"
+        :disabled="actionLoading || !reenviarCompleto"
+        class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        @click="confirmReenviar"
+      >
+        {{ actionLoading ? 'Reenviando...' : 'Reenviar a aprobación' }}
+      </button>
+    </template>
+  </ModalBase>
+
+  <!-- ── Modal: Eliminar recibo pendiente/rechazado ──────────────────────── -->
+  <ModalBase
+    v-model="showEliminarModal"
+    title="Eliminar recibo"
+    description="Esta acción eliminará el recibo y su comprobante adjunto."
+  >
+    <div class="space-y-3 pb-2">
+      <p class="text-sm text-slate-700">
+        ¿Confirmas que deseas eliminar el recibo de
+        <strong>$ {{ formatMoney(targetRecibo?.valor_total) }}</strong>
+        en estado <strong>{{ targetRecibo?.status_text }}</strong>?
+      </p>
+      <p class="text-xs text-slate-500">Esta acción no se puede deshacer. El comprobante adjunto también será eliminado.</p>
+      <div v-if="actionError" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">{{ actionError }}</div>
+    </div>
+    <template #footer>
+      <button
+        type="button"
+        class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        @click="showEliminarModal = false"
+      >Cancelar</button>
+      <button
+        type="button"
+        :disabled="actionLoading"
+        class="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-red-500"
+        @click="confirmEliminar"
+      >
+        {{ actionLoading ? 'Eliminando...' : 'Eliminar recibo' }}
+      </button>
+    </template>
+  </ModalBase>
 </template>
 
 <script setup>
-import { ref, reactive, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRouter }           from 'vue-router'
 import StatCard                from '@/components/dashboard/StatCard.vue'
 import DataTable               from '@/components/activos/DataTable.vue'
@@ -462,6 +677,7 @@ import NavIcon                 from '@/components/icons/NavIcon.vue'
 import ModalBase               from '@/components/ModalBase.vue'
 import ReciboPrintModal        from '@/components/financiero/ReciboPrintModal.vue'
 import reciboPagoService       from '@/services/reciboPagoService.js'
+import bancoService            from '@/services/bancoService.js'
 import { useNotification }     from '@/composables/useNotification'
 
 const router = useRouter()
@@ -471,6 +687,9 @@ const { success: notifySuccess, error: notifyError } = useNotification()
 const canCreate = ref(true)
 const canAnular = ref(true)
 const canPdf    = ref(true)
+
+// ─── Bancos activos (para modal reenviar) ─────────────────────────────────────
+const bancosActivos = ref([])
 
 // ─── Columnas de la tabla ─────────────────────────────────────────────────────
 const tableColumns = [
@@ -495,16 +714,22 @@ const statusFilterOptions = [
   { value: '1', label: 'Creado' },
   { value: '2', label: 'Cerrado' },
   { value: '3', label: 'Anulado' },
+  { value: '4', label: 'Pendiente Aprobación' },
+  { value: '5', label: 'Rechazado' },
 ]
 
 function statusBadgeVariant(status) {
-  const map = { 1: 'disponible', 2: 'activo', 3: 'inactivo' }
+  const map = { 1: 'disponible', 2: 'activo', 3: 'inactivo', 4: 'mantenimiento', 5: 'baja' }
   return map[status] ?? 'inactivo'
 }
 
 function formatMoney(val) {
   if (val == null) return '0.00'
   return Number(val).toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function isImageUrl(url) {
+  return /\.(jpe?g|png|webp|gif)(\?.*)?$/i.test(url)
 }
 
 function cpNombre(cp) {
@@ -656,6 +881,103 @@ async function confirmAnular() {
     await Promise.all([loadRecibos(pagination.currentPage), loadStatistics()])
   } catch (e) {
     actionError.value = e?.response?.data?.message ?? 'Error al anular el recibo de pago.'
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+// ─── Acciones de transferencia ───────────────────────────────────────────────
+const notificarLoadingId = ref(null)
+
+async function notificarTransferencia(recibo) {
+  notificarLoadingId.value = recibo.id
+  try {
+    const res = await reciboPagoService.notificarTransferencia(recibo.id)
+    notifySuccess(res.message ?? 'Validadores notificados correctamente.')
+  } catch (e) {
+    notifyError(e?.response?.data?.message ?? 'Error al enviar la notificación.')
+  } finally {
+    notificarLoadingId.value = null
+  }
+}
+
+// Modal reenviar
+const showReenviarModal  = ref(false)
+const reenviarForm       = reactive({ banco_id: null, numero_transaccion: '', comprobante_file: null })
+const reenviarCompleto   = computed(() =>
+  reenviarForm.banco_id !== null &&
+  reenviarForm.numero_transaccion.trim() !== '' &&
+  reenviarForm.comprobante_file !== null
+)
+
+function onReenviarFileChange(e) {
+  reenviarForm.comprobante_file = e.target.files?.[0] ?? null
+}
+
+async function openReenviar(recibo) {
+  targetRecibo.value       = recibo
+  reenviarForm.banco_id          = null
+  reenviarForm.numero_transaccion = ''
+  reenviarForm.comprobante_file  = null
+  actionError.value        = ''
+  if (!bancosActivos.value.length) {
+    try {
+      const res = await bancoService.getActivos()
+      bancosActivos.value = res.data ?? []
+    } catch { /* no bloquea */ }
+  }
+  showReenviarModal.value = true
+}
+
+async function confirmReenviar() {
+  actionLoading.value = true
+  actionError.value   = ''
+  try {
+    let payload, config
+    if (reenviarForm.comprobante_file) {
+      const fd = new FormData()
+      if (reenviarForm.banco_id)          fd.append('banco_id', reenviarForm.banco_id)
+      if (reenviarForm.numero_transaccion) fd.append('numero_transaccion', reenviarForm.numero_transaccion)
+      fd.append('comprobante', reenviarForm.comprobante_file)
+      payload = fd
+      config  = {}
+    } else {
+      payload = {}
+      if (reenviarForm.banco_id)          payload.banco_id          = reenviarForm.banco_id
+      if (reenviarForm.numero_transaccion) payload.numero_transaccion = reenviarForm.numero_transaccion
+      config = {}
+    }
+    const res = await reciboPagoService.reenviarTransferencia(targetRecibo.value.id, payload, config)
+    notifySuccess(res.message ?? 'Recibo corregido y reenviado a aprobación.')
+    showReenviarModal.value = false
+    loadRecibos(pagination.currentPage)
+  } catch (e) {
+    actionError.value = e?.response?.data?.message ?? 'Error al reenviar el recibo.'
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+// Modal eliminar (status 4 ó 5)
+const showEliminarModal = ref(false)
+
+function openEliminar(recibo) {
+  targetRecibo.value      = recibo
+  actionError.value       = ''
+  showEliminarModal.value = true
+}
+
+async function confirmEliminar() {
+  actionLoading.value = true
+  actionError.value   = ''
+  try {
+    await reciboPagoService.eliminar(targetRecibo.value.id)
+    notifySuccess('Recibo eliminado correctamente.')
+    showEliminarModal.value = false
+    loadRecibos(pagination.currentPage)
+    loadStatistics()
+  } catch (e) {
+    actionError.value = e?.response?.data?.message ?? 'Error al eliminar el recibo.'
   } finally {
     actionLoading.value = false
   }

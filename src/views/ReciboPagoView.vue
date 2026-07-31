@@ -492,27 +492,102 @@
                 </button>
               </div>
 
-              <!-- Referencia transferencia -->
-              <div v-if="mp.medio_pago === 'transferencia'" class="mt-2">
-                <button
-                  type="button"
-                  class="text-sm text-[#213360] underline hover:no-underline focus:outline-none"
-                  @click="abrirModalTransferencia(idx)"
-                >
-                  Ingresar datos de transferencia
-                  <span v-if="mp.referencia" class="ml-1 text-xs text-green-600">(✓)</span>
-                </button>
+              <!-- Datos de transferencia bancaria (inline) -->
+              <div v-if="mp.medio_pago === 'transferencia'" class="mt-3 space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <p class="text-xs text-amber-800">
+                  <strong>Pendiente de aprobación:</strong> El recibo no se cerrará de inmediato.
+                  Un validador revisará el comprobante antes de confirmar el pago.
+                </p>
+
+                <div class="grid gap-3 sm:grid-cols-2">
+                  <!-- Banco origen -->
+                  <div>
+                    <label class="mb-1 block text-xs font-medium text-slate-700">Banco origen <span class="text-red-500">*</span></label>
+                    <select
+                      v-model="mp.banco_id"
+                      class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option :value="null" disabled>-- Seleccionar banco --</option>
+                      <option v-for="b in bancosActivos" :key="b.id" :value="b.id">
+                        {{ b.nombre }}{{ b.codigo ? ` (${b.codigo})` : '' }}
+                      </option>
+                    </select>
+                  </div>
+
+                  <!-- Número de transacción -->
+                  <div>
+                    <label class="mb-1 block text-xs font-medium text-slate-700">N.° de transacción <span class="text-red-500">*</span></label>
+                    <input
+                      v-model="mp.numero_transaccion"
+                      type="text"
+                      placeholder="Ej: 1234567890"
+                      maxlength="100"
+                      class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <!-- Comprobante -->
+                <div>
+                  <label class="mb-1 block text-xs font-medium text-slate-700">
+                    Comprobante <span class="text-slate-400">(opcional, se puede enviar después)</span>
+                  </label>
+                  <input
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.pdf,.webp"
+                    class="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 file:mr-2 file:rounded file:border-0 file:bg-white file:px-2 file:py-1 file:text-xs file:font-medium file:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    @change="onComprobanteTransferenciaChange(mp, $event)"
+                  />
+                  <p class="mt-1 text-[11px] text-slate-400">JPG, PNG, PDF o WebP · máx. 5 MB.</p>
+
+                  <!-- Miniatura del comprobante -->
+                  <div v-if="mp.comprobante_preview_url" class="mt-2">
+                    <!-- Imagen -->
+                    <template v-if="mp.comprobante_file?.type?.startsWith('image/')">
+                      <div class="relative inline-block">
+                        <img
+                          :src="mp.comprobante_preview_url"
+                          :alt="mp.comprobante_file.name"
+                          class="h-28 w-auto max-w-[200px] rounded-lg border border-slate-300 object-cover shadow-sm"
+                        />
+                        <span class="absolute bottom-1 left-1 right-1 truncate rounded bg-black/50 px-1 py-0.5 text-center text-[10px] text-white">
+                          {{ mp.comprobante_file.name }}
+                        </span>
+                      </div>
+                    </template>
+                    <!-- PDF -->
+                    <template v-else>
+                      <a
+                        :href="mp.comprobante_preview_url"
+                        target="_blank"
+                        rel="noopener"
+                        class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                      >
+                        <svg class="size-5 shrink-0 text-red-500" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM6 20V4h5v7h7v9H6z"/>
+                          <path d="M8.5 14.5h1v-3h1.25c.83 0 1.25.5 1.25 1.25S11.58 14 10.75 14H10v.5H8.5v-3zm1 2v-1H10c1.38 0 2.25-.88 2.25-2.25S11.38 11 10 11H8.5v3.5h1z" opacity=".5"/>
+                        </svg>
+                        <span class="max-w-[160px] truncate">{{ mp.comprobante_file.name }}</span>
+                        <span class="shrink-0 text-blue-600 underline">Ver</span>
+                      </a>
+                    </template>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
           <button
+            v-if="!hayTransferencia"
             type="button"
             class="mt-3 text-sm font-medium text-[#213360] underline hover:no-underline focus:outline-none focus:ring-2 focus:ring-blue-500"
             @click="agregarMedioPagoEntrada"
           >
             + Agregar otro método de pago
           </button>
+          <p v-else class="mt-3 text-xs text-amber-700">
+            La transferencia bancaria no puede combinarse con otro medio de pago.
+          </p>
         </div>
 
       </section>
@@ -523,7 +598,7 @@
       </div>
 
       <!-- ── Acciones ────────────────────────────────────────────────────────── -->
-      <div class="flex flex-wrap items-center justify-end gap-3 border-t border-black/10 pt-4">
+      <div v-if="!reciboTransferenciaCreado" class="flex flex-wrap items-center justify-end gap-3 border-t border-black/10 pt-4">
         <button
           type="button"
           class="flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -532,7 +607,9 @@
           Cancelar
         </button>
 
+        <!-- Botón normal (no transferencia) -->
         <button
+          v-if="!hayTransferencia"
           type="button"
           :disabled="guardando || !puedeCalcular"
           class="flex items-center gap-2 rounded-lg bg-[#213360] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -544,9 +621,61 @@
           </svg>
           {{ guardando ? 'Guardando...' : 'Generar recibo' }}
         </button>
+
+        <!-- Botón transferencia -->
+        <button
+          v-else
+          type="button"
+          :disabled="guardando || !puedeCalcular || !transferenciaCompleta"
+          class="flex items-center gap-2 rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-800 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-amber-500"
+          :title="!transferenciaCompleta ? 'Completa el banco y el número de transacción' : ''"
+          @click="onSubmit"
+        >
+          <svg v-if="guardando" class="size-4 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          <svg v-else class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+          </svg>
+          {{ guardando ? 'Registrando...' : 'Enviar soporte y registrar' }}
+        </button>
       </div>
 
     </template>
+
+    <!-- ── Recibo de transferencia pendiente de aprobación ──────────────────── -->
+    <div v-if="reciboTransferenciaCreado" ref="bloqueEsperaRef" class="rounded-[10px] border border-amber-200 bg-amber-50 px-6 py-5">
+      <h3 class="mb-1 text-sm font-semibold text-amber-900">Recibo en espera de aprobación</h3>
+      <p class="mb-1 text-sm text-amber-800">
+        El recibo fue creado con ID <strong>#{{ reciboTransferenciaCreado.id }}</strong> y está
+        <strong>pendiente de aprobación</strong> por un validador.
+        El número de recibo se asignará automáticamente al ser aprobado.
+      </p>
+      <p class="mb-4 text-xs text-amber-700">
+        Notifica al validador cuando el comprobante esté listo para que pueda revisarlo.
+      </p>
+      <div class="flex flex-wrap gap-3">
+        <button
+          type="button"
+          :disabled="notificando"
+          class="flex items-center gap-2 rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-800 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-amber-500"
+          @click="notificarValidador"
+        >
+          <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+          </svg>
+          {{ notificando ? 'Notificando...' : 'Notificar al validador' }}
+        </button>
+        <button
+          type="button"
+          class="flex items-center gap-2 rounded-lg border border-amber-300 px-4 py-2 text-sm font-medium text-amber-900 transition-colors hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
+          @click="irAListado"
+        >
+          Ver lista de recibos
+        </button>
+      </div>
+    </div>
 
     <!-- Modales de métodos de pago -->
     <ModalPagoTarjeta
@@ -559,16 +688,12 @@
       v-model="modalConsignacionOpen"
       @confirm="onConfirmarConsignacion"
     />
-    <ModalPagoTransferencia
-      v-model="modalTransferenciaOpen"
-      @confirm="onConfirmarTransferencia"
-    />
 
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, toRaw, nextTick } from 'vue'
 import { useRoute, useRouter }    from 'vue-router'
 import Logo                       from '@/components/Logo.vue'
 import FormInputSearch             from '@/components/forms/FormInputSearch.vue'
@@ -576,13 +701,13 @@ import FormInput                   from '@/components/forms/FormInput.vue'
 import FormSelect                  from '@/components/forms/FormSelect.vue'
 import ModalPagoTarjeta            from '@/components/ModalPagoTarjeta.vue'
 import ModalPagoConsignacion       from '@/components/ModalPagoConsignacion.vue'
-import ModalPagoTransferencia      from '@/components/ModalPagoTransferencia.vue'
 import userService                 from '@/services/userService.js'
 import carteraService              from '@/services/carteraService.js'
 import conceptoPagoService         from '@/services/conceptoPagoService.js'
 import reciboPagoService           from '@/services/reciboPagoService.js'
 import { authService }             from '@/services/authService.js'
 import { useNotification }         from '@/composables/useNotification'
+import bancoService                from '@/services/bancoService.js'
 
 const route  = useRoute()
 const router = useRouter()
@@ -628,10 +753,32 @@ const calculando       = ref(false)
 const itemsCargados    = ref([])   // [{ tipo, label, valor?, cantidad?, saldo?, pagado }]
 const descuentoMotivo  = ref('')   // motivo cuando precalcular-descuento devuelve aplica:false
 
+// ─── Recibo de transferencia creado (pendiente aprobación) ────────────────────
+const reciboTransferenciaCreado = ref(null)
+const bloqueEsperaRef           = ref(null)
+const notificando               = ref(false)
+
+// ─── Bancos activos (para selector inline de transferencia) ───────────────────
+const bancosActivos = ref([])
+
+async function cargarBancosActivos() {
+  if (bancosActivos.value.length) return
+  try {
+    const res = await bancoService.getActivos()
+    bancosActivos.value = res.data ?? []
+  } catch { /* no bloquea */ }
+}
+
+/** True cuando los campos obligatorios de la transferencia están completos */
+const transferenciaCompleta = computed(() => {
+  if (!hayTransferencia.value) return true
+  const mp = mediosPago.value.find(m => m.medio_pago === 'transferencia')
+  return !!(mp?.banco_id && mp?.numero_transaccion?.trim())
+})
+
 // ─── Modales de pago ─────────────────────────────────────────────────────────
 const modalTarjetaOpen       = ref(false)
 const modalConsignacionOpen  = ref(false)
-const modalTransferenciaOpen = ref(false)
 const modalTargetIndex       = ref(0)
 
 // ─── Formulario ──────────────────────────────────────────────────────────────
@@ -643,13 +790,18 @@ const form = reactive({
 // ─── Lista de medios de pago ─────────────────────────────────────────────────
 function nuevoMedioPago() {
   return {
-    _id:             Date.now() + Math.random(),
-    medio_pago:      'efectivo',
-    valor:           0,
-    tipo_tarjeta:    null,
-    referencia:      null,
-    sobrecargos:     [],
-    total_sobrecargo: 0,
+    _id:               Date.now() + Math.random(),
+    medio_pago:        'efectivo',
+    valor:             0,
+    tipo_tarjeta:      null,
+    referencia:        null,
+    banco_id:               null,
+    banco_nombre:           null,
+    numero_transaccion:     null,
+    comprobante_file:       null,
+    comprobante_preview_url: null,
+    sobrecargos:       [],
+    total_sobrecargo:  0,
   }
 }
 const mediosPago = ref([nuevoMedioPago()])
@@ -716,6 +868,11 @@ const sobrecargosAgregados = computed(() =>
 /** Suma total de sobrecargos por tarjeta */
 const totalSobrecargo = computed(() =>
   mediosPago.value.reduce((sum, mp) => sum + (mp.total_sobrecargo ?? 0), 0)
+)
+
+/** True cuando algún medio de pago es transferencia (es exclusivo, no puede combinarse) */
+const hayTransferencia = computed(() =>
+  mediosPago.value.some(mp => mp.medio_pago === 'transferencia')
 )
 
 // Cuando hay exactamente un medio de pago, sincronizar su valor con el monto total
@@ -1006,11 +1163,20 @@ function onMedioPagoEntradaChange(idx) {
   const mp = mediosPago.value[idx]
   if (!mp) return
   const esTarjeta = mp.medio_pago === 'tarjeta_debito' || mp.medio_pago === 'tarjeta_credito'
-  mp.sobrecargos      = []
-  mp.total_sobrecargo = 0
-  mp.tipo_tarjeta     = null
-  mp.referencia       = null
+  mp.sobrecargos       = []
+  mp.total_sobrecargo  = 0
+  mp.tipo_tarjeta      = null
+  mp.referencia        = null
+  mp.banco_id                = null
+  mp.banco_nombre            = null
+  mp.numero_transaccion      = null
+  if (mp.comprobante_preview_url) {
+    URL.revokeObjectURL(mp.comprobante_preview_url)
+    mp.comprobante_preview_url = null
+  }
+  mp.comprobante_file        = null
   if (esTarjeta && mp.valor > 0) calcularSobrecargoEntrada(idx)
+  if (mp.medio_pago === 'transferencia') cargarBancosActivos()
 }
 
 async function calcularSobrecargoEntrada(idx) {
@@ -1028,6 +1194,20 @@ async function calcularSobrecargoEntrada(idx) {
   } catch { /* no bloquea */ }
 }
 
+// ─── Comprobante de transferencia (campo inline) ──────────────────────────────
+function onComprobanteTransferenciaChange(mp, e) {
+  // Liberar URL anterior para evitar memory leaks
+  if (mp.comprobante_preview_url) {
+    URL.revokeObjectURL(mp.comprobante_preview_url)
+    mp.comprobante_preview_url = null
+  }
+  const file = e.target.files?.[0] ?? null
+  mp.comprobante_file = file
+  if (file) {
+    mp.comprobante_preview_url = URL.createObjectURL(file)
+  }
+}
+
 // ─── Modales de pago ─────────────────────────────────────────────────────────
 function abrirModalTarjeta(idx) {
   modalTargetIndex.value = idx
@@ -1035,13 +1215,8 @@ function abrirModalTarjeta(idx) {
 }
 
 function abrirModalConsignacion(idx) {
-  modalTargetIndex.value  = idx
-  modalConsignacionOpen.value = true
-}
-
-function abrirModalTransferencia(idx) {
   modalTargetIndex.value      = idx
-  modalTransferenciaOpen.value = true
+  modalConsignacionOpen.value = true
 }
 
 function onConfirmarTarjeta(payload) {
@@ -1059,7 +1234,11 @@ function onConfirmarConsignacion(payload) {
 
 function onConfirmarTransferencia(payload) {
   const mp = mediosPago.value[modalTargetIndex.value]
-  if (mp) mp.referencia = payload.referencia ?? null
+  if (!mp) return
+  mp.banco_id           = payload.banco_id          ?? null
+  mp.banco_nombre       = payload.banco_nombre       ?? null
+  mp.numero_transaccion = payload.numero_transaccion ?? null
+  mp.comprobante_file   = payload.comprobante_file   ?? null
 }
 
 // ─── Envío del recibo ─────────────────────────────────────────────────────────
@@ -1095,38 +1274,78 @@ async function onSubmit() {
         sobrecargosPayload.push({ descuento_id: sc.descuento_id, medio_pago_index: idx })
       )
     }
-    return {
-      medio_pago:   mp.medio_pago,
-      valor:        Number(mp.valor),
+    const entry = {
+      medio_pago: mp.medio_pago,
+      valor:      Number(mp.valor),
       ...(mp.tipo_tarjeta ? { tipo_tarjeta: mp.tipo_tarjeta } : {}),
       ...(mp.referencia   ? { referencia:   mp.referencia   } : {}),
     }
+    if (mp.medio_pago === 'transferencia') {
+      if (mp.banco_id)          entry.banco_id          = mp.banco_id
+      if (mp.numero_transaccion) entry.numero_transaccion = mp.numero_transaccion
+    }
+    return entry
   })
 
-  const montoTotalBruto = mediosPagoPayload.reduce((sum, mp) => sum + mp.valor, 0)
+  const montoTotalBruto    = mediosPagoPayload.reduce((sum, mp) => sum + mp.valor, 0)
+  const mpTransferencia    = mediosPago.value.find(mp => mp.medio_pago === 'transferencia')
+  // toRaw extrae el File puro del Proxy reactivo de Vue; FormData usa internal slots
+  // que no cruzan el Proxy y recibiría el archivo como texto en lugar de binario
+  const comprobanteFile    = toRaw(mpTransferencia?.comprobante_file ?? null)
 
-  const payload = {
-    sede_id:           sedeId,
-    cajero_id:         currentUser.value?.id ?? null,
-    matricula_id:      deudaSeleccionada.value.matricula_id,
-    origen:            1,
-    fecha_recibo:      form.fecha_recibo,
-    fecha_transaccion: form.fecha_recibo,
-    monto_a_pagar:     montoTotalBruto,
-    aplicar_descuento: true,
-    conceptos_adicionales: conceptosAdicionales.value.map(c => ({
-      concepto_pago_id: c.concepto_id,
-      cantidad:         c.cantidad,
-    })),
-    medios_pago: mediosPagoPayload,
-    ...(sobrecargosPayload.length ? { sobrecargos: sobrecargosPayload } : {}),
+  // Cuando hay comprobante se envía como multipart/form-data
+  let reqPayload, reqConfig
+  if (comprobanteFile) {
+    const fd = new FormData()
+    fd.append('sede_id',           sedeId ?? '')
+    fd.append('cajero_id',         currentUser.value?.id ?? '')
+    fd.append('matricula_id',      deudaSeleccionada.value.matricula_id)
+    fd.append('origen',            1)
+    fd.append('fecha_recibo',      form.fecha_recibo)
+    fd.append('fecha_transaccion', form.fecha_recibo)
+    fd.append('monto_a_pagar',     montoTotalBruto)
+    fd.append('aplicar_descuento', '1')
+    mediosPagoPayload.forEach((mp, i) => {
+      Object.entries(mp).forEach(([k, v]) => fd.append(`medios_pago[${i}][${k}]`, v))
+    })
+    conceptosAdicionales.value.forEach((ca, i) => {
+      fd.append(`conceptos_adicionales[${i}][concepto_pago_id]`, ca.concepto_id)
+      fd.append(`conceptos_adicionales[${i}][cantidad]`,         ca.cantidad)
+    })
+    fd.append('comprobante', comprobanteFile)
+    reqPayload = fd
+    reqConfig  = { _silent: true }
+  } else {
+    reqPayload = {
+      sede_id:           sedeId,
+      cajero_id:         currentUser.value?.id ?? null,
+      matricula_id:      deudaSeleccionada.value.matricula_id,
+      origen:            1,
+      fecha_recibo:      form.fecha_recibo,
+      fecha_transaccion: form.fecha_recibo,
+      monto_a_pagar:     montoTotalBruto,
+      aplicar_descuento: true,
+      conceptos_adicionales: conceptosAdicionales.value.map(c => ({
+        concepto_pago_id: c.concepto_id,
+        cantidad:         c.cantidad,
+      })),
+      medios_pago: mediosPagoPayload,
+      ...(sobrecargosPayload.length ? { sobrecargos: sobrecargosPayload } : {}),
+    }
+    reqConfig = { _silent: true }
   }
 
   guardando.value = true
   try {
-    const res = await reciboPagoService.create(payload, { _silent: true })
-    notifySuccess(`Recibo ${res.data?.numero_recibo ?? ''} generado correctamente.`)
-    router.push('/financiero/recibos-pago')
+    const res = await reciboPagoService.create(reqPayload, reqConfig)
+    if (res.data?.esta_pendiente_aprobacion) {
+      // Transferencia: queda en status 4, sin número de recibo
+      reciboTransferenciaCreado.value = res.data
+      nextTick(() => bloqueEsperaRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    } else {
+      notifySuccess(`Recibo ${res.data?.numero_recibo ?? ''} generado correctamente.`)
+      router.push('/financiero/recibos-pago')
+    }
   } catch (e) {
     if (e?.response?.status === 422) {
       fieldErrors.value = e.response.data?.errors  ?? {}
@@ -1143,20 +1362,43 @@ function onCancel() {
   router.back()
 }
 
+function irAListado() {
+  router.push('/financiero/recibos-pago')
+}
+
+async function notificarValidador() {
+  if (!reciboTransferenciaCreado.value?.id) return
+  notificando.value = true
+  try {
+    const res = await reciboPagoService.notificarTransferencia(reciboTransferenciaCreado.value.id)
+    notifySuccess(res.message ?? 'Validadores notificados correctamente.')
+  } catch (e) {
+    formError.value = e?.response?.data?.message ?? 'Error al enviar la notificación.'
+  } finally {
+    notificando.value = false
+  }
+}
+
 // ─── Reset ────────────────────────────────────────────────────────────────────
 function resetForm() {
   form.fecha_recibo  = today()
   form.monto_a_pagar = 0
-  mediosPago.value          = [nuevoMedioPago()]
-  modalTargetIndex.value    = 0
-  conceptosAdicionales.value = []
-  conceptoSeleccionado.value = null
-  cantidadConcepto.value     = 1
-  formError.value            = ''
-  fieldErrors.value          = {}
-  calculado.value            = false
-  calculando.value           = false
-  itemsCargados.value        = []
+  mediosPago.value               = [nuevoMedioPago()]
+  modalTargetIndex.value         = 0
+  conceptosAdicionales.value     = []
+  conceptoSeleccionado.value     = null
+  cantidadConcepto.value         = 1
+  formError.value                = ''
+  fieldErrors.value              = {}
+  calculado.value                = false
+  calculando.value               = false
+  itemsCargados.value            = []
+  reciboTransferenciaCreado.value = null
+  mediosPago.value.forEach(mp => {
+    if (mp.comprobante_preview_url) {
+      URL.revokeObjectURL(mp.comprobante_preview_url)
+    }
+  })
   clearTimeout(calcularTimer)
 }
 
@@ -1164,6 +1406,7 @@ function resetForm() {
 onMounted(async () => {
   try { currentUser.value = await authService.getUser() } catch { /* no bloquea */ }
   cargarConceptos()
+  cargarBancosActivos()
 
   const qMatricula  = route.query.matricula_id  ? Number(route.query.matricula_id)  : null
   const qEstudiante = route.query.estudiante_id ? Number(route.query.estudiante_id) : null

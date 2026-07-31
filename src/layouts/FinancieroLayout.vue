@@ -17,12 +17,13 @@
 import FormulariosNav from '@/components/forms/FormulariosNav.vue'
 
 const navItems = [
-  { label: 'Tipos de producto', to: '/financiero/tipos-producto',  exact: true },
-  { label: 'Productos',         to: '/financiero/productos' },
-  { label: 'Listas de precios', to: '/financiero/listas-precios' },
-  { label: 'Conceptos de pago', to: '/financiero/conceptos-pago' },
-  { label: 'Recibos de pago',   to: '/financiero/recibos-pago' },
-  { label: 'Cartera',               to: '/financiero/cartera' },
+  { label: 'Tipos de producto',      to: '/financiero/tipos-producto',  exact: true },
+  { label: 'Productos',              to: '/financiero/productos' },
+  { label: 'Listas de precios',      to: '/financiero/listas-precios' },
+  { label: 'Conceptos de pago',      to: '/financiero/conceptos-pago' },
+  { label: 'Recibos de pago',        to: '/financiero/recibos-pago' },
+  { label: 'Cartera',                to: '/financiero/cartera' },
   { label: 'Descuentos/Sobrecargos', to: '/financiero/descuentos' },
+  { label: 'Transferencias pendientes', to: '/financiero/transferencias-pendientes' },
 ]
 </script>
