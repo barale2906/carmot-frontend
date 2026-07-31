@@ -396,20 +396,20 @@
                     <template v-if="mp.comprobante_url">
                       <a
                         v-if="isImageUrl(mp.comprobante_url)"
-                        :href="mp.comprobante_url"
+                        :href="resolveStorageUrl(mp.comprobante_url)"
                         target="_blank"
                         rel="noopener"
                         class="mt-1 block"
                       >
                         <img
-                          :src="mp.comprobante_url"
+                          :src="resolveStorageUrl(mp.comprobante_url)"
                           alt="Comprobante"
                           class="h-20 w-auto max-w-[160px] rounded border border-slate-200 object-cover"
                         />
                       </a>
                       <a
                         v-else
-                        :href="mp.comprobante_url"
+                        :href="resolveStorageUrl(mp.comprobante_url)"
                         target="_blank"
                         rel="noopener"
                         class="mt-1 inline-flex items-center gap-1.5 text-xs text-blue-600 underline"
@@ -730,6 +730,14 @@ function formatMoney(val) {
 
 function isImageUrl(url) {
   return /\.(jpe?g|png|webp|gif)(\?.*)?$/i.test(url)
+}
+
+const backendBase = import.meta.env.VITE_API_URL.replace(/\/api$/, '')
+
+function resolveStorageUrl(url) {
+  if (!url) return url
+  if (/^https?:\/\//i.test(url)) return url
+  return backendBase + url
 }
 
 function cpNombre(cp) {

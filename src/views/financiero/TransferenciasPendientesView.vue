@@ -152,9 +152,9 @@
           <template v-if="selectedMp?.comprobante_url">
             <!-- Imagen -->
             <template v-if="isImageUrl(selectedMp.comprobante_url)">
-              <a :href="selectedMp.comprobante_url" target="_blank" rel="noopener">
+              <a :href="resolveStorageUrl(selectedMp.comprobante_url)" target="_blank" rel="noopener">
                 <img
-                  :src="selectedMp.comprobante_url"
+                  :src="resolveStorageUrl(selectedMp.comprobante_url)"
                   alt="Comprobante de transferencia"
                   class="w-full rounded-xl border border-slate-200 object-contain shadow-sm transition-opacity hover:opacity-90"
                   style="max-height: 520px;"
@@ -171,7 +171,7 @@
                 </svg>
                 <p class="text-sm font-medium text-slate-600">Documento adjunto (PDF)</p>
                 <a
-                  :href="selectedMp.comprobante_url"
+                  :href="resolveStorageUrl(selectedMp.comprobante_url)"
                   target="_blank"
                   rel="noopener"
                   class="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -366,6 +366,15 @@ import ModalBase           from '@/components/ModalBase.vue'
 import { useNotification } from '@/composables/useNotification'
 
 const { success: notifySuccess } = useNotification()
+
+// La URL base del backend (sin /api) para resolver rutas de storage relativas
+const backendBase = import.meta.env.VITE_API_URL.replace(/\/api$/, '')
+
+function resolveStorageUrl(url) {
+  if (!url) return url
+  if (/^https?:\/\//i.test(url)) return url
+  return backendBase + url
+}
 
 // ─── Estado listado ───────────────────────────────────────────────────────────
 const pendientes  = ref([])
