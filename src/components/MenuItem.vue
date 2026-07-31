@@ -91,17 +91,21 @@ const isActive = computed(() => {
 })
 
 /**
- * Expandir automáticamente si algún hijo está activo
+ * Expandir automáticamente si algún descendiente (a cualquier nivel) está activo
  */
 const shouldAutoExpand = computed(() => {
   if (!props.item.children?.length) return false
-
   const routePath = props.currentRoute || route.path
-
-  return props.item.children.some((child) => {
-    return routePath === child.route || routePath.startsWith(child.route + '/')
-  })
+  return hasActiveDescendant(props.item.children, routePath)
 })
+
+function hasActiveDescendant(children, routePath) {
+  return children.some((child) => {
+    if (routePath === child.route || routePath.startsWith(child.route + '/')) return true
+    if (child.children?.length) return hasActiveDescendant(child.children, routePath)
+    return false
+  })
+}
 
 /**
  * Obtener propiedades dinámicas del binding
