@@ -39,6 +39,18 @@ import DescuentosView from './views/financiero/DescuentosView.vue'
 import TransferenciasPendientesView from './views/financiero/TransferenciasPendientesView.vue'
 import BancosView from './views/configuracion/BancosView.vue'
 import MatriculaView from './views/academico/MatriculaView.vue'
+import InventarioLayout from './layouts/InventarioLayout.vue'
+import CategoriasView      from './views/inventario/CategoriasView.vue'
+import UnidadesMedidaView  from './views/inventario/UnidadesMedidaView.vue'
+import ProductosInvView    from './views/inventario/ProductosView.vue'
+import AlmacenesView       from './views/inventario/AlmacenesView.vue'
+import ProveedoresView     from './views/inventario/ProveedoresView.vue'
+import StockView           from './views/inventario/StockView.vue'
+import MovimientosView     from './views/inventario/MovimientosView.vue'
+import PreciosInvView      from './views/inventario/PreciosView.vue'
+import VentasView          from './views/inventario/VentasView.vue'
+import EntregasView        from './views/inventario/EntregasView.vue'
+import OrdenesCompraView   from './views/inventario/OrdenesCompraView.vue'
 import './assets/styles/main.css'
 
 const routes = [
@@ -289,6 +301,73 @@ const routes = [
         path: 'bancos',
         name: 'Bancos',
         component: BancosView
+      }
+    ]
+  },
+  {
+    path: '/inventario',
+    component: MainLayout,
+    children: [
+      {
+        path: '',
+        component: InventarioLayout,
+        children: [
+          {
+            path: 'categorias',
+            name: 'InvCategorias',
+            component: CategoriasView
+          },
+          {
+            path: 'unidades-medida',
+            name: 'InvUnidadesMedida',
+            component: UnidadesMedidaView
+          },
+          {
+            path: 'productos',
+            name: 'InvProductos',
+            component: ProductosInvView
+          },
+          {
+            path: 'almacenes',
+            name: 'InvAlmacenes',
+            component: AlmacenesView
+          },
+          {
+            path: 'proveedores',
+            name: 'InvProveedores',
+            component: ProveedoresView
+          },
+          {
+            path: 'stock',
+            name: 'InvStock',
+            component: StockView
+          },
+          {
+            path: 'movimientos',
+            name: 'InvMovimientos',
+            component: MovimientosView
+          },
+          {
+            path: 'precios',
+            name: 'InvPrecios',
+            component: PreciosInvView
+          },
+          {
+            path: 'ventas',
+            name: 'InvVentas',
+            component: VentasView
+          },
+          {
+            path: 'entregas',
+            name: 'InvEntregas',
+            component: EntregasView
+          },
+          {
+            path: 'ordenes-compra',
+            name: 'InvOrdenesCompra',
+            component: OrdenesCompraView
+          }
+        ]
       }
     ]
   }
