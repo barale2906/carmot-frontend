@@ -90,32 +90,12 @@
             </div>
 
             <!-- Buscador de producto -->
-            <div>
-              <label class="mb-1.5 block text-sm font-medium text-slate-700">Agregar producto</label>
-              <div class="flex gap-2">
-                <input
-                  v-model="productoQuery"
-                  type="text"
-                  placeholder="Nombre o código de producto..."
-                  class="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  @input="onProductoInput"
-                />
-              </div>
-              <ul v-if="productosResultados.length" class="mt-1 max-h-44 divide-y divide-slate-100 overflow-y-auto rounded-lg border border-slate-200">
-                <li
-                  v-for="p in productosResultados"
-                  :key="p.id"
-                  class="flex cursor-pointer items-center justify-between gap-4 px-4 py-2.5 transition-colors hover:bg-blue-50"
-                  @click="addItem(p)"
-                >
-                  <div>
-                    <p class="text-sm font-medium text-slate-900">{{ p.nombre }}</p>
-                    <p class="text-xs text-slate-500">{{ p.tipo }} · Stock: {{ p.stock_actual ?? '—' }}</p>
-                  </div>
-                  <span class="text-xs font-mono font-medium text-slate-700">{{ formatCurrency(p.precio_venta ?? 0) }}</span>
-                </li>
-              </ul>
-            </div>
+            <InvProductoBuscador
+              label="Agregar producto"
+              placeholder="Buscar por nombre o código..."
+              :clear-on-select="true"
+              @select="addItem"
+            />
 
             <!-- Lista de ítems -->
             <div v-if="items.length" class="rounded-lg border border-slate-200">
@@ -253,15 +233,15 @@
 
 <script setup>
 import { ref, reactive, computed, watch, onMounted } from 'vue'
-import invVentaService    from '@/services/invVentaService.js'
-import invAlmacenService  from '@/services/invAlmacenService.js'
-import invProductoService from '@/services/invProductoService.js'
-import bancoService       from '@/services/bancoService.js'
-import { authService }    from '@/services/authService.js'
-import { useNotification } from '@/composables/useNotification'
-import NavIcon    from '@/components/icons/NavIcon.vue'
-import FormInput  from '@/components/forms/FormInput.vue'
-import FormSelect from '@/components/forms/FormSelect.vue'
+import invVentaService        from '@/services/invVentaService.js'
+import invAlmacenService      from '@/services/invAlmacenService.js'
+import bancoService           from '@/services/bancoService.js'
+import { authService }        from '@/services/authService.js'
+import { useNotification }    from '@/composables/useNotification'
+import NavIcon              from '@/components/icons/NavIcon.vue'
+import FormInput            from '@/components/forms/FormInput.vue'
+import FormSelect           from '@/components/forms/FormSelect.vue'
+import InvProductoBuscador  from '@/components/inventario/InvProductoBuscador.vue'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
@@ -350,37 +330,19 @@ async function loadAlmacenes() {
 }
 
 // ─── Paso 2: Productos ────────────────────────────────────────────────────────
-const productoQuery      = ref('')
-const productosResultados = ref([])
-const items              = ref([])
+const items = ref([])
 
 const totalItems = computed(() => items.value.reduce((s, i) => s + i.cantidad * i.precio_unitario, 0))
 
-let productoTimer = null
-function onProductoInput() {
-  clearTimeout(productoTimer)
-  if (productoQuery.value.length < 2) { productosResultados.value = []; return }
-  productoTimer = setTimeout(buscarProducto, 350)
-}
-
-async function buscarProducto() {
-  try {
-    const res = await invProductoService.getAll({ search: productoQuery.value, status: 1, per_page: 10 })
-    productosResultados.value = (res.data ?? res ?? []).slice(0, 10)
-  } catch { productosResultados.value = [] }
-}
-
 function addItem(p) {
   const existing = items.value.find(i => i.producto_id === p.id)
-  if (existing) { existing.cantidad++; productosResultados.value = []; productoQuery.value = ''; return }
+  if (existing) { existing.cantidad++; return }
   items.value.push({
     producto_id:    p.id,
     nombre:         p.nombre,
     precio_unitario: p.precio_venta ?? 0,
     cantidad:       1,
   })
-  productosResultados.value = []
-  productoQuery.value = ''
 }
 
 function removeItem(productoId) {
@@ -468,8 +430,6 @@ function resetWizard() {
   estudianteQuery.value = ''
   estudiantesResultados.value = []
   estudianteSeleccionado.value = null
-  productoQuery.value = ''
-  productosResultados.value = []
   items.value = []
   medioPago.value = 'efectivo'
   formError.value = ''

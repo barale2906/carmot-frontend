@@ -59,20 +59,40 @@
           <template v-if="column.key === 'tipo'">
             <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
               :class="{
-                'bg-green-100 text-green-800': row.tipo === 'entrada',
-                'bg-blue-100 text-blue-800':   row.tipo === 'ajuste',
-                'bg-purple-100 text-purple-800': row.tipo === 'traslado',
-                'bg-amber-100 text-amber-800':  row.tipo === 'devolucion',
+                'bg-green-100 text-green-800':   tipoRaw(row) === 'entrada',
+                'bg-blue-100 text-blue-800':     tipoRaw(row) === 'ajuste',
+                'bg-purple-100 text-purple-800': tipoRaw(row) === 'traslado',
+                'bg-amber-100 text-amber-800':   tipoRaw(row) === 'devolucion',
               }"
-            >{{ tipoLabel(row.tipo) }}</span>
+            >{{ tipoLabel(tipoRaw(row)) }}</span>
           </template>
-          <template v-else-if="column.key === 'referencia'">
+          <template v-else-if="column.key === 'almacen'">
+            {{ row.almacen?.nombre ?? '—' }}
+          </template>
+          <template v-else-if="column.key === 'productos'">
+            <ul v-if="lineasDeRow(row).length" class="flex flex-col gap-0.5">
+              <li v-for="l in lineasDeRow(row)" :key="l.id" class="text-sm text-slate-900">
+                {{ l.producto?.nombre ?? '—' }}
+              </li>
+            </ul>
+            <span v-else class="text-slate-400">—</span>
+          </template>
+          <template v-else-if="column.key === 'cantidad'">
+            <ul v-if="lineasDeRow(row).length" class="flex flex-col gap-0.5">
+              <li v-for="l in lineasDeRow(row)" :key="l.id" class="text-sm font-mono font-medium text-slate-800">{{ Math.abs(Number(l.cantidad)) }}</li>
+            </ul>
+            <span v-else class="text-slate-400">—</span>
+          </template>
+          <template v-else-if="column.key === 'usuario'">
+            <span class="text-slate-700">{{ usuarioNombre(row) ?? '—' }}</span>
+          </template>
+          <template v-else-if="column.key === 'numero_documento'">
             <code v-if="value" class="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-mono text-slate-700">{{ value }}</code>
             <span v-else class="text-slate-400">—</span>
           </template>
           <template v-else-if="column.key === 'status'">
             <StatusBadge
-              :label="row.status === 'anulado' ? 'Anulado' : 'Vigente'"
+              :label="row.status === 'anulado' ? 'Anulado' : 'Confirmado'"
               :variant="row.status === 'anulado' ? 'inactivo' : 'activo'"
             />
           </template>
@@ -113,30 +133,54 @@
     </section>
 
     <!-- Modal: Nuevo movimiento -->
-    <ModalBase v-model="showMovimiento" :title="tituloMovimiento" :description="descripcionMovimiento">
+    <ModalBase v-model="showMovimiento" :title="tituloMovimiento" :description="descripcionMovimiento" size="lg">
       <form class="flex flex-col gap-4 pb-2" @submit.prevent="handleSubmitMovimiento">
-        <FormSelect v-model="movForm.almacen_id" label="Almacén origen" placeholder="Selecciona..." :options="almacenOptions" required :error="movErrors.almacen_id?.[0]" />
+        <FormSelect v-model="movForm.almacen_id" :label="labelAlmacen" placeholder="Selecciona..." :options="almacenFormOptions" required :error="movErrors.almacen_id?.[0]" />
+        <FormSelect
+          v-if="movForm.tipo === 'entrada'"
+          v-model="movForm.proveedor_id"
+          label="Proveedor"
+          placeholder="Selecciona el proveedor..."
+          :options="proveedorOptions"
+          :error="movErrors.proveedor_id?.[0]"
+        />
         <FormSelect
           v-if="movForm.tipo === 'traslado'"
           v-model="movForm.almacen_destino_id"
           label="Almacén destino"
           placeholder="Selecciona..."
-          :options="almacenOptions"
+          :options="almacenFormOptions"
           required
           :error="movErrors.almacen_destino_id?.[0]"
         />
-        <FormInput v-model="movForm.referencia" label="Referencia / Documento" placeholder="Ej: FAC-001 (opcional)" :error="movErrors.referencia?.[0]" />
-        <FormTextarea v-model="movForm.observaciones" label="Observaciones" placeholder="Observaciones del movimiento..." :rows="2" />
+        <FormTextarea v-model="movForm.motivo" label="Motivo / Observaciones" placeholder="Motivo u observaciones del movimiento..." :rows="2" />
 
         <!-- Líneas del movimiento -->
         <div class="rounded-lg border border-slate-200 p-4">
           <p class="mb-3 text-xs font-medium uppercase tracking-wide text-slate-500">Líneas del movimiento</p>
           <div v-for="(linea, idx) in movForm.lineas" :key="idx" class="mb-3 flex gap-3 items-end">
             <div class="flex-1">
-              <FormSelect v-model="linea.producto_id" :label="idx === 0 ? 'Producto' : ''" placeholder="Selecciona..." :options="productoOptions" />
+              <InvProductoBuscador
+                :label="idx === 0 ? 'Producto' : ''"
+                placeholder="Buscar producto..."
+                :clear-on-select="false"
+                @select="p => linea.producto_id = p.id"
+                @clear="() => linea.producto_id = ''"
+              />
             </div>
             <div class="w-24">
               <FormInput v-model="linea.cantidad" :label="idx === 0 ? 'Cantidad' : ''" type="number" min="1" />
+            </div>
+            <div v-if="movForm.tipo === 'ajuste'" class="w-32">
+              <FormSelect
+                v-model="linea.tipo_ajuste"
+                :label="idx === 0 ? 'Tipo ajuste' : ''"
+                :options="[{ value: 'ajuste_positivo', label: 'Positivo (+)' }, { value: 'ajuste_negativo', label: 'Negativo (-)' }]"
+                placeholder="Tipo..."
+              />
+            </div>
+            <div v-if="movForm.tipo === 'entrada'" class="w-28">
+              <FormInput v-model="linea.precio_costo" :label="idx === 0 ? 'Costo unit.' : ''" type="number" min="0" step="0.01" placeholder="0.00" />
             </div>
             <button type="button" class="mb-[2px] flex size-9 shrink-0 items-center justify-center rounded text-slate-400 hover:bg-red-100 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500" @click="removeLinea(idx)">
               <NavIcon name="trash" class="size-4" />
@@ -158,23 +202,24 @@
     </ModalBase>
 
     <!-- Modal: Detalle movimiento -->
-    <ModalBase v-model="showDetalle" title="Detalle del movimiento" description="Líneas y datos del movimiento seleccionado">
+    <ModalBase v-model="showDetalle" title="Detalle del movimiento" description="Líneas y datos del movimiento seleccionado" size="lg">
       <div v-if="!detalleItem" class="py-8 text-center text-sm text-slate-400">Sin datos.</div>
       <div v-else class="flex flex-col gap-4">
         <div class="grid grid-cols-2 gap-3 rounded-lg bg-slate-50 p-4 text-sm">
-          <div><p class="text-xs text-slate-400">Tipo</p><p class="font-medium">{{ tipoLabel(detalleItem.tipo) }}</p></div>
+          <div><p class="text-xs text-slate-400">Tipo</p><p class="font-medium">{{ tipoLabel(tipoRaw(detalleItem)) }}</p></div>
           <div><p class="text-xs text-slate-400">Fecha</p><p class="font-medium">{{ detalleItem.created_at?.split('T')[0] ?? '—' }}</p></div>
           <div><p class="text-xs text-slate-400">Almacén</p><p class="font-medium">{{ detalleItem.almacen?.nombre ?? '—' }}</p></div>
           <div v-if="detalleItem.almacen_destino"><p class="text-xs text-slate-400">Destino</p><p class="font-medium">{{ detalleItem.almacen_destino?.nombre }}</p></div>
-          <div><p class="text-xs text-slate-400">Referencia</p><p class="font-medium">{{ detalleItem.referencia ?? '—' }}</p></div>
-          <div><p class="text-xs text-slate-400">Estado</p><p :class="detalleItem.status === 'anulado' ? 'font-medium text-red-600' : 'font-medium text-green-700'">{{ detalleItem.status === 'anulado' ? 'Anulado' : 'Vigente' }}</p></div>
+          <div v-if="detalleItem.proveedor"><p class="text-xs text-slate-400">Proveedor</p><p class="font-medium">{{ detalleItem.proveedor?.razon_social ?? '—' }}</p></div>
+          <div><p class="text-xs text-slate-400">N° Documento</p><p class="font-medium font-mono">{{ detalleItem.numero_documento ?? '—' }}</p></div>
+          <div><p class="text-xs text-slate-400">Estado</p><p :class="detalleItem.status === 'anulado' ? 'font-medium text-red-600' : 'font-medium text-green-700'">{{ detalleItem.status === 'anulado' ? 'Anulado' : 'Confirmado' }}</p></div>
         </div>
-        <div v-if="detalleItem.observaciones" class="text-sm text-slate-600">
-          <p class="text-xs text-slate-400">Observaciones</p>
-          <p>{{ detalleItem.observaciones }}</p>
+        <div v-if="detalleItem.motivo" class="text-sm text-slate-600">
+          <p class="text-xs text-slate-400">Motivo / Observaciones</p>
+          <p>{{ detalleItem.motivo }}</p>
         </div>
-        <ul v-if="detalleItem.lineas?.length" class="divide-y divide-slate-100 rounded-lg border border-slate-200">
-          <li v-for="l in detalleItem.lineas" :key="l.id" class="flex items-center justify-between px-4 py-3">
+        <ul v-if="detalleLíneas.length" class="divide-y divide-slate-100 rounded-lg border border-slate-200">
+          <li v-for="l in detalleLíneas" :key="l.id" class="flex items-center justify-between px-4 py-3">
             <div>
               <p class="text-sm font-medium text-slate-900">{{ l.producto?.nombre ?? '—' }}</p>
               <p class="text-xs text-slate-400">{{ l.producto?.codigo ?? '' }}</p>
@@ -184,6 +229,7 @@
             </span>
           </li>
         </ul>
+        <p v-else class="rounded-lg border border-dashed border-slate-200 py-6 text-center text-sm text-slate-400">Sin líneas registradas</p>
       </div>
       <template #footer>
         <button type="button" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showDetalle = false">Cerrar</button>
@@ -196,7 +242,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import invMovimientoService from '@/services/invMovimientoService.js'
 import invAlmacenService    from '@/services/invAlmacenService.js'
-import invProductoService   from '@/services/invProductoService.js'
+import invProveedorService  from '@/services/invProveedorService.js'
 import { authService }      from '@/services/authService.js'
 import { useNotification }  from '@/composables/useNotification'
 import SectionHeader  from '@/components/activos/SectionHeader.vue'
@@ -205,8 +251,9 @@ import StatusBadge    from '@/components/activos/StatusBadge.vue'
 import NavIcon        from '@/components/icons/NavIcon.vue'
 import FormInput      from '@/components/forms/FormInput.vue'
 import FormTextarea   from '@/components/forms/FormTextarea.vue'
-import FormSelect     from '@/components/forms/FormSelect.vue'
-import ModalBase      from '@/components/ModalBase.vue'
+import FormSelect           from '@/components/forms/FormSelect.vue'
+import InvProductoBuscador from '@/components/inventario/InvProductoBuscador.vue'
+import ModalBase           from '@/components/ModalBase.vue'
 
 const { success: notifySuccess } = useNotification()
 
@@ -223,36 +270,56 @@ const movimientos = ref([])
 const loading = ref(false); const error = ref(''); const actionError = ref(''); const anulando = ref({})
 const pagination = reactive({ currentPage: 1, lastPage: 1, total: 0, from: 0, to: 0 })
 const filters = reactive({ tipo: '', almacen_id: '', fecha_inicio: '', fecha_fin: '' })
-const almacenOptions = ref([{ value: '', label: 'Todos los almacenes' }])
-const productoOptions = ref([])
+const almacenOptions      = ref([{ value: '', label: 'Todos los almacenes' }])
+const almacenFormOptions  = computed(() => almacenOptions.value.filter(o => o.value !== ''))
+const proveedorOptions    = ref([])
 
+// El backend puede devolver el tipo en 'tipo_documento' o en 'tipo'
+const tipoRaw   = (row) => row?.tipo_documento ?? row?.tipo ?? ''
 const tipoLabel = (t) => ({ entrada: 'Entrada', ajuste: 'Ajuste', traslado: 'Traslado', devolucion: 'Devolución' }[t] ?? t)
-const tipoOptions = [{ value: '', label: 'Todos' }, { value: 'entrada', label: 'Entrada' }, { value: 'ajuste', label: 'Ajuste' }, { value: 'traslado', label: 'Traslado' }, { value: 'devolucion', label: 'Devolución' }]
+const tipoOptions = [{ value: '', label: 'Todos' }, { value: 'entrada', label: 'Entrada' }, { value: 'salida', label: 'Salida' }, { value: 'ajuste', label: 'Ajuste' }, { value: 'traslado', label: 'Traslado' }, { value: 'devolucion', label: 'Devolución' }]
 
 const tableColumns = [
-  { key: 'tipo',       label: 'Tipo' },
-  { key: 'referencia', label: 'Referencia' },
-  { key: 'almacen',    label: 'Almacén' },
-  { key: 'status',     label: 'Estado' },
-  { key: 'created_at', label: 'Fecha' },
+  { key: 'tipo',              label: 'Tipo' },
+  { key: 'almacen',          label: 'Almacén' },
+  { key: 'productos',        label: 'Producto(s)' },
+  { key: 'cantidad',         label: 'Cantidad' },
+  { key: 'usuario',          label: 'Registrado por' },
+  { key: 'numero_documento', label: 'N° Documento' },
+  { key: 'status',           label: 'Estado' },
+  { key: 'created_at',       label: 'Fecha' },
 ]
+
+// Helpers para las celdas de productos/cantidades del listado
+const lineasDeRow     = (row) => row?.movimientos ?? row?.lineas ?? row?.detalles ?? row?.items ?? []
+const productosResumen = (row) => {
+  const ls = lineasDeRow(row)
+  if (!ls.length) return null
+  const primero = ls[0]?.producto?.nombre ?? ls[0]?.nombre ?? '—'
+  return { nombre: primero, extras: ls.length - 1 }
+}
+const cantidadTotal = (row) => {
+  const ls = lineasDeRow(row)
+  return ls.reduce((s, l) => s + Math.abs(Number(l.cantidad ?? 0)), 0) || null
+}
+const usuarioNombre = (row) => row?.usuario?.nombre ?? row?.usuario?.name ?? row?.user?.name ?? null
 
 async function loadSelectores() {
   try {
-    const [almacenes, productos] = await Promise.all([invAlmacenService.getActivos(), invProductoService.getActivos()])
-    almacenOptions.value  = [{ value: '', label: 'Todos los almacenes' }, ...(almacenes.data ?? almacenes).map(a => ({ value: a.id, label: a.nombre }))]
-    productoOptions.value = (productos.data ?? productos).map(p => ({ value: p.id, label: p.nombre }))
+    const [almacenes, proveedores] = await Promise.all([invAlmacenService.getActivos(), invProveedorService.getActivos()])
+    almacenOptions.value   = [{ value: '', label: 'Todos los almacenes' }, ...(almacenes.data ?? almacenes).map(a => ({ value: a.id, label: a.nombre }))]
+    proveedorOptions.value = (proveedores.data ?? proveedores).map(p => ({ value: p.id, label: p.razon_social }))
   } catch { /* no bloquea */ }
 }
 
 async function loadMovimientos(page = 1) {
   loading.value = true; error.value = ''
   try {
-    const params = { page, per_page: 20 }
-    if (filters.tipo)          params.tipo         = filters.tipo
-    if (filters.almacen_id)    params.almacen_id   = filters.almacen_id
-    if (filters.fecha_inicio)  params.fecha_inicio = filters.fecha_inicio
-    if (filters.fecha_fin)     params.fecha_fin    = filters.fecha_fin
+    const params = { page, per_page: 20, sort: 'created_at', direction: 'desc' }
+    if (filters.tipo)         params.tipo_documento = filters.tipo
+    if (filters.almacen_id)   params.almacen_id   = filters.almacen_id
+    if (filters.fecha_inicio) params.fecha_inicio = filters.fecha_inicio
+    if (filters.fecha_fin)    params.fecha_fin    = filters.fecha_fin
     const res = await invMovimientoService.getAll(params)
     movimientos.value = res.data ?? []
     if (res.meta) { pagination.currentPage = res.meta.current_page; pagination.lastPage = res.meta.last_page; pagination.total = res.meta.total; pagination.from = res.meta.from ?? 0; pagination.to = res.meta.to ?? 0 }
@@ -274,9 +341,10 @@ async function handleAnular(row) {
 }
 
 // ─── Detalle ───────────────────────────────────────────────────────────────────
-const showDetalle  = ref(false)
-const detalleItem  = ref(null)
+const showDetalle    = ref(false)
+const detalleItem    = ref(null)
 const detalleLoading = ref(false)
+const detalleLíneas  = computed(() => detalleItem.value?.movimientos ?? detalleItem.value?.lineas ?? detalleItem.value?.detalles ?? [])
 
 async function openDetalle(row) {
   showDetalle.value   = true
@@ -290,28 +358,34 @@ const showMovimiento  = ref(false)
 const savingMov       = ref(false)
 const movError        = ref('')
 const movErrors       = ref({})
-const movForm = reactive({ tipo: 'entrada', almacen_id: '', almacen_destino_id: '', referencia: '', observaciones: '', lineas: [{ producto_id: '', cantidad: 1 }] })
+const movForm = reactive({ tipo: 'entrada', proveedor_id: '', almacen_id: '', almacen_destino_id: '', motivo: '', lineas: [{ producto_id: '', cantidad: 1, tipo_ajuste: '', precio_costo: '' }] })
 
-const tituloMovimiento = computed(() => ({ entrada: 'Entrada de mercancía', ajuste: 'Ajuste de inventario', traslado: 'Traslado entre almacenes', devolucion: 'Devolución de cliente' }[movForm.tipo] ?? 'Nuevo movimiento'))
+const tituloMovimiento      = computed(() => ({ entrada: 'Entrada de mercancía', ajuste: 'Ajuste de inventario', traslado: 'Traslado entre almacenes', devolucion: 'Devolución de cliente' }[movForm.tipo] ?? 'Nuevo movimiento'))
 const descripcionMovimiento = computed(() => ({ entrada: 'Registra el ingreso de productos al almacén.', ajuste: 'Corrige diferencias en el conteo de inventario.', traslado: 'Mueve productos de un almacén a otro.', devolucion: 'Registra la devolución de productos de un cliente.' }[movForm.tipo] ?? ''))
+const labelAlmacen          = computed(() => ({ entrada: 'Almacén de destino', ajuste: 'Almacén', traslado: 'Almacén origen', devolucion: 'Almacén' }[movForm.tipo] ?? 'Almacén'))
 
 function openMovimiento(tipo) {
-  Object.assign(movForm, { tipo, almacen_id: '', almacen_destino_id: '', referencia: '', observaciones: '', lineas: [{ producto_id: '', cantidad: 1 }] })
+  Object.assign(movForm, { tipo, proveedor_id: '', almacen_id: '', almacen_destino_id: '', motivo: '', lineas: [{ producto_id: '', cantidad: 1, tipo_ajuste: '', precio_costo: '' }] })
   movError.value = ''; movErrors.value = {}; showMovimiento.value = true
 }
 
-function addLinea() { movForm.lineas.push({ producto_id: '', cantidad: 1 }) }
+function addLinea() { movForm.lineas.push({ producto_id: '', cantidad: 1, tipo_ajuste: '', precio_costo: '' }) }
 function removeLinea(idx) { if (movForm.lineas.length > 1) movForm.lineas.splice(idx, 1) }
 
 async function handleSubmitMovimiento() {
   movError.value = ''; movErrors.value = {}; savingMov.value = true
   const payload = {
-    tipo: movForm.tipo,
+    tipo_documento: movForm.tipo,
     almacen_id: movForm.almacen_id,
     almacen_destino_id: movForm.almacen_destino_id || undefined,
-    referencia: movForm.referencia.trim() || undefined,
-    observaciones: movForm.observaciones.trim() || undefined,
-    lineas: movForm.lineas.filter(l => l.producto_id).map(l => ({ producto_id: Number(l.producto_id), cantidad: Number(l.cantidad) })),
+    proveedor_id: movForm.proveedor_id || undefined,
+    motivo: movForm.motivo.trim() || undefined,
+    lineas: movForm.lineas.filter(l => l.producto_id).map(l => {
+      const item = { producto_id: Number(l.producto_id), cantidad: Number(l.cantidad) }
+      if (movForm.tipo === 'ajuste' && l.tipo_ajuste) item.tipo_ajuste = l.tipo_ajuste
+      if (movForm.tipo === 'entrada' && l.precio_costo) item.precio_costo = Number(l.precio_costo)
+      return item
+    }),
   }
   try {
     await invMovimientoService.create(payload)

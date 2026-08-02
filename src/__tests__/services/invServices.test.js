@@ -264,7 +264,7 @@ describe('invMovimientoService', () => {
   it('anular llama POST /{id}/anular con motivo', async () => {
     api.post.mockResolvedValue(ok({ anulado: true }))
     await invMovimientoService.anular(5, 'Error de captura')
-    expect(api.post).toHaveBeenCalledWith(`${BASE}/5/anular`, { motivo: 'Error de captura' })
+    expect(api.post).toHaveBeenCalledWith(`${BASE}/5/anular`, { motivo_anulacion: 'Error de captura' })
   })
 })
 

@@ -33,7 +33,7 @@ const invMovimientoService = {
 
   /** Anula el movimiento revirtiendo el stock afectado. */
   async anular(id, motivo) {
-    const { data } = await api.post(`${BASE}/${id}/anular`, { motivo })
+    const { data } = await api.post(`${BASE}/${id}/anular`, { motivo_anulacion: motivo })
     return data
   },
 }

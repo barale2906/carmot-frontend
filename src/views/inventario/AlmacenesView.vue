@@ -55,10 +55,10 @@
         </template>
         <template #actions="{ row }">
           <button v-if="canEditar" type="button" class="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500" title="Editar" @click="openEdit(row)">
-            <NavIcon name="edit" class="size-4" />
+            <NavIcon name="pencil" class="size-4" />
           </button>
           <button v-if="canEditar" type="button" class="rounded p-1.5 text-slate-500 transition-colors hover:bg-blue-100 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500" title="Gestionar cajeros" @click="openCajeros(row)">
-            <NavIcon name="usuarios" class="size-4" />
+            <NavIcon name="people" class="size-4" />
           </button>
           <button v-if="canInactivar" type="button" class="rounded p-1.5 text-slate-500 transition-colors hover:bg-red-100 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:cursor-not-allowed disabled:opacity-40" title="Eliminar" :disabled="!!deleting[row.id]" @click="handleDelete(row)">
             <NavIcon name="trash" class="size-4" />
@@ -206,8 +206,10 @@ const statusFormOptions = [{ value: 1, label: 'Activo' }, { value: 0, label: 'In
 
 async function loadSedes() {
   try {
-    const res = await sedeService.getActivas?.() ?? await sedeService.getAll?.()
-    const list = res?.data ?? res ?? []
+    let res
+    try { res = await sedeService.getActivas() }
+    catch { res = await sedeService.getAll() }
+    const list = res?.data ?? (Array.isArray(res) ? res : [])
     sedeOptions.value = list.map(s => ({ value: s.id, label: s.nombre }))
   } catch { sedeOptions.value = [] }
 }

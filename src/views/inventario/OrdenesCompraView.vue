@@ -127,7 +127,12 @@
           <p class="mb-3 text-xs font-medium uppercase tracking-wide text-slate-500">Productos a comprar</p>
           <div v-for="(item, idx) in ocForm.items" :key="idx" class="mb-3 flex items-end gap-3">
             <div class="flex-1">
-              <FormSelect v-model="item.producto_id" :label="idx === 0 ? 'Producto' : ''" placeholder="Selecciona..." :options="productoOptions" />
+              <InvProductoBuscador
+                :label="idx === 0 ? 'Producto' : ''"
+                placeholder="Buscar producto..."
+                @select="p => item.producto_id = p.id"
+                @clear="() => item.producto_id = ''"
+              />
             </div>
             <div class="w-24">
               <FormInput v-model="item.cantidad" :label="idx === 0 ? 'Cantidad' : ''" type="number" min="1" />
@@ -214,7 +219,6 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import invOrdenCompraService from '@/services/invOrdenCompraService.js'
 import invProveedorService   from '@/services/invProveedorService.js'
 import invAlmacenService     from '@/services/invAlmacenService.js'
-import invProductoService    from '@/services/invProductoService.js'
 import { authService }       from '@/services/authService.js'
 import { useNotification }   from '@/composables/useNotification'
 import SectionHeader   from '@/components/activos/SectionHeader.vue'
@@ -222,8 +226,9 @@ import DataTable       from '@/components/activos/DataTable.vue'
 import NavIcon         from '@/components/icons/NavIcon.vue'
 import FormInput       from '@/components/forms/FormInput.vue'
 import FormTextarea    from '@/components/forms/FormTextarea.vue'
-import FormSelect      from '@/components/forms/FormSelect.vue'
-import ModalBase       from '@/components/ModalBase.vue'
+import FormSelect           from '@/components/forms/FormSelect.vue'
+import InvProductoBuscador from '@/components/inventario/InvProductoBuscador.vue'
+import ModalBase           from '@/components/ModalBase.vue'
 
 const { success: notifySuccess } = useNotification()
 
@@ -249,7 +254,6 @@ const pagination = reactive({ currentPage: 1, lastPage: 1, total: 0, from: 0, to
 const filters    = reactive({ status: '', proveedor_id: '', almacen_id: '' })
 const proveedorOptions = ref([{ value: '', label: 'Todos' }])
 const almacenOptions   = ref([{ value: '', label: 'Todos' }])
-const productoOptions  = ref([])
 
 const statusOptions = [
   { value: '', label: 'Todos los estados' },
@@ -271,10 +275,9 @@ const tableColumns = [
 
 async function loadSelectores() {
   try {
-    const [provs, almacenes, productos] = await Promise.all([invProveedorService.getActivos(), invAlmacenService.getActivos(), invProductoService.getActivos()])
+    const [provs, almacenes] = await Promise.all([invProveedorService.getActivos(), invAlmacenService.getActivos()])
     proveedorOptions.value = [{ value: '', label: 'Todos' }, ...(provs.data ?? provs).map(p => ({ value: p.id, label: p.razon_social }))]
     almacenOptions.value   = [{ value: '', label: 'Todos' }, ...(almacenes.data ?? almacenes).map(a => ({ value: a.id, label: a.nombre }))]
-    productoOptions.value  = (productos.data ?? productos).map(p => ({ value: p.id, label: p.nombre }))
   } catch { /* no bloquea */ }
 }
 

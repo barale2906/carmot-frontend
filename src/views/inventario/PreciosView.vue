@@ -8,8 +8,15 @@
         <div class="min-w-0 flex-1 sm:max-w-xs">
           <FormInputSearch v-model="filters.search" label="Buscar:" placeholder="Nombre de producto..." @input="onSearchInput" />
         </div>
-        <div class="w-full sm:w-[200px]">
-          <FormSelect v-model="filters.producto_id" label="Producto:" placeholder="Todos" :options="productoOptions" @change="onFilterChange" />
+        <div class="w-full sm:w-[240px]">
+          <InvProductoBuscador
+            :key="filtroBuscadorKey"
+            label="Producto:"
+            tipo="simple"
+            placeholder="Buscar producto..."
+            @select="p => { filters.producto_id = p.id; onFilterChange() }"
+            @clear="() => { filters.producto_id = ''; onFilterChange() }"
+          />
         </div>
         <div class="flex w-full items-end gap-2 sm:w-auto">
           <button v-if="canCreate" type="button" class="flex h-9 items-center gap-2 rounded-lg bg-[#213360] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" @click="openCreate">
@@ -43,12 +50,6 @@
           <template v-else-if="column.key === 'precio'">
             <span class="font-mono font-medium text-slate-900">{{ formatCurrency(value) }}</span>
           </template>
-          <template v-else-if="column.key === 'vigente_desde'">
-            {{ value ?? '—' }}
-          </template>
-          <template v-else-if="column.key === 'vigente_hasta'">
-            {{ value ?? 'Sin vencimiento' }}
-          </template>
           <template v-else>{{ value ?? '—' }}</template>
         </template>
         <template #actions="{ row }">
@@ -78,16 +79,17 @@
     <!-- Modal: Crear / Editar precio -->
     <ModalBase v-model="showForm" :title="editingItem ? 'Editar precio' : 'Nuevo precio'" description="Precio de inventario vinculado a una lista de precios activa">
       <form class="flex flex-col gap-4 pb-2" @submit.prevent="handleSubmit">
-        <FormSelect v-model="form.producto_id" label="Producto" placeholder="Selecciona un producto..." :options="productoOptions" required :error="formErrors.producto_id?.[0]" />
+        <InvProductoBuscador
+          label="Producto"
+          tipo="simple"
+          placeholder="Buscar producto..."
+          :selected-product="editingItem?.producto ?? null"
+          @select="p => form.producto_id = p.id"
+          @clear="() => form.producto_id = ''"
+        />
+        <p v-if="formErrors.producto_id?.[0]" class="mt-1 text-xs text-red-600">{{ formErrors.producto_id[0] }}</p>
         <FormSelect v-model="form.lista_precio_id" label="Lista de precios" placeholder="Selecciona..." :options="listaPrecioOptions" required :error="formErrors.lista_precio_id?.[0]" />
-        <div class="grid grid-cols-2 gap-4">
-          <FormInput v-model="form.precio" label="Precio" type="number" min="0" step="0.01" placeholder="0.00" required :error="formErrors.precio?.[0]" />
-          <FormInput v-model="form.costo" label="Costo (opcional)" type="number" min="0" step="0.01" placeholder="0.00" :error="formErrors.costo?.[0]" />
-        </div>
-        <div class="grid grid-cols-2 gap-4">
-          <FormInput v-model="form.vigente_desde" label="Vigente desde" type="date" :error="formErrors.vigente_desde?.[0]" />
-          <FormInput v-model="form.vigente_hasta" label="Vigente hasta" type="date" :error="formErrors.vigente_hasta?.[0]" />
-        </div>
+        <FormInput v-model="form.precio" label="Precio" type="number" min="0" step="0.01" placeholder="0.00" required :error="formErrors.precio?.[0]" />
         <FormTextarea v-model="form.observaciones" label="Observaciones" placeholder="Observaciones opcionales..." :rows="2" :error="formErrors.observaciones?.[0]" />
         <div v-if="formError" class="rounded-lg border border-red-200 bg-red-50 p-3">
           <p class="text-sm text-red-700">{{ formError }}</p>
@@ -106,7 +108,6 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import invPrecioService   from '@/services/invPrecioService.js'
-import invProductoService from '@/services/invProductoService.js'
 import listaPrecioService from '@/services/listaPrecioService.js'
 import { authService }    from '@/services/authService.js'
 import { useNotification } from '@/composables/useNotification'
@@ -116,7 +117,8 @@ import NavIcon         from '@/components/icons/NavIcon.vue'
 import FormInputSearch from '@/components/forms/FormInputSearch.vue'
 import FormInput       from '@/components/forms/FormInput.vue'
 import FormTextarea    from '@/components/forms/FormTextarea.vue'
-import FormSelect      from '@/components/forms/FormSelect.vue'
+import FormSelect           from '@/components/forms/FormSelect.vue'
+import InvProductoBuscador from '@/components/inventario/InvProductoBuscador.vue'
 import ModalBase       from '@/components/ModalBase.vue'
 
 const { success: notifySuccess } = useNotification()
@@ -137,26 +139,20 @@ const formatCurrency = (v) => v != null ? new Intl.NumberFormat('es-CO', { style
 const precios     = ref([])
 const loading     = ref(false); const error = ref(''); const actionError = ref(''); const deleting = ref({})
 const pagination  = reactive({ currentPage: 1, lastPage: 1, total: 0, from: 0, to: 0 })
-const filters     = reactive({ search: '', producto_id: '' })
-const productoOptions   = ref([{ value: '', label: 'Todos los productos' }])
+const filters            = reactive({ search: '', producto_id: '' })
 const listaPrecioOptions = ref([])
+const filtroBuscadorKey  = ref(0)   // se incrementa al limpiar filtros para resetear el buscador
 
 const tableColumns = [
-  { key: 'producto',       label: 'Producto' },
-  { key: 'lista_precio',   label: 'Lista de precios' },
-  { key: 'precio',         label: 'Precio' },
-  { key: 'vigente_desde',  label: 'Desde' },
-  { key: 'vigente_hasta',  label: 'Hasta' },
+  { key: 'producto',     label: 'Producto' },
+  { key: 'lista_precio', label: 'Lista de precios' },
+  { key: 'precio',       label: 'Precio' },
 ]
 
 async function loadSelectores() {
   try {
-    const [productos, listas] = await Promise.all([
-      invProductoService.getActivos({ tipo: 'simple' }),
-      listaPrecioService.getAll?.({ origen: 0, status: 3, per_page: 100 }) ?? listaPrecioService.getActivas?.(),
-    ])
-    productoOptions.value = [{ value: '', label: 'Todos los productos' }, ...(productos.data ?? productos).map(p => ({ value: p.id, label: p.nombre }))]
-    const lista = listas?.data ?? listas ?? []
+    const listas = await (listaPrecioService.getAll?.({ origen: 0, status: 3, per_page: 100 }) ?? listaPrecioService.getActivas?.())
+    const lista  = listas?.data ?? listas ?? []
     listaPrecioOptions.value = Array.isArray(lista) ? lista.map(l => ({ value: l.id, label: l.nombre })) : []
   } catch { /* no bloquea */ }
 }
@@ -177,7 +173,7 @@ async function loadPrecios(page = 1) {
 let searchTimer = null
 function onSearchInput() { clearTimeout(searchTimer); searchTimer = setTimeout(() => loadPrecios(1), 400) }
 function onFilterChange() { loadPrecios(1) }
-function clearFilters() { filters.search = ''; filters.producto_id = ''; loadPrecios(1) }
+function clearFilters() { filters.search = ''; filters.producto_id = ''; filtroBuscadorKey.value++; loadPrecios(1) }
 function goToPage(p) { if (p >= 1 && p <= pagination.lastPage) loadPrecios(p) }
 
 async function handleDelete(row) {
@@ -190,19 +186,19 @@ async function handleDelete(row) {
 
 const showForm = ref(false); const editingItem = ref(null); const saving = ref(false)
 const formError = ref(''); const formErrors = ref({})
-const emptyForm = { producto_id: '', lista_precio_id: '', precio: '', costo: '', vigente_desde: '', vigente_hasta: '', observaciones: '' }
+const emptyForm = { producto_id: '', lista_precio_id: '', precio: '', observaciones: '' }
 const form = reactive({ ...emptyForm })
 
 function openCreate() { editingItem.value = null; Object.assign(form, emptyForm); formError.value = ''; formErrors.value = {}; showForm.value = true }
 function openEdit(row) {
   editingItem.value = row
-  Object.assign(form, { producto_id: row.producto_id ?? '', lista_precio_id: row.lista_precio_id ?? '', precio: row.precio ?? '', costo: row.costo ?? '', vigente_desde: row.vigente_desde ?? '', vigente_hasta: row.vigente_hasta ?? '', observaciones: row.observaciones ?? '' })
+  Object.assign(form, { producto_id: row.producto_id ?? '', lista_precio_id: row.lista_precio_id ?? '', precio: row.precio ?? '', observaciones: row.observaciones ?? '' })
   formError.value = ''; formErrors.value = {}; showForm.value = true
 }
 
 async function handleSubmit() {
   formError.value = ''; formErrors.value = {}; saving.value = true
-  const payload = { producto_id: form.producto_id, lista_precio_id: form.lista_precio_id, precio: Number(form.precio), costo: form.costo ? Number(form.costo) : null, vigente_desde: form.vigente_desde || null, vigente_hasta: form.vigente_hasta || null, observaciones: form.observaciones.trim() || null }
+  const payload = { producto_id: form.producto_id, lista_precio_id: form.lista_precio_id, precio: Number(form.precio), observaciones: form.observaciones.trim() || null }
   try {
     if (editingItem.value) { await invPrecioService.update(editingItem.value.id, payload); notifySuccess('Precio actualizado.') }
     else { await invPrecioService.create(payload); notifySuccess('Precio creado.') }

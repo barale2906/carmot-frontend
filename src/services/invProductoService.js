@@ -12,6 +12,14 @@ const invProductoService = {
     return data
   },
 
+  /** Búsqueda rápida por texto. Requiere q ≥ 3 chars. Permite filtrar por tipo. */
+  async buscar(q, tipo = null) {
+    const params = { q }
+    if (tipo) params.tipo = tipo
+    const { data } = await api.get(`${BASE}/buscar`, { params })
+    return data
+  },
+
   async getActivos(params = {}) {
     const { data } = await api.get(`${BASE}/activos`, { params })
     return data

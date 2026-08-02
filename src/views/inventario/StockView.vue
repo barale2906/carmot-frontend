@@ -6,30 +6,30 @@
       <h2 id="stats-stock-heading" class="sr-only">Resumen de stock</h2>
       <ul class="grid grid-cols-2 gap-4 sm:grid-cols-4" role="list">
         <li role="listitem">
-          <StatCard title="Total registros" :value="stats.total_registros ?? '—'" description="Combinaciones producto-almacén" icon="activos" icon-variant="blue" />
+          <StatCard title="Registros de stock" :value="stats.total_registros ?? '—'" description="Combinaciones producto-almacén" icon="activos" icon-variant="blue" />
         </li>
         <li role="listitem">
-          <StatCard title="Productos con stock" :value="stats.productos_con_stock ?? '—'" description="Tienen cantidad disponible > 0" icon="security" icon-variant="blue" />
+          <StatCard title="Unidades físicas" :value="stats.total_unidades_fisicas ?? '—'" description="Total en existencia física" icon="security" icon-variant="blue" />
         </li>
         <li role="listitem">
-          <StatCard title="Bajo stock" :value="stats.bajo_stock ?? '—'" description="Por debajo del punto de reorden" icon="pendientes" icon-variant="blue" />
+          <StatCard title="Unidades disponibles" :value="stats.total_unidades_disp ?? '—'" description="Sin reservar" icon="track_changes" icon-variant="blue" />
         </li>
         <li role="listitem">
-          <StatCard title="Sin stock" :value="stats.sin_stock ?? '—'" description="Cantidad disponible = 0" icon="track_changes" icon-variant="blue" />
+          <StatCard title="Bajo stock" :value="stats.productos_bajo_stock ?? '—'" description="Por debajo del punto de reorden" icon="pendientes" icon-variant="blue" />
         </li>
       </ul>
     </section>
 
     <!-- Alerta bajo stock -->
     <div
-      v-if="(stats.bajo_stock ?? 0) > 0"
+      v-if="(stats.productos_bajo_stock ?? 0) > 0"
       class="flex items-center gap-3 rounded-[14px] border border-amber-200 bg-amber-50 px-5 py-3"
     >
       <svg class="size-5 shrink-0 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
       </svg>
       <p class="text-sm text-amber-800">
-        <strong>{{ stats.bajo_stock }}</strong> producto(s) por debajo del punto de reorden. Considera crear órdenes de compra.
+        <strong>{{ stats.productos_bajo_stock }}</strong> producto(s) por debajo del punto de reorden. Considera crear órdenes de compra.
       </p>
       <button type="button" class="ml-auto text-xs font-medium text-amber-700 hover:underline" @click="filters.bajo_stock = true; loadStock(1)">Ver solo bajo stock</button>
     </div>
@@ -41,8 +41,8 @@
         <div class="w-full sm:w-[180px]">
           <FormSelect v-model="filters.almacen_id" label="Almacén:" placeholder="Todos" :options="almacenOptions" @change="onFilterChange" />
         </div>
-        <div class="w-full sm:w-[180px]">
-          <FormSelect v-model="filters.producto_id" label="Producto:" placeholder="Todos" :options="productoOptions" @change="onFilterChange" />
+        <div class="min-w-0 flex-1 sm:max-w-[240px]">
+          <FormInputSearch v-model="filters.search" label="Producto:" placeholder="Buscar producto..." @input="onSearchInput" />
         </div>
         <div class="flex w-full items-end gap-2 sm:w-auto">
           <button
@@ -109,20 +109,27 @@
     </section>
 
     <!-- Modal: Importar stock inicial -->
-    <ModalBase v-model="showImportar" title="Cargar stock inicial" description="Importa el inventario inicial desde un archivo CSV">
+    <ModalBase v-model="showImportar" title="Cargar stock inicial" description="Importa el inventario inicial desde un archivo Excel (XLSX)">
       <div class="flex flex-col gap-4 pb-2">
         <p class="text-sm text-slate-600">
-          Descarga la plantilla CSV, rellénala con los datos de stock inicial y súbela aquí.
+          Descarga la plantilla Excel. La segunda hoja contiene el catálogo de productos disponibles con sus códigos.
+          Completa la primera hoja con el código del producto y la cantidad, selecciona el almacén de destino y sube el archivo.
         </p>
         <button type="button" :disabled="downloadingPlantilla" class="flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="downloadPlantilla">
           <NavIcon name="layout" class="size-4" />
-          {{ downloadingPlantilla ? 'Descargando...' : 'Descargar plantilla CSV' }}
+          {{ downloadingPlantilla ? 'Descargando...' : 'Descargar plantilla Excel' }}
         </button>
+        <FormSelect
+          v-model="importAlmacenId"
+          label="Almacén de destino:"
+          placeholder="Selecciona un almacén"
+          :options="almacenesImportOptions"
+        />
         <FormFileUpload
           v-model="importFile"
-          label="Archivo CSV"
-          accept=".csv"
-          help="Formato: producto_id, almacen_id, cantidad, punto_reorden"
+          label="Archivo Excel (XLSX)"
+          accept=".xlsx"
+          help="Columnas requeridas: codigo_producto, cantidad"
           :error="importError"
         />
         <div v-if="importResult" class="rounded-lg border border-green-200 bg-green-50 p-3">
@@ -131,7 +138,7 @@
       </div>
       <template #footer>
         <button type="button" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showImportar = false">Cancelar</button>
-        <button type="button" :disabled="importing || !importFile" class="rounded-lg bg-[#213360] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50" @click="handleImportar">
+        <button type="button" :disabled="importing || !importFile || !importAlmacenId" class="rounded-lg bg-[#213360] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50" @click="handleImportar">
           {{ importing ? 'Importando...' : 'Importar stock' }}
         </button>
       </template>
@@ -143,7 +150,6 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import invStockService   from '@/services/invStockService.js'
 import invAlmacenService from '@/services/invAlmacenService.js'
-import invProductoService from '@/services/invProductoService.js'
 import { authService }   from '@/services/authService.js'
 import { useNotification } from '@/composables/useNotification'
 import StatCard        from '@/components/dashboard/StatCard.vue'
@@ -151,6 +157,7 @@ import SectionHeader   from '@/components/activos/SectionHeader.vue'
 import DataTable       from '@/components/activos/DataTable.vue'
 import NavIcon         from '@/components/icons/NavIcon.vue'
 import FormSelect      from '@/components/forms/FormSelect.vue'
+import FormInputSearch from '@/components/forms/FormInputSearch.vue'
 import FormFileUpload  from '@/components/forms/FormFileUpload.vue'
 import ModalBase       from '@/components/ModalBase.vue'
 
@@ -163,19 +170,28 @@ async function loadPermissions() {
   catch { /* permisos vacíos */ }
 }
 
-const stats = reactive({ total_registros: null, productos_con_stock: null, bajo_stock: null, sin_stock: null })
+const stats = reactive({ total_registros: null, total_unidades_fisicas: null, total_unidades_disp: null, total_unidades_reserv: null, productos_bajo_stock: null, almacenes_con_stock: null })
 
 async function loadStatistics() {
-  try { const res = await invStockService.getStatistics(); const d = res.data ?? {}; Object.assign(stats, { total_registros: d.total_registros ?? null, productos_con_stock: d.productos_con_stock ?? null, bajo_stock: d.bajo_stock ?? null, sin_stock: d.sin_stock ?? null }) }
-  catch { /* no bloquea */ }
+  try {
+    const res = await invStockService.getStatistics()
+    const d = res.data ?? {}
+    Object.assign(stats, {
+      total_registros:      d.total_registros      ?? null,
+      total_unidades_fisicas: d.total_unidades_fisicas ?? null,
+      total_unidades_disp:  d.total_unidades_disp  ?? null,
+      total_unidades_reserv: d.total_unidades_reserv ?? null,
+      productos_bajo_stock: d.productos_bajo_stock ?? null,
+      almacenes_con_stock:  d.almacenes_con_stock  ?? null,
+    })
+  } catch { /* no bloquea */ }
 }
 
 const stockItems   = ref([])
 const loading      = ref(false); const error = ref('')
 const pagination   = reactive({ currentPage: 1, lastPage: 1, total: 0, from: 0, to: 0 })
-const filters      = reactive({ almacen_id: '', producto_id: '', bajo_stock: false })
+const filters      = reactive({ almacen_id: '', search: '', bajo_stock: false })
 const almacenOptions = ref([{ value: '', label: 'Todos los almacenes' }])
-const productoOptions = ref([{ value: '', label: 'Todos los productos' }])
 
 const tableColumns = [
   { key: 'producto',           label: 'Producto' },
@@ -189,9 +205,8 @@ const tableColumns = [
 
 async function loadSelectores() {
   try {
-    const [almacenes, productos] = await Promise.all([invAlmacenService.getActivos(), invProductoService.getActivos()])
-    almacenOptions.value  = [{ value: '', label: 'Todos los almacenes' }, ...(almacenes.data ?? almacenes).map(a => ({ value: a.id, label: a.nombre }))]
-    productoOptions.value = [{ value: '', label: 'Todos los productos' }, ...(productos.data ?? productos).map(p => ({ value: p.id, label: p.nombre }))]
+    const almacenes = await invAlmacenService.getActivos()
+    almacenOptions.value = [{ value: '', label: 'Todos los almacenes' }, ...(almacenes.data ?? almacenes).map(a => ({ value: a.id, label: a.nombre }))]
   } catch { /* no bloquea */ }
 }
 
@@ -199,9 +214,9 @@ async function loadStock(page = 1) {
   loading.value = true; error.value = ''
   try {
     const params = { page, per_page: 20 }
-    if (filters.almacen_id)  params.almacen_id  = filters.almacen_id
-    if (filters.producto_id) params.producto_id = filters.producto_id
-    if (filters.bajo_stock)  params.bajo_stock  = 1
+    if (filters.almacen_id) params.almacen_id = filters.almacen_id
+    if (filters.search)     params.search     = filters.search
+    if (filters.bajo_stock) params.bajo_stock = 1
     const res = await invStockService.getAll(params)
     stockItems.value = res.data ?? []
     if (res.meta) { pagination.currentPage = res.meta.current_page; pagination.lastPage = res.meta.last_page; pagination.total = res.meta.total; pagination.from = res.meta.from ?? 0; pagination.to = res.meta.to ?? 0 }
@@ -209,37 +224,62 @@ async function loadStock(page = 1) {
   finally { loading.value = false }
 }
 
+let searchTimer = null
+function onSearchInput() {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => loadStock(1), 400)
+}
+
 function onFilterChange() { loadStock(1) }
-function clearFilters() { filters.almacen_id = ''; filters.producto_id = ''; filters.bajo_stock = false; loadStock(1) }
+function clearFilters() { filters.almacen_id = ''; filters.search = ''; filters.bajo_stock = false; loadStock(1) }
 function goToPage(p) { if (p >= 1 && p <= pagination.lastPage) loadStock(p) }
 
 // ─── Importar stock inicial ────────────────────────────────────────────────────
-const showImportar        = ref(false)
-const importFile          = ref(null)
-const importing           = ref(false)
-const importError         = ref('')
-const importResult        = ref('')
+const showImportar         = ref(false)
+const importFile           = ref(null)
+const importAlmacenId      = ref('')
+const importing            = ref(false)
+const importError          = ref('')
+const importResult         = ref('')
 const downloadingPlantilla = ref(false)
 
-function openImportar() { showImportar.value = true; importFile.value = null; importError.value = ''; importResult.value = '' }
+// Opciones de almacén para el selector del modal (sin la opción "Todos")
+const almacenesImportOptions = computed(() =>
+  almacenOptions.value.filter(o => o.value !== '')
+)
+
+function openImportar() {
+  showImportar.value = true
+  importFile.value   = null
+  importAlmacenId.value = ''
+  importError.value  = ''
+  importResult.value = ''
+}
 
 async function downloadPlantilla() {
   downloadingPlantilla.value = true
   try {
     const res = await invStockService.getPlantilla()
-    const url = URL.createObjectURL(new Blob([res.data]))
-    const a = document.createElement('a'); a.href = url; a.download = 'stock_plantilla.csv'; a.click(); URL.revokeObjectURL(url)
+    const url = URL.createObjectURL(
+      new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    )
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'plantilla_stock_inicial.xlsx'
+    a.click()
+    URL.revokeObjectURL(url)
   } catch { /* silencioso */ } finally { downloadingPlantilla.value = false }
 }
 
 async function handleImportar() {
-  if (!importFile.value) return
+  if (!importFile.value || !importAlmacenId.value) return
   importing.value = true; importError.value = ''; importResult.value = ''
   const fd = new FormData()
   fd.append('archivo', importFile.value)
+  fd.append('almacen_id', importAlmacenId.value)
   try {
-    const res = await invStockService.importar(fd, { headers: { 'Content-Type': 'multipart/form-data' } })
-    importResult.value = res.message ?? `${res.data?.importados ?? 0} registros importados correctamente.`
+    const res = await invStockService.importar(fd)
+    importResult.value = res.message ?? `${res.data?.procesadas ?? 0} registros importados correctamente.`
     loadStock(1); loadStatistics()
   } catch (e) { importError.value = e?.response?.data?.message ?? 'Error al importar el archivo.' }
   finally { importing.value = false }
