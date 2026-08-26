@@ -93,7 +93,7 @@
         </template>
         <template #actions="{ row }">
           <button v-if="canEditar" type="button" class="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500" title="Editar datos básicos" @click="openEdit(row)">
-            <NavIcon name="edit" class="size-4" />
+            <NavIcon name="pencil" class="size-4" />
           </button>
           <!-- Botón de composición para grupos y kits -->
           <button
@@ -104,7 +104,7 @@
             :title="row.tipo === 'kit' ? 'Gestionar grupos del kit' : 'Gestionar variantes del grupo'"
             @click="openComponentes(row)"
           >
-            <NavIcon name="layout" class="size-4" />
+            <NavIcon name="groups" class="size-4" />
           </button>
           <button v-if="canInactivar" type="button" class="rounded p-1.5 text-slate-500 transition-colors hover:bg-red-100 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:cursor-not-allowed disabled:opacity-40" title="Eliminar" :disabled="!!deleting[row.id]" @click="handleDelete(row)">
             <NavIcon name="trash" class="size-4" />
@@ -152,6 +152,25 @@
           >{{ tipoLabel(editingItem?.tipo) }}</span>
           <span class="ml-auto text-xs text-slate-400">El tipo no se puede cambiar.</span>
         </div>
+
+        <!-- Composición del kit — solo lectura -->
+        <div v-if="editingItem?.tipo === 'kit'" class="rounded-lg border border-purple-200 bg-purple-50 p-4">
+          <p class="mb-2 text-xs font-medium uppercase tracking-wide text-purple-700">Grupos que componen este kit</p>
+          <div v-if="kitComponentesLoading" class="text-xs text-slate-400">Cargando composición...</div>
+          <ul v-else-if="kitComponentes.length" class="flex flex-col gap-1">
+            <li
+              v-for="comp in kitComponentes"
+              :key="comp.id"
+              class="flex items-center gap-2 rounded-md bg-white px-3 py-2 text-sm text-slate-700 border border-purple-100"
+            >
+              <NavIcon name="groups" class="size-4 shrink-0 text-purple-400" />
+              <span class="flex-1">{{ gruposOptions.find(g => g.value === comp.grupo_producto_id)?.label ?? comp.componente?.nombre ?? comp.grupo?.nombre ?? '—' }}</span>
+              <span class="text-xs text-slate-400">Cant: {{ comp.cantidad }}</span>
+            </li>
+          </ul>
+          <p v-else class="text-xs text-slate-400">Sin grupos definidos. Usa "Gestionar grupos del kit" para agregarlos.</p>
+        </div>
+
         <FormInput v-model="form.nombre" label="Nombre" placeholder="Nombre del producto" required :error="formErrors.nombre?.[0]" />
         <FormInput v-model="form.codigo" label="Código / SKU" placeholder="Ej: UNI-M-001 (opcional)" :error="formErrors.codigo?.[0]" />
         <div class="grid grid-cols-2 gap-4">
@@ -203,7 +222,14 @@
         <ul v-if="componentes.length" class="mb-4 divide-y divide-slate-100 rounded-lg border border-slate-200">
           <li v-for="comp in componentes" :key="comp.id" class="flex items-center justify-between gap-3 px-4 py-3">
             <div class="flex-1">
-              <p class="text-sm font-medium text-slate-900">{{ comp.componente?.nombre ?? '—' }}</p>
+              <p class="text-sm font-medium text-slate-900">
+                <template v-if="componentesProducto?.tipo === 'kit'">
+                  {{ gruposOptions.find(g => g.value === comp.grupo_producto_id)?.label ?? comp.componente?.nombre ?? comp.grupo?.nombre ?? '—' }}
+                </template>
+                <template v-else>
+                  {{ comp.nombre ?? comp.componente?.nombre ?? '—' }}
+                </template>
+              </p>
               <p class="text-xs text-slate-400">
                 <template v-if="componentesProducto?.tipo === 'kit'">Cantidad: {{ comp.cantidad }}</template>
                 <template v-else>Variante #{{ comp.orden }}</template>
@@ -406,10 +432,21 @@ const showForm = ref(false); const editingItem = ref(null); const saving = ref(f
 const formError = ref(''); const formErrors = ref({})
 const form = reactive({ nombre: '', codigo: '', categoria_id: '', unidad_medida_id: '', descripcion: '', status: 1 })
 
-function openEdit(row) {
+const kitComponentes = ref([])
+const kitComponentesLoading = ref(false)
+
+async function openEdit(row) {
   editingItem.value = row
   Object.assign(form, { nombre: row.nombre ?? '', codigo: row.codigo ?? '', categoria_id: row.categoria_id ?? '', unidad_medida_id: row.unidad_medida_id ?? '', descripcion: row.descripcion ?? '', status: row.status ?? 1 })
-  formError.value = ''; formErrors.value = {}; showForm.value = true
+  formError.value = ''; formErrors.value = {}
+  kitComponentes.value = []
+  if (row.tipo === 'kit') {
+    kitComponentesLoading.value = true
+    try { const res = await invProductoService.getComponentes(row.id); kitComponentes.value = res.data ?? [] }
+    catch { kitComponentes.value = [] }
+    finally { kitComponentesLoading.value = false }
+  }
+  showForm.value = true
 }
 
 async function handleSubmit() {

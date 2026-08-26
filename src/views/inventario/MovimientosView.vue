@@ -133,7 +133,7 @@
     </section>
 
     <!-- Modal: Nuevo movimiento -->
-    <ModalBase v-model="showMovimiento" :title="tituloMovimiento" :description="descripcionMovimiento" size="lg">
+    <ModalBase v-model="showMovimiento" :title="tituloMovimiento" :description="descripcionMovimiento" size="full">
       <form class="flex flex-col gap-4 pb-2" @submit.prevent="handleSubmitMovimiento">
         <FormSelect v-model="movForm.almacen_id" :label="labelAlmacen" placeholder="Selecciona..." :options="almacenFormOptions" required :error="movErrors.almacen_id?.[0]" />
         <FormSelect
@@ -163,6 +163,7 @@
               <InvProductoBuscador
                 :label="idx === 0 ? 'Producto' : ''"
                 placeholder="Buscar producto..."
+                tipo="simple"
                 :clear-on-select="false"
                 @select="p => linea.producto_id = p.id"
                 @clear="() => linea.producto_id = ''"
@@ -182,11 +183,26 @@
             <div v-if="movForm.tipo === 'entrada'" class="w-28">
               <FormInput v-model="linea.precio_costo" :label="idx === 0 ? 'Costo unit.' : ''" type="number" min="0" step="0.01" placeholder="0.00" />
             </div>
+            <!-- Subtotal por línea (solo entrada) -->
+            <div v-if="movForm.tipo === 'entrada'" class="w-32 flex flex-col justify-end">
+              <span v-if="idx === 0" class="mb-1 text-xs font-medium text-slate-700">Subtotal</span>
+              <div class="flex h-9 items-center justify-end rounded-lg border border-slate-100 bg-slate-50 px-3 text-sm font-medium text-slate-800">
+                {{ formatCOP(subtotalLinea(linea)) }}
+              </div>
+            </div>
             <button type="button" class="mb-[2px] flex size-9 shrink-0 items-center justify-center rounded text-slate-400 hover:bg-red-100 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500" @click="removeLinea(idx)">
               <NavIcon name="trash" class="size-4" />
             </button>
           </div>
-          <button type="button" class="text-xs font-medium text-blue-600 hover:underline focus:outline-none" @click="addLinea">+ Agregar línea</button>
+          <!-- Total de la entrada -->
+          <div v-if="movForm.tipo === 'entrada'" class="mt-3 flex items-center justify-between border-t border-slate-200 pt-3">
+            <button type="button" class="text-xs font-medium text-blue-600 hover:underline focus:outline-none" @click="addLinea">+ Agregar línea</button>
+            <div class="text-right">
+              <p class="text-xs text-slate-400 uppercase tracking-wide">Total entrada</p>
+              <p class="text-lg font-semibold text-slate-900">$ {{ formatCOP(totalEntrada) }}</p>
+            </div>
+          </div>
+          <button v-else type="button" class="text-xs font-medium text-blue-600 hover:underline focus:outline-none" @click="addLinea">+ Agregar línea</button>
         </div>
 
         <div v-if="movError" class="rounded-lg border border-red-200 bg-red-50 p-3">
@@ -368,6 +384,10 @@ function openMovimiento(tipo) {
   Object.assign(movForm, { tipo, proveedor_id: '', almacen_id: '', almacen_destino_id: '', motivo: '', lineas: [{ producto_id: '', cantidad: 1, tipo_ajuste: '', precio_costo: '' }] })
   movError.value = ''; movErrors.value = {}; showMovimiento.value = true
 }
+
+const subtotalLinea  = (l) => (Number(l.cantidad) || 0) * (Number(l.precio_costo) || 0)
+const totalEntrada   = computed(() => movForm.lineas.reduce((sum, l) => sum + subtotalLinea(l), 0))
+const formatCOP      = (val) => (Number(val) || 0).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 
 function addLinea() { movForm.lineas.push({ producto_id: '', cantidad: 1, tipo_ajuste: '', precio_costo: '' }) }
 function removeLinea(idx) { if (movForm.lineas.length > 1) movForm.lineas.splice(idx, 1) }
