@@ -25,10 +25,27 @@ const invPedidoService = {
     return data
   },
 
-  /** Cancela un pedido en status 'activo'. */
+  /** Cancela un pedido en status 'activo' (sin reintegro de stock). */
   async cancelar(id, motivo) {
     const { data } = await api.post(`${BASE}/${id}/cancelar`, { motivo })
     return data
+  },
+
+  /**
+   * Anula un pedido en cualquier estado excepto 'cancelado'.
+   * Reintegra el stock de los ítems ya entregados y genera documento DEV-.
+   */
+  async anular(id) {
+    const { data } = await api.post(`${BASE}/${id}/anular`)
+    return data
+  },
+
+  /**
+   * Descarga el ticket PDF del pedido como blob.
+   * Usar con responseType: 'blob' o con window.open.
+   */
+  async descargarTicketPdf(id) {
+    return api.get(`${BASE}/${id}/ticket-pdf`, { responseType: 'blob' })
   },
 }
 

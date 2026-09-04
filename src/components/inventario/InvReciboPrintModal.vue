@@ -18,7 +18,7 @@
           @click.stop
         >
           <!-- Cabecera del modal (no se imprime) -->
-          <div class="flex items-start justify-between gap-4 border-b border-black/5 px-6 py-5 print:hidden">
+          <div class="flex items-start justify-between gap-4 border-b border-black/5 px-6 py-5">
             <div>
               <h2 class="text-lg font-semibold text-slate-900">Recibo de venta — Inventario</h2>
               <p class="mt-0.5 text-sm text-slate-500">Revisa y presiona Imprimir para generar el PDF</p>
@@ -30,22 +30,6 @@
               @click="$emit('close')"
             >
               <NavIcon name="close" class="size-4" />
-            </button>
-          </div>
-
-          <!-- Acciones (no se imprimen) -->
-          <div class="flex justify-end gap-2 border-b border-black/5 px-6 py-3 print:hidden">
-            <button
-              type="button"
-              class="flex h-8 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              @click="$emit('close')"
-            >Cancelar</button>
-            <button
-              type="button"
-              class="flex h-8 items-center gap-2 rounded-lg bg-[#213360] px-3 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] focus:outline-none focus:ring-2 focus:ring-blue-500"
-              @click="imprimir"
-            >
-              <NavIcon name="layout" class="size-4" /> Imprimir
             </button>
           </div>
 
@@ -66,7 +50,7 @@
               </div>
               <div class="shrink-0 text-right">
                 <span class="inline-block rounded-lg bg-[#213360] px-3 py-1.5 text-sm font-bold text-white">
-                  INV-{{ String(pedido.id).padStart(6, '0') }}
+                  {{ numeroRecibo }}
                 </span>
                 <p class="mt-1.5 text-xs text-slate-500">Fecha: {{ fechaFormateada }}</p>
                 <p class="mt-0.5 text-xs">
@@ -89,7 +73,7 @@
               </div>
               <div>
                 <dt class="text-xs text-slate-400">Documento</dt>
-                <dd class="font-medium text-slate-800">{{ pedido.estudiante?.documento ?? pedido.estudiante?.numero_documento ?? '—' }}</dd>
+                <dd class="font-medium text-slate-800">{{ pedido.estudiante?.documento ?? '—' }}</dd>
               </div>
               <div>
                 <dt class="text-xs text-slate-400">Almacén</dt>
@@ -97,27 +81,28 @@
               </div>
               <div>
                 <dt class="text-xs text-slate-400">Cajero</dt>
-                <dd class="text-slate-800">{{ pedido.cajero?.nombre_completo ?? pedido.cajero?.name ?? '—' }}</dd>
+                <dd class="text-slate-800">{{ pedido.cajero?.nombre ?? '—' }}</dd>
               </div>
             </div>
 
             <!-- Tabla de ítems -->
             <div class="mt-4">
-              <table class="w-full text-sm">
+              <h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-[#213360]">Productos</h3>
+              <table class="w-full border-collapse text-sm">
                 <thead>
-                  <tr class="border-b border-slate-200 text-left">
-                    <th class="pb-2 text-xs font-semibold text-slate-500">Producto</th>
-                    <th class="pb-2 text-center text-xs font-semibold text-slate-500">Cant.</th>
-                    <th class="pb-2 text-right text-xs font-semibold text-slate-500">Precio unit.</th>
-                    <th class="pb-2 text-right text-xs font-semibold text-slate-500">Total</th>
+                  <tr class="border-b-2 border-[#213360] text-left">
+                    <th class="pb-2 text-xs font-semibold text-slate-700">Producto</th>
+                    <th class="pb-2 text-center text-xs font-semibold text-slate-700">Cant.</th>
+                    <th class="pb-2 text-right text-xs font-semibold text-slate-700">Precio unit.</th>
+                    <th class="pb-2 text-right text-xs font-semibold text-slate-700">Total</th>
                   </tr>
                 </thead>
-                <tbody>
-                  <tr v-for="item in pedido.items ?? []" :key="item.id" class="border-b border-slate-100">
+                <tbody class="divide-y divide-slate-100">
+                  <tr v-for="item in pedido.items ?? []" :key="item.id">
                     <td class="py-2 font-medium text-slate-800">{{ item.producto?.nombre ?? '—' }}</td>
                     <td class="py-2 text-center text-slate-600">{{ item.cantidad }}</td>
-                    <td class="py-2 text-right text-slate-600">{{ formatCurrency(item.precio_unitario) }}</td>
-                    <td class="py-2 text-right font-medium text-slate-800">{{ formatCurrency(item.total ?? (item.precio_unitario * item.cantidad)) }}</td>
+                    <td class="py-2 text-right font-mono text-slate-600">{{ formatCurrency(item.precio_unitario) }}</td>
+                    <td class="py-2 text-right font-mono font-medium text-slate-800">{{ formatCurrency(item.subtotal ?? (item.precio_unitario * item.cantidad)) }}</td>
                   </tr>
                 </tbody>
               </table>
@@ -125,10 +110,6 @@
 
             <!-- Totales -->
             <div class="mt-4 flex flex-col items-end gap-1.5 border-t border-slate-200 pt-3 text-sm">
-              <div class="flex w-full max-w-xs justify-between gap-4">
-                <span class="text-slate-500">Subtotal</span>
-                <span class="font-medium text-slate-800">{{ formatCurrency(pedido.total) }}</span>
-              </div>
               <div class="flex w-full max-w-xs justify-between gap-4">
                 <span class="text-slate-500">Total abonado</span>
                 <span class="font-medium text-green-700">{{ formatCurrency(totalAbonado) }}</span>
@@ -138,30 +119,82 @@
                 <span class="font-medium text-amber-700">{{ formatCurrency(saldoPendiente) }}</span>
               </div>
               <div class="mt-1 flex w-full max-w-xs justify-between gap-4 border-t border-slate-200 pt-2">
-                <span class="font-semibold text-slate-900">Total</span>
-                <span class="text-lg font-bold text-[#213360]">{{ formatCurrency(pedido.total) }}</span>
+                <span class="font-semibold text-slate-900">Total pedido</span>
+                <span class="text-lg font-bold text-[#213360]">{{ formatCurrency(pedido.valor_total) }}</span>
               </div>
             </div>
 
-            <!-- Medios de pago -->
-            <div v-if="pedido.abonos?.length" class="mt-4">
-              <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Abonos registrados</p>
+            <!-- Recibos de pago vinculados -->
+            <div v-if="pedido.recibo_links?.length" class="mt-4">
+              <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Recibos de inventario</p>
               <ul class="divide-y divide-slate-100 rounded-lg border border-slate-200">
-                <li v-for="abono in pedido.abonos" :key="abono.id" class="flex items-center justify-between px-4 py-2 text-sm">
+                <li v-for="link in pedido.recibo_links" :key="link.recibo_pago_id" class="flex items-center justify-between px-4 py-2 text-sm">
                   <div class="flex items-center gap-2">
-                    <span class="font-medium text-slate-700">{{ medioLabel(abono.medio_pago) }}</span>
-                    <span v-if="abono.referencia" class="text-xs text-slate-400">· {{ abono.referencia }}</span>
-                    <span v-if="abono.banco?.nombre" class="text-xs text-slate-400">· {{ abono.banco.nombre }}</span>
+                    <span class="font-mono text-slate-700">{{ link.numero_recibo ?? `#${link.recibo_pago_id}` }}</span>
+                    <span v-if="link.created_at" class="text-xs text-slate-400">· {{ new Date(link.created_at).toLocaleDateString('es-CO', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' }) }}</span>
                   </div>
-                  <span class="font-mono font-medium text-slate-800">{{ formatCurrency(abono.valor) }}</span>
+                  <span class="font-mono font-medium text-slate-800">{{ formatCurrency(link.monto_abonado) }}</span>
                 </li>
               </ul>
             </div>
 
+            <!-- Firmas -->
+            <div class="mt-10 grid grid-cols-2 gap-8 break-inside-avoid">
+              <div class="border-t border-slate-300 pt-2">
+                <p class="text-xs font-medium text-slate-700">Firma del estudiante</p>
+                <p class="mt-0.5 text-xs text-slate-400">{{ nombreEstudiante }}</p>
+              </div>
+              <div class="border-t border-slate-300 pt-2">
+                <p class="text-xs font-medium text-slate-700">Responsable de caja</p>
+                <p class="mt-0.5 text-xs text-slate-400">{{ pedido.cajero?.nombre ?? '' }}</p>
+              </div>
+            </div>
+
             <!-- Pie de página -->
-            <div class="mt-6 border-t border-slate-100 pt-4 text-center">
-              <p class="text-xs text-slate-400">Este comprobante es válido como constancia de venta de inventario.</p>
-              <p class="mt-1 text-xs text-slate-400">CARMOT — NIT: 1.048.849.874-0</p>
+            <p class="mt-6 border-t border-black/5 pt-3 text-center text-[10px] text-slate-400">
+              Centro de Capacitaciones CARMOT — NIT: 1.048.849.874-0
+              <br>Generado el: {{ generadoEl }}
+            </p>
+          </div>
+
+          <!-- Footer del modal (no se imprime) -->
+          <div class="border-t border-black/5 px-6 py-4">
+            <!-- Feedback de envío de correo -->
+            <p
+              v-if="emailStatus"
+              class="mb-3 flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm"
+              :class="emailStatus === 'ok' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'"
+            >
+              <NavIcon :name="emailStatus === 'ok' ? 'check' : 'close'" class="size-4 shrink-0" />
+              {{ emailMsg }}
+            </p>
+            <div class="flex items-center justify-end gap-3">
+              <button
+                type="button"
+                class="rounded-lg border border-black/10 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                @click="emit('close')"
+              >Cerrar</button>
+              <button
+                type="button"
+                :disabled="emailLoading || emailStatus === 'ok'"
+                class="inline-flex items-center gap-2 rounded-lg border border-[#213360] px-4 py-2 text-sm font-medium text-[#213360] transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+                @click="enviarEmail"
+              >
+                <NavIcon v-if="!emailLoading" name="mail" class="size-4" />
+                <svg v-else class="size-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                </svg>
+                {{ emailLoading ? 'Enviando...' : emailStatus === 'ok' ? 'Correo enviado' : 'Enviar por correo' }}
+              </button>
+              <button
+                type="button"
+                class="inline-flex items-center gap-2 rounded-lg bg-[#213360] px-4 py-2 text-sm font-medium text-white hover:bg-[#1a294d]"
+                @click="handlePrint"
+              >
+                <NavIcon name="print" class="size-4" />
+                Imprimir
+              </button>
             </div>
           </div>
         </div>
@@ -171,84 +204,166 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import NavIcon from '@/components/icons/NavIcon.vue'
-import logoImg from '@/assets/images/logo.svg'
+import { computed, ref, watch } from 'vue'
+import NavIcon           from '@/components/icons/NavIcon.vue'
+import logoSrc           from '@/assets/images/logo.svg'
+import reciboPagoService from '@/services/reciboPagoService.js'
 
 const props = defineProps({
   pedido: { type: Object, default: null },
 })
+const emit = defineEmits(['close'])
 
-defineEmits(['close'])
+// ── Estado de envío de correo ─────────────────────────────────────────────────
+const emailLoading = ref(false)
+const emailStatus  = ref(null)
+const emailMsg     = ref('')
 
-const logoSrc = logoImg
+watch(() => props.pedido, () => {
+  emailStatus.value  = null
+  emailMsg.value     = ''
+  emailLoading.value = false
+})
+
+const primerReciboId = computed(() => props.pedido?.recibo_links?.[0]?.recibo_pago_id ?? null)
+
+async function enviarEmail() {
+  if (!primerReciboId.value || emailLoading.value) return
+  emailLoading.value = true
+  emailStatus.value  = null
+  emailMsg.value     = ''
+  try {
+    const res = await reciboPagoService.enviarEmail(primerReciboId.value)
+    emailStatus.value = 'ok'
+    emailMsg.value    = `Enviado a ${res.estudiante_email ?? res.email ?? 'correo registrado'}`
+  } catch (err) {
+    emailStatus.value = 'error'
+    emailMsg.value    = err?.response?.data?.message || 'No se pudo enviar el correo.'
+  } finally {
+    emailLoading.value = false
+  }
+}
+
+/**
+ * Agrega la clase `printing-inv-recibo` al elemento <html> antes de imprimir
+ * para que las reglas @media print superen en especificidad a las de otros modales.
+ */
+function handlePrint() {
+  document.documentElement.classList.add('printing-inv-recibo')
+  window.addEventListener('afterprint', () => {
+    document.documentElement.classList.remove('printing-inv-recibo')
+  }, { once: true })
+  window.print()
+}
 
 const formatCurrency = (v) => v != null
   ? new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(v)
   : '—'
 
-const medioLabel = (m) => ({
-  efectivo:     'Efectivo',
-  transferencia: 'Transferencia',
-  tarjeta:      'Tarjeta',
-  consignacion: 'Consignación',
-}[m] ?? m)
-
 const nombreEstudiante = computed(() => {
   const e = props.pedido?.estudiante
   if (!e) return '—'
-  return e.nombre_completo ?? e.name ?? [e.primer_nombre, e.primer_apellido].filter(Boolean).join(' ') ?? '—'
+  return e.nombre ?? e.nombre_completo ?? e.name ?? '—'
+})
+
+const numeroRecibo = computed(() => {
+  const link = props.pedido?.recibo_links?.[0]
+  return link?.numero_recibo ?? (link ? `#${link.recibo_pago_id}` : `INV-${String(props.pedido?.id ?? '').padStart(6, '0')}`)
 })
 
 const fechaFormateada = computed(() => {
   const f = props.pedido?.created_at
   if (!f) return '—'
-  return f.split('T')[0]
+  return new Date(f).toLocaleDateString('es-CO', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' })
 })
 
 const totalAbonado = computed(() => {
-  if (props.pedido?.abonos?.length) return props.pedido.abonos.reduce((s, a) => s + (a.valor ?? 0), 0)
-  return (props.pedido?.total ?? 0) - (props.pedido?.saldo ?? 0)
+  const p = props.pedido
+  if (!p) return 0
+  if (p.recibo_links?.length) return p.recibo_links.reduce((s, l) => s + Number(l.monto_abonado ?? 0), 0)
+  return Number(p.abono_acumulado ?? 0) || (Number(p.valor_total ?? 0) - Number(p.saldo ?? 0))
 })
 
-const saldoPendiente = computed(() => props.pedido?.saldo ?? 0)
+const saldoPendiente = computed(() => Number(props.pedido?.saldo ?? 0))
+
+const generadoEl = computed(() =>
+  new Date().toLocaleString('es-CO', {
+    day: 'numeric', month: 'long', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  })
+)
 
 const statusClass = computed(() => ({
-  activo:    'text-amber-700',
-  pagado:    'text-blue-700',
+  activo:     'text-amber-700',
+  pagado:     'text-blue-700',
   entregando: 'text-purple-700',
-  entregado: 'text-green-700',
-  cancelado: 'text-red-600',
+  entregado:  'text-green-700',
+  cancelado:  'text-red-600',
 }[props.pedido?.status] ?? 'text-slate-700'))
 
 const statusTexto = computed(() => ({
-  activo:    'Activo (con saldo)',
-  pagado:    'Pagado',
+  activo:     'Activo (con saldo)',
+  pagado:     'Pagado',
   entregando: 'Entregando',
-  entregado: 'Entregado',
-  cancelado: 'Cancelado',
+  entregado:  'Entregado',
+  cancelado:  'Cancelado',
 }[props.pedido?.status] ?? props.pedido?.status ?? '—'))
-
-function imprimir() {
-  window.print()
-}
 </script>
 
-<style scoped>
+<style>
 @media print {
-  #inv-recibo-print-overlay {
-    position: static;
-    background: none;
-    padding: 0;
-  }
-
-  .print\:hidden {
+  html.printing-inv-recibo body > *:not(#inv-recibo-print-overlay) {
     display: none !important;
   }
 
-  #inv-recibo-print-sheet {
-    max-height: none;
-    overflow: visible;
+  html.printing-inv-recibo body > #inv-recibo-print-overlay {
+    display: block !important;
+    position: static !important;
+    inset: auto !important;
+    width: auto !important;
+    height: auto !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: none !important;
+    overflow: visible !important;
+  }
+
+  html.printing-inv-recibo body > #inv-recibo-print-overlay > div {
+    display: block !important;
+    position: static !important;
+    width: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+  }
+
+  html.printing-inv-recibo #inv-recibo-print-sheet {
+    display: block !important;
+    position: static !important;
+    max-height: none !important;
+    overflow: visible !important;
+    width: 100% !important;
+    padding: 0 !important;
+  }
+
+  html.printing-inv-recibo #inv-recibo-print-sheet,
+  html.printing-inv-recibo #inv-recibo-print-sheet * {
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* Ocultar cabecera y footer del modal */
+  html.printing-inv-recibo body > #inv-recibo-print-overlay > div > div:first-child,
+  html.printing-inv-recibo body > #inv-recibo-print-overlay > div > div:last-child {
+    display: none !important;
   }
 }
+
+@page { margin: 14mm; }
 </style>

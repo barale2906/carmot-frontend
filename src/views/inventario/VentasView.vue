@@ -49,12 +49,12 @@
       <DataTable v-else :columns="tableColumns" :data="pedidos" row-key="id" aria-label="Listado de pedidos de inventario" actions-first>
         <template #cell="{ column, value, row }">
           <template v-if="column.key === 'estudiante'">
-            <span class="font-medium text-slate-900">{{ row.estudiante?.nombre_completo ?? row.estudiante?.name ?? '—' }}</span>
+            <span class="font-medium text-slate-900">{{ row.estudiante?.nombre ?? '—' }}</span>
           </template>
           <template v-else-if="column.key === 'almacen'">
             {{ row.almacen?.nombre ?? '—' }}
           </template>
-          <template v-else-if="column.key === 'total'">
+          <template v-else-if="column.key === 'valor_total'">
             <span class="font-mono">{{ formatCurrency(value) }}</span>
           </template>
           <template v-else-if="column.key === 'saldo'">
@@ -72,7 +72,7 @@
             >{{ statusLabel(row.status) }}</span>
           </template>
           <template v-else-if="column.key === 'created_at'">
-            {{ value ? value.split('T')[0] : '—' }}
+            {{ value ? new Date(value).toLocaleDateString('es-CO', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' }) : '—' }}
           </template>
           <template v-else>{{ value ?? '—' }}</template>
         </template>
@@ -93,11 +93,21 @@
             v-if="canCancelar && row.status === 'activo'"
             type="button"
             class="rounded p-1.5 text-slate-500 transition-colors hover:bg-red-100 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:cursor-not-allowed disabled:opacity-40"
-            title="Cancelar pedido"
+            title="Cancelar pedido (sin reintegro de stock)"
             :disabled="!!cancelando[row.id]"
             @click="handleCancelar(row)"
           >
             <NavIcon name="trash" class="size-4" />
+          </button>
+          <button
+            v-if="canAnular && row.status !== 'cancelado'"
+            type="button"
+            class="rounded p-1.5 text-slate-500 transition-colors hover:bg-orange-100 hover:text-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-40"
+            title="Anular pedido (con reintegro de stock)"
+            :disabled="!!anulando[row.id]"
+            @click="handleAnular(row)"
+          >
+            <NavIcon name="track_changes" class="size-4" />
           </button>
         </template>
       </DataTable>
@@ -118,17 +128,36 @@
     <!-- Modal: Nueva venta (wizard) -->
     <InvVentaWizardModal
       v-if="showNuevaVenta"
-      :almacenes="almacenesActivos"
       @close="showNuevaVenta = false"
       @venta-creada="onVentaCreada"
     />
+
+    <!-- Banner: transferencia pendiente de notificación -->
+    <div v-if="pendingNotifyRecibo" class="rounded-[14px] border border-amber-200 bg-amber-50 p-5">
+      <p class="text-sm font-semibold text-amber-900">Transferencia pendiente de aprobación</p>
+      <p class="mt-1 text-xs text-amber-700">
+        La venta fue registrada. El recibo quedó en estado <strong>Pendiente de aprobación</strong>.
+        Notifica al validador para que revise el comprobante.
+      </p>
+      <div class="mt-3 flex gap-3">
+        <button
+          type="button"
+          :disabled="notificando"
+          class="flex items-center gap-2 rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-800 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-amber-500"
+          @click="handleNotificarTransferencia"
+        >
+          {{ notificando ? 'Enviando...' : 'Notificar al validador' }}
+        </button>
+        <button type="button" class="text-xs text-amber-700 underline" @click="pendingNotifyRecibo = null">Omitir</button>
+      </div>
+    </div>
 
     <!-- Modal: Abono a pedido activo -->
     <ModalBase v-model="showAbono" :title="`Abonar al pedido #${abonoTarget?.id ?? ''}`" description="Registra un abono adicional al pedido activo">
       <div v-if="abonoTarget" class="flex flex-col gap-4 pb-2">
         <div class="rounded-lg bg-slate-50 p-4 text-sm">
           <p class="text-xs text-slate-400">Estudiante</p>
-          <p class="font-medium text-slate-900">{{ abonoTarget.estudiante?.nombre_completo ?? '—' }}</p>
+          <p class="font-medium text-slate-900">{{ abonoTarget.estudiante?.nombre ?? '—' }}</p>
           <p class="mt-2 text-xs text-slate-400">Saldo pendiente</p>
           <p class="text-lg font-bold text-amber-700">{{ formatCurrency(abonoTarget.saldo) }}</p>
         </div>
@@ -183,6 +212,7 @@ const hasPermission = (p) => userPermissions.value.includes(p)
 const canCreate    = computed(() => hasPermission('inv_ventasCrear'))
 const canAbonar    = computed(() => hasPermission('inv_ventasAbonar'))
 const canCancelar  = computed(() => hasPermission('inv_pedidosCancelar'))
+const canAnular    = computed(() => hasPermission('inv_pedidosAnular'))
 
 async function loadPermissions() {
   try { const user = await authService.getUser(); userPermissions.value = user?.permissions ?? user?.all_permissions ?? [] }
@@ -193,7 +223,8 @@ const formatCurrency = (v) => v != null ? new Intl.NumberFormat('es-CO', { style
 const statusLabel = (s) => ({ activo: 'Activo', pagado: 'Pagado', entregando: 'Entregando', entregado: 'Entregado', cancelado: 'Cancelado' }[s] ?? s)
 
 const pedidos    = ref([])
-const loading    = ref(false); const error = ref(''); const actionError = ref(''); const cancelando = ref({})
+const loading    = ref(false); const error = ref(''); const actionError = ref('')
+const cancelando = ref({}); const anulando = ref({})
 const pagination = reactive({ currentPage: 1, lastPage: 1, total: 0, from: 0, to: 0 })
 const filters    = reactive({ status: '', almacen_id: '' })
 const almacenOptions    = ref([{ value: '', label: 'Todos los almacenes' }])
@@ -218,7 +249,7 @@ const mediosPagoOptions = [
 const tableColumns = [
   { key: 'estudiante',  label: 'Estudiante' },
   { key: 'almacen',    label: 'Almacén' },
-  { key: 'total',      label: 'Total' },
+  { key: 'valor_total', label: 'Total' },
   { key: 'saldo',      label: 'Saldo pendiente' },
   { key: 'status',     label: 'Estado' },
   { key: 'created_at', label: 'Fecha' },
@@ -259,6 +290,14 @@ async function handleCancelar(row) {
   finally { const n = { ...cancelando.value }; delete n[row.id]; cancelando.value = n }
 }
 
+async function handleAnular(row) {
+  if (!confirm(`¿Anular el pedido #${row.id}? Esta acción reintegra el stock de los ítems ya entregados.`)) return
+  anulando.value = { ...anulando.value, [row.id]: true }; actionError.value = ''
+  try { await invPedidoService.anular(row.id); notifySuccess('Pedido anulado y stock reintegrado.'); loadPedidos(pagination.currentPage) }
+  catch (e) { actionError.value = e?.response?.data?.message ?? 'No se pudo anular el pedido.' }
+  finally { const n = { ...anulando.value }; delete n[row.id]; anulando.value = n }
+}
+
 // ─── Detalle / Recibo ─────────────────────────────────────────────────────────
 const showDetallePedido = ref(false)
 const detallePedido     = ref(null)
@@ -272,14 +311,36 @@ async function openDetalle(row) {
 }
 
 // ─── Nueva venta ──────────────────────────────────────────────────────────────
-const showNuevaVenta = ref(false)
+const showNuevaVenta      = ref(false)
+const pendingNotifyRecibo = ref(null)
+const notificando         = ref(false)
+
 function openNuevaVenta() { showNuevaVenta.value = true }
-function onVentaCreada(pedido) {
+
+function onVentaCreada(pedido, recibo) {
   showNuevaVenta.value = false
   notifySuccess('Venta registrada correctamente.')
   loadPedidos(1)
-  detallePedido.value = pedido
+  // Si el recibo quedó en PENDIENTE_APROBACION (status 4) por transferencia, mostrar banner
+  if (recibo && recibo.status === 4) {
+    pendingNotifyRecibo.value = recibo
+  }
+  detallePedido.value   = pedido
   showDetallePedido.value = true
+}
+
+async function handleNotificarTransferencia() {
+  if (!pendingNotifyRecibo.value) return
+  notificando.value = true
+  try {
+    const res = await invVentaService.notificarTransferencia(pendingNotifyRecibo.value.id)
+    notifySuccess(res.message ?? 'Validadores notificados.')
+    pendingNotifyRecibo.value = null
+  } catch (e) {
+    actionError.value = e?.response?.data?.message ?? 'Error al notificar al validador.'
+  } finally {
+    notificando.value = false
+  }
 }
 
 // ─── Abono ────────────────────────────────────────────────────────────────────

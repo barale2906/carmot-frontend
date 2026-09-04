@@ -18,6 +18,7 @@ import invProveedorService    from '@/services/invProveedorService.js'
 import invStockService        from '@/services/invStockService.js'
 import invMovimientoService   from '@/services/invMovimientoService.js'
 import invPrecioService       from '@/services/invPrecioService.js'
+import invListaPrecioService  from '@/services/invListaPrecioService.js'
 import invVentaService        from '@/services/invVentaService.js'
 import invPedidoService       from '@/services/invPedidoService.js'
 import invEntregaService      from '@/services/invEntregaService.js'
@@ -310,8 +311,16 @@ describe('invVentaService', () => {
       medios_pago: [{ medio_pago: 'efectivo', valor: 75000 }],
     }
     const res = await invVentaService.create(payload)
-    expect(api.post).toHaveBeenCalledWith(BASE, payload)
+    expect(api.post).toHaveBeenCalledWith(BASE, payload, {})
     expect(res.status).toBe('entregado')
+  })
+
+  it('create acepta config adicional para multipart/form-data', async () => {
+    api.post.mockResolvedValue(ok({ id: 2 }))
+    const fd = new FormData()
+    const config = { headers: { 'Content-Type': 'multipart/form-data' } }
+    await invVentaService.create(fd, config)
+    expect(api.post).toHaveBeenCalledWith(BASE, fd, config)
   })
 
   it('abonar llama POST /{id}/abonar con monto y medios', async () => {
@@ -321,13 +330,46 @@ describe('invVentaService', () => {
       medios_pago: [{ medio_pago: 'transferencia', valor: 50000, banco_id: 2, referencia: 'REF-001' }],
     }
     await invVentaService.abonar(10, payload)
-    expect(api.post).toHaveBeenCalledWith(`${BASE}/10/abonar`, payload)
+    expect(api.post).toHaveBeenCalledWith(`${BASE}/10/abonar`, payload, {})
   })
 
   it('la suma de medios_pago debe igualar monto_abono — validación conceptual', () => {
     const medios = [{ valor: 30000 }, { valor: 20000 }]
     const total = medios.reduce((s, m) => s + m.valor, 0)
     expect(total).toBe(50000)
+  })
+
+  it('precalcularSobrecargos llama POST /precalcular-sobrecargos', async () => {
+    api.post.mockResolvedValue(ok({ sobrecargos: [], total_sobrecargo: 0 }))
+    const payload = { medios_pago: [{ medio_pago: 'tarjeta_credito', tipo_tarjeta: 'visa', valor: 85000 }] }
+    await invVentaService.precalcularSobrecargos(payload)
+    expect(api.post).toHaveBeenCalledWith(`${BASE}/precalcular-sobrecargos`, payload)
+  })
+
+  it('notificarTransferencia llama POST /{id}/notificar-transferencia sin body', async () => {
+    api.post.mockResolvedValue(ok({ message: 'Notificación enviada a 2 validador(es).', aprobadores: 2 }))
+    await invVentaService.notificarTransferencia(310)
+    expect(api.post).toHaveBeenCalledWith(`${BASE}/310/notificar-transferencia`)
+  })
+
+  it('aprobarTransferencia llama POST /{id}/aprobar-transferencia', async () => {
+    api.post.mockResolvedValue(ok({ message: 'Recibo aprobado.' }))
+    await invVentaService.aprobarTransferencia(310)
+    expect(api.post).toHaveBeenCalledWith(`${BASE}/310/aprobar-transferencia`)
+  })
+
+  it('rechazarTransferencia llama POST /{id}/rechazar-transferencia con motivo_rechazo', async () => {
+    api.post.mockResolvedValue(ok({ message: 'Recibo rechazado.' }))
+    await invVentaService.rechazarTransferencia(310, 'Comprobante ilegible')
+    expect(api.post).toHaveBeenCalledWith(`${BASE}/310/rechazar-transferencia`, { motivo_rechazo: 'Comprobante ilegible' })
+  })
+
+  it('reenviarTransferencia llama POST /{id}/reenviar-transferencia', async () => {
+    api.post.mockResolvedValue(ok({ message: 'Reenviado.' }))
+    const fd = new FormData()
+    const config = { headers: { 'Content-Type': 'multipart/form-data' } }
+    await invVentaService.reenviarTransferencia(310, fd, config)
+    expect(api.post).toHaveBeenCalledWith(`${BASE}/310/reenviar-transferencia`, fd, config)
   })
 })
 
@@ -352,6 +394,18 @@ describe('invPedidoService', () => {
     api.post.mockResolvedValue(ok({ status: 'cancelado' }))
     await invPedidoService.cancelar(5, 'Solicitud del cliente')
     expect(api.post).toHaveBeenCalledWith(`${BASE}/5/cancelar`, { motivo: 'Solicitud del cliente' })
+  })
+
+  it('anular llama POST /{id}/anular sin body', async () => {
+    api.post.mockResolvedValue(ok({ status: 'cancelado' }))
+    await invPedidoService.anular(8)
+    expect(api.post).toHaveBeenCalledWith(`${BASE}/8/anular`)
+  })
+
+  it('descargarTicketPdf llama GET /{id}/ticket-pdf con responseType blob', async () => {
+    api.get.mockResolvedValue({ data: new Blob() })
+    await invPedidoService.descargarTicketPdf(88)
+    expect(api.get).toHaveBeenCalledWith(`${BASE}/88/ticket-pdf`, { responseType: 'blob' })
   })
 })
 
@@ -427,5 +481,109 @@ describe('invOrdenCompraService', () => {
     const payload = { proveedor_id: 2, almacen_id: 3, items: [{ producto_id: 5, cantidad: 10 }] }
     const res = await invOrdenCompraService.create(payload)
     expect(res.status).toBe('borrador')
+  })
+})
+
+// ─── invListaPrecioService ─────────────────────────────────────────────────────
+
+describe('invListaPrecioService', () => {
+  const BASE = '/inventarios/listas-precios'
+
+  it('getAll llama GET con params de filtro', async () => {
+    api.get.mockResolvedValue(ok(mockPaginated([])))
+    await invListaPrecioService.getAll({ search: 'uniforme', status: 3 })
+    expect(api.get).toHaveBeenCalledWith(BASE, { params: { search: 'uniforme', status: 3 } })
+  })
+
+  it('getAll sin params llama GET con objeto vacío', async () => {
+    api.get.mockResolvedValue(ok(mockPaginated([])))
+    await invListaPrecioService.getAll()
+    expect(api.get).toHaveBeenCalledWith(BASE, { params: {} })
+  })
+
+  it('getById llama GET /{id}', async () => {
+    api.get.mockResolvedValue(ok({ id: 5, nombre: 'Lista A' }))
+    const res = await invListaPrecioService.getById(5)
+    expect(api.get).toHaveBeenCalledWith(`${BASE}/5`)
+    expect(res.nombre).toBe('Lista A')
+  })
+
+  it('create llama POST con payload completo', async () => {
+    const payload = { nombre: 'Lista B', fecha_inicio: '2026-01-01', fecha_fin: '2026-12-31', descripcion: 'desc', poblaciones: [1, 2] }
+    api.post.mockResolvedValue(ok({ id: 10, ...payload }))
+    const res = await invListaPrecioService.create(payload)
+    expect(api.post).toHaveBeenCalledWith(BASE, payload)
+    expect(res.id).toBe(10)
+  })
+
+  it('update llama PUT /{id} con payload', async () => {
+    api.put.mockResolvedValue(ok({ id: 5, nombre: 'Lista B actualizada' }))
+    await invListaPrecioService.update(5, { nombre: 'Lista B actualizada' })
+    expect(api.put).toHaveBeenCalledWith(`${BASE}/5`, { nombre: 'Lista B actualizada' })
+  })
+
+  it('delete llama DELETE /{id}', async () => {
+    api.delete.mockResolvedValue(ok({ message: 'eliminada' }))
+    await invListaPrecioService.delete(5)
+    expect(api.delete).toHaveBeenCalledWith(`${BASE}/5`)
+  })
+
+  it('aprobar llama POST /{id}/aprobar', async () => {
+    api.post.mockResolvedValue(ok({ id: 5, status: 2 }))
+    const res = await invListaPrecioService.aprobar(5)
+    expect(api.post).toHaveBeenCalledWith(`${BASE}/5/aprobar`)
+    expect(res.status).toBe(2)
+  })
+
+  it('activar llama POST /{id}/activar', async () => {
+    api.post.mockResolvedValue(ok({ id: 5, status: 3 }))
+    const res = await invListaPrecioService.activar(5)
+    expect(api.post).toHaveBeenCalledWith(`${BASE}/5/activar`)
+    expect(res.status).toBe(3)
+  })
+
+  it('inactivar llama POST /{id}/inactivar', async () => {
+    api.post.mockResolvedValue(ok({ id: 5, status: 0 }))
+    const res = await invListaPrecioService.inactivar(5)
+    expect(api.post).toHaveBeenCalledWith(`${BASE}/5/inactivar`)
+    expect(res.status).toBe(0)
+  })
+
+  it('clonar llama POST /{id}/clonar con payload', async () => {
+    const payload = { nombre: 'Lista copia', fecha_inicio: '2027-01-01', fecha_fin: '2027-12-31', copiar_precios: true }
+    api.post.mockResolvedValue(ok({ message: 'clonada', precios_copiados: 5, data: { id: 20, ...payload } }))
+    const res = await invListaPrecioService.clonar(5, payload)
+    expect(api.post).toHaveBeenCalledWith(`${BASE}/5/clonar`, payload)
+    expect(res.precios_copiados).toBe(5)
+  })
+
+  it('clonar con copiar_precios=false no copia precios', async () => {
+    const payload = { nombre: 'Lista vacía', fecha_inicio: '2027-01-01', fecha_fin: '2027-12-31', copiar_precios: false }
+    api.post.mockResolvedValue(ok({ message: 'clonada', precios_copiados: 0, data: { id: 21 } }))
+    const res = await invListaPrecioService.clonar(5, payload)
+    expect(res.precios_copiados).toBe(0)
+  })
+})
+
+// ─── invPrecioService.sincronizar ─────────────────────────────────────────────
+
+describe('invPrecioService — sincronizar', () => {
+  const BASE_PRECIOS = '/inventarios/precios'
+
+  it('sincronizar llama POST /lista/{listaId}/sincronizar con items', async () => {
+    const items = [
+      { producto_id: 10, precio: 45000, observaciones: 'Precio especial' },
+      { producto_id: 12, precio: 8000 },
+    ]
+    api.post.mockResolvedValue(ok({ message: 'Precios sincronizados.', data: items }))
+    const res = await invPrecioService.sincronizar(7, items)
+    expect(api.post).toHaveBeenCalledWith(`${BASE_PRECIOS}/lista/7/sincronizar`, { items })
+    expect(res).toBeDefined()
+  })
+
+  it('sincronizar con lista vacía elimina todos los precios', async () => {
+    api.post.mockResolvedValue(ok({ message: 'Precios sincronizados.', data: [] }))
+    await invPrecioService.sincronizar(7, [])
+    expect(api.post).toHaveBeenCalledWith(`${BASE_PRECIOS}/lista/7/sincronizar`, { items: [] })
   })
 })

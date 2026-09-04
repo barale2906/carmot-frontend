@@ -88,13 +88,15 @@ const filterText = ref('')
 
 const internalValue = computed(() => props.modelValue ?? [])
 
+function normalize(str) {
+  return str?.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase() ?? ''
+}
+
 const filteredOptions = computed(() => {
-  const q = filterText.value.trim().toLowerCase()
+  const q = normalize(filterText.value.trim())
   if (!q) return props.options
   return props.options.filter(
-    (o) =>
-      o.label.toLowerCase().includes(q) ||
-      o.description?.toLowerCase().includes(q)
+    (o) => normalize(o.label).includes(q) || normalize(o.description).includes(q)
   )
 })
 

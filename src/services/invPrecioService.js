@@ -53,6 +53,19 @@ const invPrecioService = {
     const { data } = await api.delete(`${BASE}/${id}/force-delete`)
     return data
   },
+
+  /**
+   * Sincroniza (upsert masivo) los precios de una lista de inventario.
+   * Solo funciona en listas con status En Proceso (1).
+   * Los productos no incluidos en items son eliminados (soft-delete).
+   *
+   * @param {number} listaId
+   * @param {Array<{ producto_id: number, precio: number, observaciones?: string }>} items
+   */
+  async sincronizar(listaId, items) {
+    const { data } = await api.post(`${BASE}/lista/${listaId}/sincronizar`, { items })
+    return data
+  },
 }
 
 export default invPrecioService

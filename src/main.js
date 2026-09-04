@@ -48,9 +48,11 @@ import ProveedoresView     from './views/inventario/ProveedoresView.vue'
 import StockView           from './views/inventario/StockView.vue'
 import MovimientosView     from './views/inventario/MovimientosView.vue'
 import PreciosInvView      from './views/inventario/PreciosView.vue'
-import VentasView          from './views/inventario/VentasView.vue'
-import EntregasView        from './views/inventario/EntregasView.vue'
-import OrdenesCompraView   from './views/inventario/OrdenesCompraView.vue'
+import VentasView                    from './views/inventario/VentasView.vue'
+import EntregasView                  from './views/inventario/EntregasView.vue'
+import OrdenesCompraView             from './views/inventario/OrdenesCompraView.vue'
+import InvTransferenciasPendientes   from './views/inventario/TransferenciasPendientesView.vue'
+import InvRecibosPagoView            from './views/inventario/InvRecibosPagoView.vue'
 import './assets/styles/main.css'
 
 const routes = [
@@ -366,6 +368,16 @@ const routes = [
             path: 'ordenes-compra',
             name: 'InvOrdenesCompra',
             component: OrdenesCompraView
+          },
+          {
+            path: 'transferencias',
+            name: 'InvTransferencias',
+            component: InvTransferenciasPendientes
+          },
+          {
+            path: 'recibos',
+            name: 'InvRecibos',
+            component: InvRecibosPagoView
           }
         ]
       }

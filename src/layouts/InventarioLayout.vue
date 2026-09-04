@@ -43,14 +43,12 @@ const groups = [
     routes: [
       '/inventario/stock',
       '/inventario/movimientos',
-      '/inventario/precios',
     ],
     title: 'Stock y movimientos',
-    description: 'Consulta el stock disponible, registra movimientos y gestiona precios de venta.',
+    description: 'Consulta el stock disponible y registra movimientos de entrada, salida y ajuste.',
     items: [
       { label: 'Stock',       to: '/inventario/stock' },
       { label: 'Movimientos', to: '/inventario/movimientos' },
-      { label: 'Precios',     to: '/inventario/precios' },
     ],
   },
   {
@@ -63,6 +61,20 @@ const groups = [
     items: [
       { label: 'Caja / Ventas', to: '/inventario/ventas' },
       { label: 'Entregas',      to: '/inventario/entregas' },
+    ],
+  },
+  {
+    routes: [
+      '/inventario/precios',
+      '/inventario/recibos',
+      '/inventario/transferencias',
+    ],
+    title: 'Facturación de inventario',
+    description: 'Gestiona los precios de venta, consulta los recibos de pago emitidos y aprueba transferencias pendientes.',
+    items: [
+      { label: 'Precios de venta',  to: '/inventario/precios' },
+      { label: 'Recibos de pago',   to: '/inventario/recibos' },
+      { label: 'Transferencias',    to: '/inventario/transferencias' },
     ],
   },
   {
