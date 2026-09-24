@@ -227,6 +227,15 @@
               @clear="() => { filters.producto_id = ''; onFilterChange() }"
             />
           </div>
+          <div class="w-full sm:w-[260px]">
+            <FormSelect
+              v-model="filters.lista_precio_id"
+              label="Lista de precios:"
+              placeholder="Solo listas vigentes"
+              :options="listaPrecioFiltroOptions"
+              @change="onFilterChange"
+            />
+          </div>
           <div class="flex w-full items-end gap-2 sm:w-auto">
             <button v-if="canCreate" type="button" class="flex h-9 items-center gap-2 rounded-lg bg-[#213360] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" @click="openCreate">
               <NavIcon name="plus" class="size-4" /> Nuevo precio
@@ -238,7 +247,14 @@
 
       <!-- Tabla de precios -->
       <section aria-labelledby="listado-precios-heading">
-        <SectionHeader id="listado-precios-heading" title="Precios de productos de inventario" description="Lista de precios asociada a las listas activas. El precio se resuelve automáticamente al crear una venta según la sede y lista vigente." class="mb-4" />
+        <SectionHeader
+          id="listado-precios-heading"
+          title="Precios de productos de inventario"
+          :description="filters.lista_precio_id
+            ? 'Mostrando únicamente la lista de precios seleccionada, esté activa o no.'
+            : 'Por defecto solo se muestran las listas vigentes. El precio se resuelve automáticamente al crear una venta según la sede y lista vigente.'"
+          class="mb-4"
+        />
 
         <div v-if="loading" class="flex items-center justify-center rounded-[14px] border border-black/10 bg-white py-16">
           <span class="text-sm text-slate-500">Cargando precios...</span>
@@ -254,7 +270,12 @@
               <span class="font-medium text-slate-900">{{ row.producto?.nombre ?? '—' }}</span>
             </template>
             <template v-else-if="column.key === 'lista_precio'">
-              {{ row.listaPrecio?.nombre ?? row.lista_precio?.nombre ?? '—' }}
+              <span>{{ row.lista_precio?.nombre ?? row.listaPrecio?.nombre ?? '—' }}</span>
+              <span
+                v-if="row.lista_precio?.status_text"
+                class="ml-1.5 inline-flex items-center rounded-full px-1.5 py-0.5 text-[11px] font-medium"
+                :class="row.lista_precio.esta_vigente ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-500'"
+              >{{ row.lista_precio.status_text }}</span>
             </template>
             <template v-else-if="column.key === 'precio'">
               <span class="font-mono font-medium text-slate-900">{{ formatCurrency(value) }}</span>
@@ -612,10 +633,18 @@ const loading     = ref(false)
 const error       = ref('')
 const deleting    = ref({})
 const pagination  = reactive({ currentPage: 1, lastPage: 1, total: 0, from: 0, to: 0 })
-const filters           = reactive({ search: '', producto_id: '' })
+const filters           = reactive({ search: '', producto_id: '', lista_precio_id: '' })
 const listaPrecioOptions = ref([])
 const listaPrecioRaw     = ref([])
+const todasLasListas     = ref([]) // incluye inactivas: alimenta el filtro "ver esta lista puntual"
 const filtroBuscadorKey  = ref(0)
+
+const STATUS_LABEL = { 0: 'Inactiva', 1: 'En Proceso', 2: 'Aprobada', 3: 'Activa' }
+
+// Filtro de vista: puede elegirse cualquier lista, activa o no, sin afectar search/producto_id
+const listaPrecioFiltroOptions = computed(() =>
+  todasLasListas.value.map(l => ({ value: String(l.id), label: `${l.nombre} (${STATUS_LABEL[l.status] ?? l.status})` }))
+)
 
 const tableColumns = [
   { key: 'producto',     label: 'Producto' },
@@ -625,13 +654,13 @@ const tableColumns = [
 
 async function loadSelectores() {
   try {
-    // Traemos todas y excluimos solo las Inactivas (status=0)
     const res = await invListaPrecioService.getAll({ per_page: 200 })
-    const lista = res.data ?? res ?? []
-    const statusLabel = { 1: 'En Proceso', 2: 'Aprobada', 3: 'Activa' }
-    listaPrecioRaw.value    = Array.isArray(lista) ? lista.filter(l => l.status !== 0) : []
+    const lista = Array.isArray(res.data ?? res) ? (res.data ?? res) : []
+    todasLasListas.value = lista
+    // El formulario de crear/editar precio excluye las Inactivas: no tiene sentido asignar precios ahí
+    listaPrecioRaw.value    = lista.filter(l => l.status !== 0)
     listaPrecioOptions.value = listaPrecioRaw.value
-      .map(l => ({ value: l.id, label: `${l.nombre} (${statusLabel[l.status] ?? l.status})` }))
+      .map(l => ({ value: l.id, label: `${l.nombre} (${STATUS_LABEL[l.status] ?? l.status})` }))
   } catch { /* no bloquea */ }
 }
 
@@ -640,8 +669,9 @@ async function loadPrecios(page = 1) {
   error.value   = ''
   try {
     const params = { page, per_page: 20 }
-    if (filters.search)      params.search      = filters.search
-    if (filters.producto_id) params.producto_id = filters.producto_id
+    if (filters.search)          params.search          = filters.search
+    if (filters.producto_id)     params.producto_id     = filters.producto_id
+    if (filters.lista_precio_id) params.lista_precio_id = filters.lista_precio_id
     const res = await invPrecioService.getAll(params)
     precios.value = res.data ?? []
     if (res.meta) {
@@ -661,7 +691,7 @@ async function loadPrecios(page = 1) {
 let searchTimer = null
 function onSearchInput() { clearTimeout(searchTimer); searchTimer = setTimeout(() => loadPrecios(1), 400) }
 function onFilterChange() { loadPrecios(1) }
-function clearFilters() { filters.search = ''; filters.producto_id = ''; filtroBuscadorKey.value++; loadPrecios(1) }
+function clearFilters() { filters.search = ''; filters.producto_id = ''; filters.lista_precio_id = ''; filtroBuscadorKey.value++; loadPrecios(1) }
 function goToPage(p) { if (p >= 1 && p <= pagination.lastPage) loadPrecios(p) }
 
 async function handleDelete(row) {

@@ -13,7 +13,7 @@
         @click.self="close"
       >
         <div
-          class="relative my-auto w-full max-w-2xl rounded-xl border border-black/10 bg-white shadow-xl"
+          class="relative my-auto w-full max-w-3xl rounded-xl border border-black/10 bg-white shadow-xl"
           @click.stop
         >
           <!-- Cabecera -->
@@ -154,6 +154,13 @@
               @select="addItem"
             />
 
+            <!-- La falta de stock no impide facturar: solo define qué se entrega ahora -->
+            <div v-if="items.length" class="flex items-center justify-between gap-3 text-xs text-slate-500">
+              <p>Puedes facturar aunque no haya stock; lo que falte queda pendiente de entrega.</p>
+              <span v-if="verificando" class="shrink-0 text-slate-400">Verificando stock...</span>
+            </div>
+            <p v-if="errorDisponibilidad" class="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">{{ errorDisponibilidad }}</p>
+
             <div v-if="items.length" class="overflow-x-auto rounded-lg border border-slate-200">
               <table class="w-full text-sm">
                 <thead class="bg-slate-50">
@@ -166,9 +173,9 @@
                     <th class="px-2 py-2"></th>
                   </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-100">
-                  <tr v-for="item in items" :key="item.producto_id">
-                    <td class="px-4 py-2 font-medium text-slate-900">{{ item.nombre }}</td>
+                <tbody v-for="(item, index) in items" :key="item.producto_id" class="border-t border-slate-100 first:border-t-0">
+                  <tr>
+                    <td class="px-4 pb-1 pt-2 font-medium text-slate-900">{{ item.nombre }}</td>
                     <td class="px-2 py-2 text-center">
                       <input
                         v-model.number="item.cantidad"
@@ -193,9 +200,20 @@
                     </td>
                     <td class="px-2 py-2 text-right font-mono font-medium text-slate-900">{{ formatCurrency(item.cantidad * item.precio_unitario) }}</td>
                     <td class="px-2 py-2 text-right">
-                      <button type="button" class="rounded p-1 text-slate-400 hover:text-red-600 focus:outline-none" @click="removeItem(item.producto_id)">
+                      <button type="button" title="Quitar producto" class="rounded p-1 text-slate-400 hover:text-red-600 focus:outline-none" @click="removeItem(item.producto_id)">
                         <NavIcon name="close" class="size-3.5" />
                       </button>
+                    </td>
+                  </tr>
+                  <!-- Controles de entrega de la línea -->
+                  <tr>
+                    <td colspan="6" class="px-4 pb-3 pt-1">
+                      <InvVentaItemEntrega
+                        v-model:entregar="item.entregar"
+                        v-model:entrega-completa="item.entrega_completa"
+                        v-model:variantes="item.variantes"
+                        :disponibilidad="disponibilidadDe(index)"
+                      />
                     </td>
                   </tr>
                 </tbody>
@@ -221,6 +239,31 @@
                 <p class="font-bold text-[#213360]">{{ formatCurrency(totalItems) }}</p>
               </div>
               <p class="text-xs text-slate-500">{{ items.length }} producto(s) · Almacén: {{ almacenNombre }}</p>
+            </div>
+
+            <!-- Entrega inmediata -->
+            <div class="rounded-lg border border-slate-200 p-4">
+              <label class="flex cursor-pointer items-start gap-3">
+                <input v-model="entregaInmediata" type="checkbox" class="mt-0.5 rounded" />
+                <span>
+                  <span class="block text-sm font-medium text-slate-800">Entregar ahora los productos disponibles</span>
+                  <span class="block text-xs text-slate-500">Se descarga del inventario en el mismo recibo. Si lo desmarcas, todo queda pendiente en Entregas.</span>
+                </span>
+              </label>
+
+              <p v-if="!pagoCompleto" class="mt-3 rounded bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                El abono no cubre el total: el pedido queda con saldo y la entrega se hará al completar el pago.
+              </p>
+              <ul v-else-if="entregaInmediata" class="mt-3 flex flex-wrap gap-2 text-xs">
+                <li v-if="resumenEntrega.ok" class="rounded-full bg-green-100 px-2 py-0.5 text-green-800">{{ resumenEntrega.ok }} se entrega(n) ahora</li>
+                <li v-if="resumenEntrega.parcial" class="rounded-full bg-amber-100 px-2 py-0.5 text-amber-800">{{ resumenEntrega.parcial }} con entrega parcial</li>
+                <li v-if="resumenEntrega.pendiente" class="rounded-full bg-slate-200 px-2 py-0.5 text-slate-700">{{ resumenEntrega.pendiente }} pendiente(s) por stock</li>
+                <li v-if="resumenEntrega.diferido" class="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">{{ resumenEntrega.diferido }} se entrega(n) después</li>
+                <li v-if="resumenEntrega.variante" class="rounded-full bg-blue-100 px-2 py-0.5 text-blue-800">{{ resumenEntrega.variante }} sin variante elegida</li>
+              </ul>
+              <p v-if="pagoCompleto && entregaInmediata && disponibilidad?.requiere_seleccion_variante" class="mt-2 text-xs text-blue-700">
+                Hay componentes sin variante elegida: quedarán pendientes de entrega. Puedes volver al paso anterior para elegirla.
+              </p>
             </div>
 
             <!-- Medios de pago (múltiples) -->
@@ -406,7 +449,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, toRef } from 'vue'
 import invVentaService        from '@/services/invVentaService.js'
 import invAlmacenService      from '@/services/invAlmacenService.js'
 import invPrecioService       from '@/services/invPrecioService.js'
@@ -414,10 +457,16 @@ import bancoService           from '@/services/bancoService.js'
 import userService            from '@/services/userService.js'
 import { authService }        from '@/services/authService.js'
 import { useNotification }    from '@/composables/useNotification'
+import {
+  useDisponibilidadVenta,
+  estadoEntregaItem,
+  variantesSeleccionadas,
+}                             from '@/composables/useDisponibilidadVenta.js'
 import NavIcon              from '@/components/icons/NavIcon.vue'
 import FormInput            from '@/components/forms/FormInput.vue'
 import FormSelect           from '@/components/forms/FormSelect.vue'
 import InvProductoBuscador  from '@/components/inventario/InvProductoBuscador.vue'
+import InvVentaItemEntrega  from '@/components/inventario/InvVentaItemEntrega.vue'
 
 const emit = defineEmits(['close', 'venta-creada'])
 
@@ -571,6 +620,9 @@ async function addItem(p) {
     precio_unitario:  p.precio_venta ?? p.precio ?? 0,
     cantidad:         1,
     descuento_id:     null,
+    entregar:         true,
+    entrega_completa: false,
+    variantes:        {},
     _cargandoPrecio:  true,
   })
   items.value.push(item)
@@ -587,6 +639,23 @@ async function addItem(p) {
 function removeItem(productoId) {
   items.value = items.value.filter(i => i.producto_id !== productoId)
 }
+
+// ─── Disponibilidad y entrega ─────────────────────────────────────────────────
+// El stock nunca bloquea la venta: solo define qué se descarga ahora y qué queda pendiente.
+const {
+  disponibilidad,
+  verificando,
+  errorDisponibilidad,
+  disponibilidadDe,
+} = useDisponibilidadVenta({ items, almacenId: toRef(form, 'almacen_id') })
+
+const entregaInmediata = ref(true)
+
+const resumenEntrega = computed(() => {
+  const conteo = { ok: 0, parcial: 0, pendiente: 0, variante: 0, diferido: 0, cargando: 0 }
+  items.value.forEach((item, idx) => { conteo[estadoEntregaItem(item, disponibilidadDe(idx)).tono]++ })
+  return conteo
+})
 
 async function loadDescuentos() {
   try {
@@ -617,6 +686,8 @@ const formError    = ref('')
 const totalMedios    = computed(() => mediosPago.value.reduce((s, m) => s + (Number(m.valor) || 0), 0))
 const totalSobrecargo = computed(() => sobrecargos.value.reduce((s, sc) => s + sc.valor_sobrecargo, 0))
 const totalConSobrecargos = computed(() => totalItems.value + (aplicarSobrecargos.value ? totalSobrecargo.value : 0))
+// El backend solo despacha cuando el pedido queda pagado en su totalidad
+const pagoCompleto = computed(() => Number(form.monto_abono) >= totalConSobrecargos.value)
 
 function addMedioPago() {
   mediosPago.value.push({ medio_pago: 'efectivo', valor: 0, banco_id: null, referencia: '', numero_transaccion: '', tipo_tarjeta: '' })
@@ -691,6 +762,13 @@ function nextStep() {
 }
 
 // ─── Submit ───────────────────────────────────────────────────────────────────
+const MENSAJE_VENTA = {
+  entregado:  'Venta registrada y productos entregados.',
+  entregando: 'Venta registrada. Algunos productos quedaron pendientes de entrega.',
+  pagado:     'Venta registrada. Los productos quedaron pendientes de entrega.',
+  activo:     'Venta registrada con saldo pendiente. Se entregará al completar el pago.',
+}
+
 async function handleSubmit() {
   formError.value = ''
   if (!canSubmit.value) {
@@ -741,6 +819,19 @@ async function handleSubmit() {
       return mp
     })
 
+  const itemsPayload = items.value.map(i => ({
+    producto_id:      i.producto_id,
+    cantidad:         i.cantidad,
+    descuento_id:     i.descuento_id ?? null,
+    entregar:         i.entregar,
+    entrega_completa: i.entrega_completa,
+  }))
+
+  // Al crear la venta los ítems aún no tienen id: las variantes se referencian por posición
+  const variantesKitPayload = items.value
+    .map((i, idx) => ({ item_index: idx, componentes: variantesSeleccionadas(i.variantes) }))
+    .filter(v => v.componentes.length)
+
   const sobrecargosPayload = aplicarSobrecargos.value
     ? sobrecargos.value.map((sc, idx) => ({ descuento_id: sc.descuento_id, medio_pago_index: idx }))
     : []
@@ -755,10 +846,21 @@ async function handleSubmit() {
       fd.append('monto_abono',   form.monto_abono)
       if (form.observaciones) fd.append('observaciones', form.observaciones)
       fd.append('comprobante',   comprobante.value)
-      items.value.forEach((it, i) => {
-        fd.append(`items[${i}][producto_id]`, it.producto_id)
-        fd.append(`items[${i}][cantidad]`,    it.cantidad)
+      // Laravel valida `boolean` en multipart solo con 1/0
+      fd.append('entrega_inmediata', entregaInmediata.value ? 1 : 0)
+      itemsPayload.forEach((it, i) => {
+        fd.append(`items[${i}][producto_id]`,      it.producto_id)
+        fd.append(`items[${i}][cantidad]`,         it.cantidad)
+        fd.append(`items[${i}][entregar]`,         it.entregar ? 1 : 0)
+        fd.append(`items[${i}][entrega_completa]`, it.entrega_completa ? 1 : 0)
         if (it.descuento_id) fd.append(`items[${i}][descuento_id]`, it.descuento_id)
+      })
+      variantesKitPayload.forEach((v, i) => {
+        fd.append(`variantes_kit[${i}][item_index]`, v.item_index)
+        v.componentes.forEach((c, j) => {
+          fd.append(`variantes_kit[${i}][componentes][${j}][kit_componente_id]`,     c.kit_componente_id)
+          fd.append(`variantes_kit[${i}][componentes][${j}][producto_entregado_id]`, c.producto_entregado_id)
+        })
       })
       mediosPayload.forEach((mp, i) => {
         Object.entries(mp).forEach(([k, v]) => fd.append(`medios_pago[${i}][${k}]`, v))
@@ -775,18 +877,17 @@ async function handleSubmit() {
         almacen_id:    Number(form.almacen_id),
         monto_abono:   Number(form.monto_abono),
         observaciones: form.observaciones || undefined,
-        items: items.value.map(i => ({
-          producto_id:  i.producto_id,
-          cantidad:     i.cantidad,
-          descuento_id: i.descuento_id ?? null,
-        })),
-        medios_pago: mediosPayload,
-        sobrecargos: sobrecargosPayload,
+        items:             itemsPayload,
+        entrega_inmediata: entregaInmediata.value,
+        variantes_kit:     variantesKitPayload,
+        medios_pago:       mediosPayload,
+        sobrecargos:       sobrecargosPayload,
       })
     }
 
-    notifySuccess('Venta registrada correctamente.')
-    emit('venta-creada', res.data ?? res, res.recibo ?? null)
+    const pedido = res.data ?? res
+    notifySuccess(MENSAJE_VENTA[pedido?.status] ?? 'Venta registrada correctamente.')
+    emit('venta-creada', pedido, res.recibo ?? null)
     close()
   } catch (e) {
     if (e?.response?.status === 422) {
@@ -817,6 +918,7 @@ function resetWizard() {
   comprobante.value            = null
   sobrecargos.value            = []
   aplicarSobrecargos.value     = false
+  entregaInmediata.value       = true
   formError.value              = ''
   Object.assign(form, { almacen_id: '', monto_abono: 0, observaciones: '' })
 }

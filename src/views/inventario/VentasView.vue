@@ -167,6 +167,14 @@
           <FormSelect v-model="abonoForm.banco_id" label="Banco" placeholder="Selecciona..." :options="bancoOptions" :error="abonoErrors['medios_pago.0.banco_id']?.[0]" />
           <FormInput v-model="abonoForm.referencia" label="Referencia de la transferencia" placeholder="Ej: REF-2024-001" :error="abonoErrors['medios_pago.0.referencia']?.[0]" />
         </template>
+        <!-- Al saldar el pedido el backend despacha el inventario, salvo que el cajero lo difiera -->
+        <label v-if="Number(abonoForm.monto) >= Number(abonoTarget.saldo)" class="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3">
+          <input v-model="abonoForm.entrega_inmediata" type="checkbox" class="mt-0.5 rounded" />
+          <span>
+            <span class="block text-sm font-medium text-slate-800">Entregar ahora los productos disponibles</span>
+            <span class="block text-xs text-slate-500">Si lo desmarcas, todo queda pendiente en Entregas.</span>
+          </span>
+        </label>
         <div v-if="abonoError" class="rounded-lg border border-red-200 bg-red-50 p-3">
           <p class="text-sm text-red-700">{{ abonoError }}</p>
         </div>
@@ -319,7 +327,6 @@ function openNuevaVenta() { showNuevaVenta.value = true }
 
 function onVentaCreada(pedido, recibo) {
   showNuevaVenta.value = false
-  notifySuccess('Venta registrada correctamente.')
   loadPedidos(1)
   // Si el recibo quedó en PENDIENTE_APROBACION (status 4) por transferencia, mostrar banner
   if (recibo && recibo.status === 4) {
@@ -349,11 +356,11 @@ const abonoTarget = ref(null)
 const savingAbono = ref(false)
 const abonoError  = ref('')
 const abonoErrors = ref({})
-const abonoForm   = reactive({ monto: '', medio_pago: 'efectivo', banco_id: '', referencia: '' })
+const abonoForm   = reactive({ monto: '', medio_pago: 'efectivo', banco_id: '', referencia: '', entrega_inmediata: true })
 
 function openAbono(row) {
   abonoTarget.value = row
-  Object.assign(abonoForm, { monto: row.saldo ?? '', medio_pago: 'efectivo', banco_id: '', referencia: '' })
+  Object.assign(abonoForm, { monto: row.saldo ?? '', medio_pago: 'efectivo', banco_id: '', referencia: '', entrega_inmediata: true })
   abonoError.value = ''; abonoErrors.value = {}; showAbono.value = true
 }
 
@@ -362,7 +369,11 @@ async function handleAbono() {
   const medio = { medio_pago: abonoForm.medio_pago, valor: Number(abonoForm.monto) }
   if (abonoForm.medio_pago === 'transferencia') { medio.banco_id = abonoForm.banco_id; medio.referencia = abonoForm.referencia }
   try {
-    await invVentaService.abonar(abonoTarget.value.id, { monto_abono: Number(abonoForm.monto), medios_pago: [medio] })
+    await invVentaService.abonar(abonoTarget.value.id, {
+      monto_abono:       Number(abonoForm.monto),
+      medios_pago:       [medio],
+      entrega_inmediata: abonoForm.entrega_inmediata,
+    })
     notifySuccess('Abono registrado correctamente.')
     showAbono.value = false; loadPedidos(pagination.currentPage)
   } catch (e) {

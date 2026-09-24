@@ -10,7 +10,7 @@
         @click="tab = 'pendientes'"
       >
         Entregas pendientes
-        <span v-if="pendientes.length" class="ml-1.5 rounded-full bg-white/20 px-1.5 py-0.5 text-xs">{{ pendientes.length }}</span>
+        <span v-if="paginacionPendientes.total" class="ml-1.5 rounded-full bg-white/20 px-1.5 py-0.5 text-xs">{{ paginacionPendientes.total }}</span>
       </button>
       <button
         type="button"
@@ -19,20 +19,20 @@
         @click="tab = 'necesidades'"
       >
         Necesidades de compra
-        <span v-if="necesidades.length" class="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800">{{ necesidades.length }}</span>
+        <span v-if="paginacionNecesidades.total" class="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800">{{ paginacionNecesidades.total }}</span>
       </button>
     </div>
 
     <!-- Panel: Entregas pendientes -->
     <section v-if="tab === 'pendientes'" aria-labelledby="entregas-pendientes-heading">
-      <SectionHeader id="entregas-pendientes-heading" title="Entregas pendientes de despacho" description="Pedidos pagados cuyo stock no fue despachado automáticamente. Marca cada ítem como entregado cuando tengas el producto disponible." class="mb-4" />
+      <SectionHeader id="entregas-pendientes-heading" title="Entregas pendientes de despacho" description="Pedidos pagados con productos por entregar. Puedes entregar por cantidad o, en los kits, componente por componente." class="mb-4" />
 
       <div v-if="loadingPendientes" class="flex items-center justify-center rounded-[14px] border border-black/10 bg-white py-16">
         <span class="text-sm text-slate-500">Cargando entregas pendientes...</span>
       </div>
       <div v-else-if="errorPendientes" class="rounded-[14px] border border-red-200 bg-red-50 p-6">
         <p class="text-sm text-red-700">{{ errorPendientes }}</p>
-        <button type="button" class="mt-3 text-sm font-medium text-red-700 underline" @click="loadPendientes">Reintentar</button>
+        <button type="button" class="mt-3 text-sm font-medium text-red-700 underline" @click="loadPendientes(paginacionPendientes.currentPage)">Reintentar</button>
       </div>
       <div v-else-if="!pendientes.length" class="flex items-center justify-center rounded-[14px] border border-black/10 bg-white py-16">
         <div class="text-center">
@@ -44,69 +44,53 @@
         <li
           v-for="pedido in pendientes"
           :key="pedido.id"
-          class="rounded-[14px] border border-black/10 bg-white p-6"
+          class="rounded-[14px] border border-black/10 bg-white px-6 py-4"
         >
-          <div class="flex items-start justify-between gap-4 mb-4">
+          <div class="flex items-start justify-between gap-4 border-b border-slate-100 pb-3">
             <div>
               <p class="text-sm font-semibold text-slate-900">Pedido #{{ pedido.id }}</p>
-              <p class="text-xs text-slate-500">{{ pedido.estudiante?.nombre_completo ?? pedido.estudiante?.name ?? '—' }}</p>
+              <p class="text-xs text-slate-500">
+                {{ pedido.estudiante?.nombre ?? '—' }}
+                <span v-if="pedido.estudiante?.documento"> · {{ pedido.estudiante.documento }}</span>
+                <span v-if="pedido.almacen?.nombre"> · Almacén: {{ pedido.almacen.nombre }}</span>
+              </p>
             </div>
-            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+            <span
+              class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
               :class="pedido.status === 'pagado' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'"
             >{{ pedido.status === 'pagado' ? 'Pagado' : 'Entregando' }}</span>
           </div>
 
-          <ul class="divide-y divide-slate-100">
-            <li
-              v-for="entrega in pedido.entregas_pendientes ?? pedido.items ?? []"
-              :key="entrega.id"
-              class="flex items-center justify-between gap-3 py-3"
-            >
-              <div class="flex-1">
-                <p class="text-sm font-medium text-slate-900">{{ entrega.producto?.nombre ?? entrega.nombre ?? '—' }}</p>
-                <p class="text-xs text-slate-400">Cantidad: {{ entrega.cantidad ?? 1 }}</p>
-              </div>
+          <!-- Ítems por entregar -->
+          <div class="divide-y divide-slate-100">
+            <InvEntregaItemCard
+              v-for="item in itemsPorEntregar(pedido)"
+              :key="item.id"
+              :item="item"
+              :can-completar="canCompletar"
+              @actualizado="loadPendientes(paginacionPendientes.currentPage)"
+            />
+          </div>
 
-              <!-- Entrega de kit con componentes tipo grupo -->
-              <div v-if="entrega.es_kit" class="flex flex-col gap-2">
-                <p class="text-xs text-slate-500">Selecciona variantes:</p>
-                <div v-for="comp in entrega.componentes ?? []" :key="comp.id" class="flex items-center gap-2">
-                  <span class="text-xs text-slate-600">{{ comp.componente?.nombre }}:</span>
-                  <select v-if="comp.tipo === 'grupo'" v-model="kitSelecciones[`${entrega.id}-${comp.id}`]" class="rounded border border-slate-200 px-2 py-1 text-xs text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                    <option value="">Selecciona...</option>
-                    <option v-for="v in comp.variantes ?? []" :key="v.id" :value="v.id">{{ v.nombre }}</option>
-                  </select>
-                </div>
-                <button
-                  v-if="canCompletar"
-                  type="button"
-                  :disabled="completando[entrega.id]"
-                  class="flex h-8 items-center gap-1.5 rounded-lg bg-blue-600 px-3 text-xs font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  @click="handleCompletarKit(entrega)"
-                >
-                  {{ completando[entrega.id] ? 'Completando...' : 'Completar entrega de kit' }}
-                </button>
-              </div>
-
-              <!-- Entrega simple -->
-              <button
-                v-else-if="canCompletar"
-                type="button"
-                :disabled="completando[entrega.id]"
-                class="flex h-8 items-center gap-1.5 rounded-lg bg-green-600 px-3 text-xs font-medium text-white transition-colors hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
-                @click="handleCompletarSimple(entrega)"
-              >
-                {{ completando[entrega.id] ? 'Completando...' : 'Marcar como entregado' }}
-              </button>
-            </li>
-          </ul>
+          <!-- Ítems ya entregados (solo referencia) -->
+          <p v-if="itemsEntregados(pedido).length" class="mt-2 border-t border-slate-100 pt-3 text-xs text-slate-400">
+            Ya entregado: {{ itemsEntregados(pedido).map(i => `${i.producto?.nombre ?? '—'} ×${i.cantidad}`).join(', ') }}
+          </p>
         </li>
       </ul>
+
+      <div v-if="paginacionPendientes.lastPage > 1" class="mt-4 flex items-center justify-between rounded-[14px] border border-black/10 bg-white px-6 py-3">
+        <p class="text-sm text-slate-500">Mostrando {{ paginacionPendientes.from }}–{{ paginacionPendientes.to }} de {{ paginacionPendientes.total }}</p>
+        <div class="flex gap-2">
+          <button type="button" :disabled="paginacionPendientes.currentPage === 1" class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="loadPendientes(paginacionPendientes.currentPage - 1)">Anterior</button>
+          <button type="button" :disabled="paginacionPendientes.currentPage === paginacionPendientes.lastPage" class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="loadPendientes(paginacionPendientes.currentPage + 1)">Siguiente</button>
+        </div>
+      </div>
     </section>
 
     <!-- Panel: Necesidades de compra -->
     <section v-if="tab === 'necesidades'" aria-labelledby="necesidades-heading">
-      <SectionHeader id="necesidades-heading" title="Necesidades de compra pendientes" description="Pedidos que no pudieron despacharse por falta de stock. Cuando llegue el producto vía orden de compra, aparecerán aquí para completar la entrega." class="mb-4" />
+      <SectionHeader id="necesidades-heading" title="Necesidades de compra pendientes" description="Productos vendidos cuyo stock no alcanza para entregarlos. Cuando llegue el producto vía orden de compra, podrás completar la entrega." class="mb-4" />
 
       <div v-if="loadingNecesidades" class="flex items-center justify-center rounded-[14px] border border-black/10 bg-white py-16">
         <span class="text-sm text-slate-500">Cargando necesidades...</span>
@@ -118,38 +102,45 @@
         </div>
       </div>
 
-      <DataTable v-else :columns="necesidadesColumns" :data="necesidades" row-key="id" aria-label="Necesidades de compra">
-        <template #cell="{ column, value, row }">
-          <template v-if="column.key === 'producto'">
-            <span class="font-medium text-slate-900">{{ row.producto?.nombre ?? '—' }}</span>
+      <template v-else>
+        <DataTable :columns="necesidadesColumns" :data="necesidades" row-key="id" aria-label="Necesidades de compra">
+          <template #cell="{ column, value, row }">
+            <template v-if="column.key === 'producto'">
+              <span class="font-medium text-slate-900">{{ row.producto?.nombre ?? '—' }}</span>
+              <span v-if="row.producto?.codigo" class="ml-1 text-xs text-slate-400">{{ row.producto.codigo }}</span>
+            </template>
+            <template v-else-if="column.key === 'estudiante'">{{ row.estudiante?.nombre ?? '—' }}</template>
+            <template v-else-if="column.key === 'almacen'">{{ row.almacen?.nombre ?? '—' }}</template>
+            <template v-else-if="column.key === 'pedido_id'">
+              <code v-if="row.pedido_id" class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs">#{{ row.pedido_id }}</code>
+              <span v-else>—</span>
+            </template>
+            <template v-else>{{ value ?? '—' }}</template>
           </template>
-          <template v-else-if="column.key === 'estudiante'">
-            {{ row.pedido?.estudiante?.nombre_completo ?? '—' }}
-          </template>
-          <template v-else-if="column.key === 'pedido_id'">
-            <code class="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-mono">#{{ row.pedido_id }}</code>
-          </template>
-          <template v-else>{{ value ?? '—' }}</template>
-        </template>
-      </DataTable>
-    </section>
+        </DataTable>
 
-    <div v-if="actionError" class="flex items-start gap-3 rounded-[14px] border border-red-200 bg-red-50 p-4">
-      <p class="text-sm text-red-700">{{ actionError }}</p>
-      <button type="button" class="ml-auto text-sm font-medium text-red-700 underline" @click="actionError = ''">Cerrar</button>
-    </div>
+        <div v-if="paginacionNecesidades.lastPage > 1" class="mt-4 flex items-center justify-between rounded-[14px] border border-black/10 bg-white px-6 py-3">
+          <p class="text-sm text-slate-500">Mostrando {{ paginacionNecesidades.from }}–{{ paginacionNecesidades.to }} de {{ paginacionNecesidades.total }}</p>
+          <div class="flex gap-2">
+            <button type="button" :disabled="paginacionNecesidades.currentPage === 1" class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="loadNecesidades(paginacionNecesidades.currentPage - 1)">Anterior</button>
+            <button type="button" :disabled="paginacionNecesidades.currentPage === paginacionNecesidades.lastPage" class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="loadNecesidades(paginacionNecesidades.currentPage + 1)">Siguiente</button>
+          </div>
+        </div>
+      </template>
+    </section>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
-import invEntregaService from '@/services/invEntregaService.js'
-import { authService }   from '@/services/authService.js'
-import { useNotification } from '@/composables/useNotification'
-import SectionHeader from '@/components/activos/SectionHeader.vue'
-import DataTable     from '@/components/activos/DataTable.vue'
+import invEntregaService  from '@/services/invEntregaService.js'
+import { authService }    from '@/services/authService.js'
+import { itemEntregado }  from '@/utils/invEntregas.js'
+import SectionHeader      from '@/components/activos/SectionHeader.vue'
+import DataTable          from '@/components/activos/DataTable.vue'
+import InvEntregaItemCard from '@/components/inventario/InvEntregaItemCard.vue'
 
-const { success: notifySuccess } = useNotification()
+const PER_PAGE = 15
 
 const userPermissions = ref([])
 const canCompletar = computed(() => userPermissions.value.includes('inv_entregasCompletar'))
@@ -159,67 +150,72 @@ async function loadPermissions() {
   catch { /* permisos vacíos */ }
 }
 
-const tab         = ref('pendientes')
-const actionError = ref('')
+const tab = ref('pendientes')
+
+function nuevaPaginacion() {
+  return reactive({ currentPage: 1, lastPage: 1, total: 0, from: 0, to: 0 })
+}
+
+function aplicarMeta(paginacion, meta) {
+  if (!meta) return
+  paginacion.currentPage = meta.current_page
+  paginacion.lastPage    = meta.last_page
+  paginacion.total       = meta.total
+  paginacion.from        = meta.from ?? 0
+  paginacion.to          = meta.to ?? 0
+}
 
 // ─── Entregas pendientes ───────────────────────────────────────────────────────
-const pendientes        = ref([])
-const loadingPendientes = ref(false)
-const errorPendientes   = ref('')
-const completando       = ref({})
-const kitSelecciones    = reactive({})
+const pendientes           = ref([])
+const loadingPendientes    = ref(false)
+const errorPendientes      = ref('')
+const paginacionPendientes = nuevaPaginacion()
 
-async function loadPendientes() {
-  loadingPendientes.value = true; errorPendientes.value = ''
-  try { const res = await invEntregaService.getPendientes(); pendientes.value = res.data ?? [] }
-  catch (e) { errorPendientes.value = e?.response?.data?.message ?? 'Error al cargar las entregas.' }
-  finally { loadingPendientes.value = false }
-}
-
-async function handleCompletarSimple(entrega) {
-  completando.value = { ...completando.value, [entrega.id]: true }; actionError.value = ''
+async function loadPendientes(page = 1) {
+  // Tras una entrega se recarga sin mostrar el loader para no desmontar las tarjetas
+  if (!pendientes.value.length) loadingPendientes.value = true
+  errorPendientes.value = ''
   try {
-    await invEntregaService.completarSimple(entrega.id)
-    notifySuccess('Entrega completada correctamente.')
-    loadPendientes()
-  } catch (e) { actionError.value = e?.response?.data?.message ?? 'No se pudo completar la entrega.' }
-  finally { const n = { ...completando.value }; delete n[entrega.id]; completando.value = n }
+    const res = await invEntregaService.getPendientes({ page, per_page: PER_PAGE })
+    pendientes.value = res.data ?? []
+    aplicarMeta(paginacionPendientes, res.meta)
+    // Si la página quedó vacía tras entregar su último pedido, retroceder una
+    if (!pendientes.value.length && page > 1) return loadPendientes(page - 1)
+  } catch (e) {
+    errorPendientes.value = e?.response?.data?.message ?? 'Error al cargar las entregas.'
+  } finally {
+    loadingPendientes.value = false
+  }
 }
 
-async function handleCompletarKit(entrega) {
-  const componentes = (entrega.componentes ?? []).map(comp => ({
-    kit_componente_id: comp.id,
-    producto_entregado_id: comp.tipo === 'grupo' ? (kitSelecciones[`${entrega.id}-${comp.id}`] || undefined) : undefined,
-  }))
-  completando.value = { ...completando.value, [entrega.id]: true }; actionError.value = ''
-  try {
-    await invEntregaService.completarKit(entrega.id, componentes)
-    notifySuccess('Entrega de kit completada.')
-    loadPendientes()
-  } catch (e) { actionError.value = e?.response?.data?.message ?? 'No se pudo completar la entrega del kit.' }
-  finally { const n = { ...completando.value }; delete n[entrega.id]; completando.value = n }
-}
+const itemsPorEntregar = (pedido) => (pedido.items ?? []).filter(i => !itemEntregado(i))
+const itemsEntregados  = (pedido) => (pedido.items ?? []).filter(itemEntregado)
 
 // ─── Necesidades de compra ─────────────────────────────────────────────────────
-const necesidades        = ref([])
-const loadingNecesidades = ref(false)
+const necesidades           = ref([])
+const loadingNecesidades    = ref(false)
+const paginacionNecesidades = nuevaPaginacion()
 
-async function loadNecesidades() {
+async function loadNecesidades(page = 1) {
   loadingNecesidades.value = true
-  try { const res = await invEntregaService.getNecesidades(); necesidades.value = res.data ?? [] }
-  catch { necesidades.value = [] } finally { loadingNecesidades.value = false }
+  try {
+    const res = await invEntregaService.getNecesidades({ page, per_page: PER_PAGE })
+    necesidades.value = res.data ?? []
+    aplicarMeta(paginacionNecesidades, res.meta)
+  } catch { necesidades.value = [] }
+  finally { loadingNecesidades.value = false }
 }
 
 const necesidadesColumns = [
-  { key: 'pedido_id',  label: 'Pedido' },
-  { key: 'estudiante', label: 'Estudiante' },
-  { key: 'producto',   label: 'Producto' },
-  { key: 'cantidad',   label: 'Cantidad requerida' },
+  { key: 'pedido_id',          label: 'Pedido' },
+  { key: 'estudiante',         label: 'Estudiante' },
+  { key: 'producto',           label: 'Producto' },
+  { key: 'almacen',            label: 'Almacén' },
+  { key: 'cantidad_necesaria', label: 'Cantidad faltante' },
 ]
 
-watch(tab, (t) => {
-  if (t === 'necesidades' && !necesidades.value.length) loadNecesidades()
-})
+// Las necesidades cambian con cada entrega: se recargan al abrir la pestaña
+watch(tab, (t) => { if (t === 'necesidades') loadNecesidades(paginacionNecesidades.currentPage) })
 
-onMounted(() => { loadPermissions(); loadPendientes() })
+onMounted(() => { loadPermissions(); loadPendientes(); loadNecesidades() })
 </script>

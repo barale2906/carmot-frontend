@@ -24,7 +24,7 @@
       :aria-invalid="error ? 'true' : undefined"
       :aria-describedby="ariaDescribedBy"
         v-bind="$attrs"
-        @change="emit('update:modelValue', ($event.target && $event.target.value) ?? '')"
+        @change="onChange"
       >
         <option value="" disabled>
           {{ placeholder }}
@@ -88,7 +88,17 @@ const props = defineProps({
   span: { type: String, default: 'half', validator: (v) => ['half', 'full'].includes(v) }
 })
 
-const emit = defineEmits(['update:modelValue'])
+// 'change' se declara como emit propio (no solo v-model) para que Vue lo saque de $attrs:
+// si quedara en $attrs, el @change del padre se ligaría al <select> ANTES que este
+// @change interno (por el orden de v-bind="$attrs" vs @change en el template) y se
+// dispararía con el valor previo, un turno por detrás de la selección real.
+const emit = defineEmits(['update:modelValue', 'change'])
+
+function onChange(event) {
+  const value = event.target?.value ?? ''
+  emit('update:modelValue', value)
+  emit('change', value)
+}
 
 const selectId = computed(() => `select-${Math.random().toString(36).slice(2, 9)}`)
 

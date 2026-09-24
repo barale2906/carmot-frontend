@@ -315,6 +315,14 @@ describe('invVentaService', () => {
     expect(res.status).toBe('entregado')
   })
 
+  it('verificarDisponibilidad llama POST /verificar-disponibilidad', async () => {
+    api.post.mockResolvedValue(ok({ data: { entregable_completo: true, items: [] } }))
+    const payload = { almacen_id: 1, items: [{ producto_id: 15, cantidad: 3, entrega_completa: true }] }
+    const res = await invVentaService.verificarDisponibilidad(payload)
+    expect(api.post).toHaveBeenCalledWith(`${BASE}/verificar-disponibilidad`, payload)
+    expect(res.data.entregable_completo).toBe(true)
+  })
+
   it('create acepta config adicional para multipart/form-data', async () => {
     api.post.mockResolvedValue(ok({ id: 2 }))
     const fd = new FormData()
@@ -426,10 +434,30 @@ describe('invEntregaService', () => {
     expect(api.get).toHaveBeenCalledWith(`${BASE}/necesidades`, { params: {} })
   })
 
-  it('completarSimple llama POST /simple/{id}/completar', async () => {
-    api.post.mockResolvedValue(ok({ completado: true }))
+  it('completarSimple sin opciones entrega todo lo que permita el stock', async () => {
+    api.post.mockResolvedValue(ok({ status: 'entregado' }))
     await invEntregaService.completarSimple(7)
-    expect(api.post).toHaveBeenCalledWith(`${BASE}/simple/7/completar`)
+    expect(api.post).toHaveBeenCalledWith(`${BASE}/simple/7/completar`, {})
+  })
+
+  it('completarSimple envía cantidad parcial y forzar_parcial', async () => {
+    api.post.mockResolvedValue(ok({ status: 'parcial' }))
+    await invEntregaService.completarSimple(7, { cantidad: 2, forzar_parcial: true })
+    expect(api.post).toHaveBeenCalledWith(`${BASE}/simple/7/completar`, { cantidad: 2, forzar_parcial: true })
+  })
+
+  it('entregarComponentes llama POST /kit/{id}/entregar-componentes solo con lo seleccionado', async () => {
+    api.post.mockResolvedValue(ok({ status: 'parcial' }))
+    const comp = [{ kit_componente_id: 14, producto_entregado_id: 35 }, { kit_componente_id: 15, cantidad: 1 }]
+    await invEntregaService.entregarComponentes(8, comp)
+    expect(api.post).toHaveBeenCalledWith(`${BASE}/kit/8/entregar-componentes`, { componentes: comp })
+  })
+
+  it('entregarComponentes propaga forzar_parcial', async () => {
+    api.post.mockResolvedValue(ok({ status: 'parcial' }))
+    const comp = [{ kit_componente_id: 14 }]
+    await invEntregaService.entregarComponentes(8, comp, { forzar_parcial: true })
+    expect(api.post).toHaveBeenCalledWith(`${BASE}/kit/8/entregar-componentes`, { componentes: comp, forzar_parcial: true })
   })
 
   it('completarKit llama POST /kit/{id}/completar con componentes', async () => {

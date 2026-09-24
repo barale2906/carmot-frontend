@@ -18,9 +18,20 @@ const invVentaService = {
   },
 
   /**
+   * Consulta qué se puede entregar en el acto con el stock actual del almacén.
+   * Solo informativo: no reserva stock ni bloquea la venta.
+   * @param {Object} payload - { almacen_id, items: [{ producto_id, cantidad, entrega_completa?, variantes? }] }
+   */
+  async verificarDisponibilidad(payload) {
+    const { data } = await api.post(`${BASE}/verificar-disponibilidad`, payload)
+    return data
+  },
+
+  /**
    * Crea una nueva venta (pedido) con abono inicial.
    * Usar multipart/form-data (FormData) si se adjunta comprobante de transferencia.
-   * @param {Object|FormData} payload
+   * @param {Object|FormData} payload - Incluye entrega_inmediata, items[].entregar,
+   *   items[].entrega_completa y variantes_kit[] referenciadas por item_index.
    */
   async create(payload, config = {}) {
     const { data } = await api.post(BASE, payload, config)
@@ -31,7 +42,7 @@ const invVentaService = {
    * Registra un abono adicional a un pedido activo.
    * Usar multipart/form-data (FormData) si se adjunta comprobante.
    * @param {number} pedidoId
-   * @param {Object|FormData} payload - { monto_abono, medios_pago, sobrecargos?, variantes_kit? }
+   * @param {Object|FormData} payload - { monto_abono, medios_pago, sobrecargos?, entrega_inmediata?, items_a_entregar?, variantes_kit? }
    */
   async abonar(pedidoId, payload, config = {}) {
     const { data } = await api.post(`${BASE}/${pedidoId}/abonar`, payload, config)
