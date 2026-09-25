@@ -1,4 +1,5 @@
-import { ref, onErrorCaptured } from 'vue'
+import { ref, watch, onErrorCaptured } from 'vue'
+import { dropdownActivoId } from '@/utils/menu.js'
 
 /**
  * Composable para manejar errores de menú
@@ -124,4 +125,29 @@ export function useMenuSync() {
     clearMenuCache,
     isMenuCacheValid
   }
+}
+
+/**
+ * Acordeón de un nivel del menú: solo un dropdown abierto a la vez entre hermanos.
+ * Arranca (y se reinicia con `reiniciar` o al cambiar la ruta/ítems) con el
+ * dropdown que contiene la pantalla visitada.
+ *
+ * @param {() => Array} items - Getter de los ítems hermanos del nivel
+ * @param {() => string} rutaActual - Getter de la ruta visitada
+ */
+export function useMenuAcordeon(items, rutaActual) {
+  const abiertoId = ref(dropdownActivoId(items(), rutaActual()))
+
+  function reiniciar() {
+    abiertoId.value = dropdownActivoId(items(), rutaActual())
+  }
+
+  /** Abre el dropdown indicado cerrando el que estuviera abierto; si ya lo estaba, lo cierra. */
+  function alternar(id) {
+    abiertoId.value = abiertoId.value === id ? null : id
+  }
+
+  watch([items, rutaActual], reiniciar)
+
+  return { abiertoId, alternar, reiniciar }
 }

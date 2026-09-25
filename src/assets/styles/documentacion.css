@@ -1,0 +1,78 @@
+/*
+ * Contenido de documentos del módulo de Documentación.
+ * Replica las reglas de `resources/views/pdf/documentacion.blade.php` del backend
+ * para que el editor y la previsualización se vean como el PDF de dompdf.
+ * Es CSS plano porque el HTML lo genera el editor/backend, no plantillas Vue.
+ */
+
+.doc-contenido {
+  font-family: 'DejaVu Sans', Arial, sans-serif;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #222;
+}
+
+.doc-contenido--editor {
+  min-height: 420px;
+  padding: 2rem 2.5rem;
+  outline: none;
+}
+
+.doc-contenido p { margin: 0 0 0.6em; }
+.doc-contenido h1 { font-size: 16px; font-weight: 700; margin: 0.8em 0 0.4em; }
+.doc-contenido h2 { font-size: 14px; font-weight: 700; margin: 0.8em 0 0.4em; }
+.doc-contenido h3 { font-size: 13px; font-weight: 700; margin: 0.8em 0 0.4em; }
+.doc-contenido ul { list-style: disc; padding-left: 1.5em; margin: 0 0 0.6em; }
+.doc-contenido ol { list-style: decimal; padding-left: 1.5em; margin: 0 0 0.6em; }
+.doc-contenido hr { border: 0; border-top: 1px solid #ccc; margin: 1em 0; }
+.doc-contenido img { max-width: 100%; }
+
+.doc-contenido table { width: 100%; border-collapse: collapse; margin: 0.6em 0; table-layout: fixed; }
+.doc-contenido table td,
+.doc-contenido table th { border: 1px solid #ddd; padding: 5px 6px; vertical-align: top; }
+.doc-contenido table th { background: #f0f0f0; text-align: left; font-weight: 700; }
+.doc-contenido table p { margin: 0; }
+
+/* Tablas de bloque ya resueltas (previsualización y documento emitido) */
+.doc-contenido .bloque-tabla { font-size: 11px; }
+.doc-contenido .bloque-tabla tfoot th { background: #f7f7f7; }
+.doc-contenido .bloque-vacio { color: #777; font-style: italic; }
+
+/* Celda seleccionada en el editor */
+.doc-contenido .selectedCell { background: rgba(59, 130, 246, 0.12); }
+
+/* Marcadores dentro del editor */
+.doc-marcador {
+  display: inline-block;
+  margin: 0 1px;
+  padding: 0 6px;
+  border-radius: 9999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 11px;
+  line-height: 1.6;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.doc-marcador--invalido { background: #fef2f2; color: #b91c1c; }
+
+.doc-bloque {
+  margin: 0.6em 0;
+  padding: 0.75em 1em;
+  border: 1px dashed #93c5fd;
+  border-radius: 8px;
+  background: #f8fafc;
+  cursor: grab;
+}
+
+.doc-bloque--invalido { border-color: #fca5a5; background: #fef2f2; }
+
+.doc-bloque__titulo { font-size: 12px; font-weight: 600; color: #1e3a8a; }
+.doc-bloque--invalido .doc-bloque__titulo { color: #b91c1c; }
+
+.ProseMirror-selectednode.doc-marcador,
+.ProseMirror-selectednode.doc-bloque { outline: 2px solid #3b82f6; outline-offset: 1px; }
+
+/* Documento anulado: se atenúa el contenido bajo el aviso */
+.doc-contenido--anulado { opacity: 0.6; }

@@ -77,5 +77,9 @@ const icons = {
   print:            () => svg([path('M6 9V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v5'), rect({ x: '2', y: '9', width: '20', height: '8', rx: '1' }), rect({ x: '6', y: '14', width: '12', height: '7', rx: '1' })]),
   mail:             () => svg([rect({ x: '2', y: '4', width: '20', height: '16', rx: '2' }), path('M2 7l10 7 10-7')]),
   check:            () => svg([path('M20 6L9 17l-5-5')]),
+  description:      () => svg([path('M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z'), path('M14 2v6h6M8 13h8M8 17h8M8 9h2')]),
+  arrow_up:         () => svg([path('M12 19V5M5 12l7-7 7 7')]),
+  arrow_down:       () => svg([path('M12 5v14M19 12l-7 7-7-7')]),
+  ban:              () => svg([circle('12', '12', '9'), path('M5.6 5.6l12.8 12.8')]),
 }
 </script>

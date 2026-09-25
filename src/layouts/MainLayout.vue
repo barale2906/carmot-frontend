@@ -39,6 +39,7 @@ const pageTitle = computed(() => {
   const prefixTitles = [
     { prefix: '/academico/cursos',        title: 'Cursos' },
     { prefix: '/academico/programaciones', title: 'Programaciones' },
+    { prefix: '/academico/documentacion', title: 'Documentación' },
     { prefix: '/academico',               title: 'Académico' },
     { prefix: '/configuracion/sedes',     title: 'Sedes' },
     { prefix: '/configuracion/usuarios',  title: 'Configuración' },

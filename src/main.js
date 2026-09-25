@@ -39,6 +39,10 @@ import DescuentosView from './views/financiero/DescuentosView.vue'
 import TransferenciasPendientesView from './views/financiero/TransferenciasPendientesView.vue'
 import BancosView from './views/configuracion/BancosView.vue'
 import MatriculaView from './views/academico/MatriculaView.vue'
+import DocumentacionLayout    from './layouts/DocumentacionLayout.vue'
+import DocDocumentosView      from './views/academico/documentacion/DocDocumentosView.vue'
+import DocPlantillasView      from './views/academico/documentacion/DocPlantillasView.vue'
+import DocTiposDocumentoView  from './views/academico/documentacion/DocTiposDocumentoView.vue'
 import InventarioLayout from './layouts/InventarioLayout.vue'
 import CategoriasView      from './views/inventario/CategoriasView.vue'
 import UnidadesMedidaView  from './views/inventario/UnidadesMedidaView.vue'
@@ -188,6 +192,39 @@ const routes = [
         path: '',
         name: 'Matriculas',
         component: MatriculaView
+      }
+    ]
+  },
+  {
+    path: '/academico/documentacion',
+    component: MainLayout,
+    children: [
+      {
+        path: '',
+        component: DocumentacionLayout,
+        children: [
+          {
+            path: '',
+            name: 'DocDocumentos',
+            component: DocDocumentosView
+          },
+          {
+            path: 'plantillas',
+            name: 'DocPlantillas',
+            component: DocPlantillasView
+          },
+          {
+            path: 'plantillas/:id(\\d+)',
+            name: 'DocPlantillaEditor',
+            // Carga diferida: el editor TipTap solo se descarga al abrir una plantilla
+            component: () => import('./views/academico/documentacion/DocPlantillaEditorView.vue')
+          },
+          {
+            path: 'tipos',
+            name: 'DocTiposDocumento',
+            component: DocTiposDocumentoView
+          }
+        ]
       }
     ]
   },

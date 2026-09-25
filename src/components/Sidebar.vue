@@ -27,6 +27,7 @@
     >
       <aside
         v-if="isOpen"
+        ref="asideRef"
         class="fixed left-0 top-0 z-[999] flex h-full w-[280px] flex-col overflow-y-auto overflow-x-hidden bg-[#1e3a8a] shadow-xl"
         aria-label="Menú principal"
         @click.stop
@@ -72,6 +73,8 @@
               <MenuItem
                 :item="item"
                 :current-route="route.path"
+                :expanded="abiertoId === item.id"
+                @toggle="alternar(item.id)"
                 @navigate="closeSidebar"
               />
             </li>
@@ -110,13 +113,14 @@
 </template>
 
 <script setup>
-import { inject, ref, onMounted } from 'vue'
+import { inject, ref, watch, nextTick, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Logo from '@/components/Logo.vue'
 import NavIcon from '@/components/icons/NavIcon.vue'
 import MenuItem from '@/components/MenuItem.vue'
 import { authService } from '@/services/authService'
 import { menuService } from '@/services/menuService'
+import { useMenuAcordeon } from '@/composables/useMenu.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -128,6 +132,21 @@ const closeSidebar = inject('closeSidebar', () => {})
 const menuItems = ref([])
 const loading = ref(true)
 const error = ref(null)
+const asideRef = ref(null)
+
+// Un solo dropdown abierto en el primer nivel (los sub-niveles los maneja MenuItem)
+const { abiertoId, alternar, reiniciar } = useMenuAcordeon(() => menuItems.value, () => route.path)
+
+/**
+ * Al abrir el menú se descarta lo que se dejó desplegado antes: queda abierto
+ * solo el dropdown de la pantalla visitada y se desplaza hasta su ítem.
+ */
+watch(isOpen, async (abierto) => {
+  if (!abierto) return
+  reiniciar()
+  await nextTick()
+  asideRef.value?.querySelector('[data-menu-activo]')?.scrollIntoView?.({ block: 'center' })
+})
 
 /**
  * Cargar el menú dinámico del backend

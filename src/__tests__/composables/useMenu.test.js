@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { useMenuError, useMenuNavigation, useMenuSync } from '@/composables/useMenu.js'
+import { ref, nextTick } from 'vue'
+import { useMenuError, useMenuNavigation, useMenuSync, useMenuAcordeon } from '@/composables/useMenu.js'
 import { withSetup } from '../helpers.js'
 
 // ── useMenuNavigation ──────────────────────────────────────────────────────
@@ -131,5 +132,53 @@ describe('useMenuError', () => {
     expect(isMenuError.value).toBe(false)
     expect(menuError.value).toBeNull()
     unmount()
+  })
+})
+
+// ── useMenuAcordeon ────────────────────────────────────────────────────────
+
+describe('useMenuAcordeon', () => {
+  const ITEMS = [
+    { id: 'academico', route: '/academico', children: [{ id: 'cursos', route: '/academico/cursos' }] },
+    { id: 'financiero', route: '/financiero', children: [{ id: 'cartera', route: '/financiero/cartera' }] },
+    { id: 'inventario', route: '/inventario', children: [{ id: 'stock', route: '/inventario/stock' }] },
+  ]
+
+  it('arranca con el dropdown de la pantalla visitada', () => {
+    const { abiertoId } = useMenuAcordeon(() => ITEMS, () => '/financiero/cartera')
+    expect(abiertoId.value).toBe('financiero')
+  })
+
+  it('abrir un dropdown cierra el que estaba abierto', () => {
+    const { abiertoId, alternar } = useMenuAcordeon(() => ITEMS, () => '/financiero/cartera')
+    alternar('inventario')
+    expect(abiertoId.value).toBe('inventario')
+    alternar('academico')
+    expect(abiertoId.value).toBe('academico')
+  })
+
+  it('alternar el abierto lo cierra', () => {
+    const { abiertoId, alternar } = useMenuAcordeon(() => ITEMS, () => '/financiero/cartera')
+    alternar('financiero')
+    expect(abiertoId.value).toBeNull()
+  })
+
+  it('reiniciar vuelve al dropdown de la pantalla visitada', () => {
+    const { abiertoId, alternar, reiniciar } = useMenuAcordeon(() => ITEMS, () => '/academico/cursos')
+    alternar('inventario')
+    reiniciar()
+    expect(abiertoId.value).toBe('academico')
+  })
+
+  it('se reinicia al cambiar la ruta o al llegar los ítems', async () => {
+    const ruta = ref('/dashboard')
+    const items = ref([])
+    const { abiertoId } = useMenuAcordeon(() => items.value, () => ruta.value)
+    expect(abiertoId.value).toBeNull()
+
+    items.value = ITEMS
+    ruta.value = '/inventario/stock'
+    await nextTick()
+    expect(abiertoId.value).toBe('inventario')
   })
 })

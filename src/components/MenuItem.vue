@@ -10,6 +10,8 @@
         item.disabled && 'opacity-50 cursor-not-allowed'
       ]"
       :type="item.children?.length > 0 ? 'button' : undefined"
+      :aria-expanded="item.children?.length > 0 ? expanded : undefined"
+      :data-menu-activo="isActive && !item.children?.length ? '' : undefined"
       @click="handleClick"
     >
       <NavIcon :name="item.icon" class="size-5 shrink-0" />
@@ -18,9 +20,8 @@
       <!-- Ícono de expansión para items con children -->
       <NavIcon
         v-if="item.children?.length > 0"
-        :name="isExpanded ? 'expand_less' : 'expand_more'"
+        :name="expanded ? 'expand_less' : 'expand_more'"
         class="size-5 shrink-0 transition-transform"
-        :class="{ 'rotate-180': isExpanded }"
       />
     </component>
 
@@ -34,7 +35,7 @@
       leave-to-class="max-h-0 opacity-0"
     >
       <div
-        v-if="isExpanded && item.children?.length > 0"
+        v-if="expanded && item.children?.length > 0"
         class="overflow-hidden"
       >
         <div class="pl-8 border-l-2 border-white/20 ml-3 my-1 py-1">
@@ -43,6 +44,8 @@
             :key="child.id"
             :item="child"
             :current-route="currentRoute"
+            :expanded="abiertoId === child.id"
+            @toggle="alternar(child.id)"
             @navigate="$emit('navigate')"
           />
         </div>
@@ -52,9 +55,11 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import NavIcon from '@/components/icons/NavIcon.vue'
+import { useMenuAcordeon } from '@/composables/useMenu.js'
+import { rutaCoincide } from '@/utils/menu.js'
 
 const props = defineProps({
   item: {
@@ -73,39 +78,28 @@ const props = defineProps({
   currentRoute: {
     type: String,
     default: ''
+  },
+  /** Controlado por el nivel padre: solo un dropdown abierto entre hermanos. */
+  expanded: {
+    type: Boolean,
+    default: false
   }
 })
 
-const emit = defineEmits(['navigate'])
+const emit = defineEmits(['navigate', 'toggle'])
 
 const route = useRoute()
 const router = useRouter()
-const isExpanded = ref(false)
+
+const rutaActual = () => props.currentRoute || route.path
+
+// Acordeón de los sub-dropdowns de este ítem
+const { abiertoId, alternar } = useMenuAcordeon(() => props.item.children ?? [], rutaActual)
 
 /**
  * Determinar si el item está activo basado en la ruta actual
  */
-const isActive = computed(() => {
-  const routePath = props.currentRoute || route.path
-  return routePath === props.item.route || routePath.startsWith(props.item.route + '/')
-})
-
-/**
- * Expandir automáticamente si algún descendiente (a cualquier nivel) está activo
- */
-const shouldAutoExpand = computed(() => {
-  if (!props.item.children?.length) return false
-  const routePath = props.currentRoute || route.path
-  return hasActiveDescendant(props.item.children, routePath)
-})
-
-function hasActiveDescendant(children, routePath) {
-  return children.some((child) => {
-    if (routePath === child.route || routePath.startsWith(child.route + '/')) return true
-    if (child.children?.length) return hasActiveDescendant(child.children, routePath)
-    return false
-  })
-}
+const isActive = computed(() => rutaCoincide(props.item.route, rutaActual()))
 
 /**
  * Obtener propiedades dinámicas del binding
@@ -128,9 +122,9 @@ function handleClick() {
   // Si está deshabilitado, no hacer nada
   if (props.item.disabled) return
 
-  // Si tiene children, expandir/contraer
+  // Si tiene children, el padre decide (cierra los hermanos abiertos)
   if (props.item.children?.length > 0) {
-    isExpanded.value = !isExpanded.value
+    emit('toggle')
     return
   }
 
@@ -139,13 +133,6 @@ function handleClick() {
     router.push(props.item.route)
     emit('navigate')
   }
-}
-
-/**
- * Inicializar expanded si está activo
- */
-if (shouldAutoExpand.value) {
-  isExpanded.value = true
 }
 </script>
 
