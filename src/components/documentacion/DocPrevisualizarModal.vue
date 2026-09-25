@@ -2,7 +2,7 @@
   <ModalBase
     :model-value="modelValue"
     title="Previsualizar con datos reales"
-    description="Resuelve variables y tablas contra un registro del sistema sin emitir ningún documento."
+    description="Resuelve variables y tablas contra un registro del sistema sin dejar entrada en la bitácora."
     size="xl"
     @update:model-value="emit('update:modelValue', $event)"
   >

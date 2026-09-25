@@ -73,6 +73,3 @@
 
 .ProseMirror-selectednode.doc-marcador,
 .ProseMirror-selectednode.doc-bloque { outline: 2px solid #3b82f6; outline-offset: 1px; }
-
-/* Documento anulado: se atenúa el contenido bajo el aviso */
-.doc-contenido--anulado { opacity: 0.6; }

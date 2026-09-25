@@ -28,8 +28,8 @@ describe('usePermisos', () => {
 
 describe('useDocTiposDocumento', () => {
   const TIPOS = [
-    { id: 1, nombre: 'Contrato', prefijo_numero: 'CONT' },
-    { id: 2, nombre: 'Certificado', prefijo_numero: 'CERT' },
+    { id: 1, nombre: 'Contrato', codigo: 'CONTRATO' },
+    { id: 2, nombre: 'Certificado', codigo: 'CERTIFICADO' },
   ]
 
   it('carga los tipos y arma opciones con value string', async () => {
@@ -39,8 +39,8 @@ describe('useDocTiposDocumento', () => {
 
     expect(docTipoDocumentoService.getAll).toHaveBeenCalledWith({ per_page: 100, sort_by: 'nombre', sort_direction: 'asc' })
     expect(tiposOptions.value).toEqual([
-      { value: '1', label: 'Contrato (CONT)' },
-      { value: '2', label: 'Certificado (CERT)' },
+      { value: '1', label: 'Contrato (CONTRATO)' },
+      { value: '2', label: 'Certificado (CERTIFICADO)' },
     ])
     expect(tipoPorId('2').nombre).toBe('Certificado')
     expect(tipoPorId(9)).toBeNull()

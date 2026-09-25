@@ -122,7 +122,7 @@ export const DocBloque = Node.create({
       dom.appendChild(crearEtiqueta({
         texto: label ? `Tabla: ${label}` : `Bloque desconocido: ${node.attrs.clave}`,
         titulo: label
-          ? 'Al generar el documento se reemplaza por la tabla consultada del sistema'
+          ? 'Al imprimir el documento se reemplaza por la tabla consultada del sistema'
           : 'Este bloque no está disponible para la entidad del tipo de documento',
         clase: 'doc-bloque__titulo',
       }))

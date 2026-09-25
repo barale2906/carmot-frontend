@@ -10,9 +10,9 @@ export const PLANTILLA_STATUS = Object.freeze({
   ACTIVA:     3,
 })
 
-export const DOCUMENTO_STATUS = Object.freeze({
-  VIGENTE: 1,
-  ANULADO: 2,
+export const DOCUMENTO_ORIGEN = Object.freeze({
+  GENERADO: 0,
+  SUBIDO:   1,
 })
 
 export const PREFIJO_BLOQUE = 'bloque.'
@@ -34,9 +34,9 @@ const PLANTILLA_STATUS_CLASS = {
   [PLANTILLA_STATUS.ACTIVA]:     'bg-green-50 text-green-700',
 }
 
-const DOCUMENTO_STATUS_CLASS = {
-  [DOCUMENTO_STATUS.VIGENTE]: 'bg-green-50 text-green-700',
-  [DOCUMENTO_STATUS.ANULADO]: 'bg-red-50 text-red-700',
+const DOCUMENTO_ORIGEN_CLASS = {
+  [DOCUMENTO_ORIGEN.GENERADO]: 'bg-blue-50 text-blue-700',
+  [DOCUMENTO_ORIGEN.SUBIDO]:   'bg-purple-50 text-purple-700',
 }
 
 const CAMPOS_FECHA_LABEL = {
@@ -54,8 +54,8 @@ export function plantillaStatusClass(status) {
   return PLANTILLA_STATUS_CLASS[status] ?? PLANTILLA_STATUS_CLASS[PLANTILLA_STATUS.INACTIVA]
 }
 
-export function documentoStatusClass(status) {
-  return DOCUMENTO_STATUS_CLASS[status] ?? 'bg-slate-100 text-slate-600'
+export function documentoOrigenClass(origen) {
+  return DOCUMENTO_ORIGEN_CLASS[origen] ?? 'bg-slate-100 text-slate-600'
 }
 
 /** Solo las versiones En Proceso admiten cambios de contenido o de bloques. */
@@ -191,9 +191,16 @@ export function construirPayloadBloques(bloques = []) {
     })
 }
 
-/** Nombre del archivo PDF de un documento emitido. */
-export function nombreArchivoDocumento(documento) {
-  return `${documento?.numero_documento ?? `documento-${documento?.id ?? ''}`}.pdf`
+/**
+ * Nombre del PDF impreso, igual al que arma el backend: `CODIGO-{id del registro}.pdf`
+ * (el número del documento es el de la matrícula, no hay consecutivo propio).
+ *
+ * @param {string} codigo - Código del tipo de documento
+ * @param {number|null} [entidadId]
+ */
+export function nombreArchivoDocumento(codigo, entidadId = null) {
+  const base = codigo || 'documento'
+  return entidadId ? `${base}-${entidadId}.pdf` : `${base}.pdf`
 }
 
 /**

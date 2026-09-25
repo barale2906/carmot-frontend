@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import {
   PLANTILLA_STATUS,
-  DOCUMENTO_STATUS,
+  DOCUMENTO_ORIGEN,
   plantillaStatusText,
   plantillaStatusClass,
-  documentoStatusClass,
+  documentoOrigenClass,
   esPlantillaEditable,
   etiquetaCampoFecha,
   entidadClaseCorta,
@@ -30,8 +30,9 @@ describe('estados', () => {
   it('clases de estado con fallback', () => {
     expect(plantillaStatusClass(PLANTILLA_STATUS.ACTIVA)).toContain('green')
     expect(plantillaStatusClass(99)).toContain('slate')
-    expect(documentoStatusClass(DOCUMENTO_STATUS.ANULADO)).toContain('red')
-    expect(documentoStatusClass(99)).toContain('slate')
+    expect(documentoOrigenClass(DOCUMENTO_ORIGEN.GENERADO)).toContain('blue')
+    expect(documentoOrigenClass(DOCUMENTO_ORIGEN.SUBIDO)).toContain('purple')
+    expect(documentoOrigenClass(99)).toContain('slate')
   })
 
   it('solo En Proceso es editable', () => {
@@ -169,9 +170,10 @@ describe('construirPayloadBloques', () => {
 })
 
 describe('nombreArchivoDocumento / fechaHoraLocal', () => {
-  it('usa el número del documento', () => {
-    expect(nombreArchivoDocumento({ id: 12, numero_documento: 'CONT-2026-000001' })).toBe('CONT-2026-000001.pdf')
-    expect(nombreArchivoDocumento({ id: 12 })).toBe('documento-12.pdf')
+  it('arma CODIGO-{id del registro}.pdf como el backend', () => {
+    expect(nombreArchivoDocumento('CONTRATO', 345)).toBe('CONTRATO-345.pdf')
+    expect(nombreArchivoDocumento('CARTA')).toBe('CARTA.pdf')
+    expect(nombreArchivoDocumento(undefined, 12)).toBe('documento-12.pdf')
   })
 
   it('convierte UTC a hora de Colombia (no adelanta el día)', () => {

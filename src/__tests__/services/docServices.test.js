@@ -45,7 +45,7 @@ describe('docTipoDocumentoService', () => {
   })
 
   it('create envía el payload completo por POST', async () => {
-    const payload = { codigo: 'CONTRATO', nombre: 'Contrato', prefijo_numero: 'CONT', se_ata_fecha: true }
+    const payload = { codigo: 'CONTRATO', nombre: 'Contrato', conforma_matricula: true }
     api.post.mockReturnValue(ok({ data: { id: 1, ...payload } }))
     await docTipoDocumentoService.create(payload)
     expect(api.post).toHaveBeenCalledWith(BASE, payload)
@@ -97,7 +97,7 @@ describe('docTipoDocumentoService', () => {
   })
 
   it('propaga el error del API', async () => {
-    api.post.mockRejectedValue({ response: { status: 422, data: { errors: { prefijo_numero: ['ya existe'] } } } })
+    api.post.mockRejectedValue({ response: { status: 422, data: { errors: { codigo: ['ya existe'] } } } })
     await expect(docTipoDocumentoService.create({})).rejects.toMatchObject({ response: { status: 422 } })
   })
 })
@@ -211,25 +211,26 @@ describe('docDocumentoService', () => {
     expect(api.get).toHaveBeenCalledWith(`${BASE}/filters`)
   })
 
-  it('generar envía tipo y entidad y retorna el documento emitido', async () => {
-    api.post.mockReturnValue(ok({ data: { id: 12, numero_documento: 'CONT-2026-000001' } }))
-    const res = await docDocumentoService.generar({ tipo_documento_id: 1, entidad_id: 345 })
-    expect(api.post).toHaveBeenCalledWith(`${BASE}/generar`, { tipo_documento_id: 1, entidad_id: 345 })
-    expect(res.data.numero_documento).toBe('CONT-2026-000001')
+  it('render arma el documento por GET con tipo y entidad como query', async () => {
+    api.get.mockReturnValue(ok({ data: { emision_id: 87, version: 2, contenido: '<p>Hola</p>' } }))
+    const params = { tipo_documento_id: 1, entidad_id: 345 }
+    const res = await docDocumentoService.render(params)
+    expect(api.get).toHaveBeenCalledWith(`${BASE}/render`, { params })
+    expect(res.data.contenido).toBe('<p>Hola</p>')
   })
 
-  it('descargarPdf pide blob y retorna la respuesta completa', async () => {
+  it('pdf pide blob con los mismos parámetros y retorna la respuesta completa', async () => {
     const respuesta = { data: new Blob(['%PDF']), headers: {} }
     api.get.mockReturnValue(Promise.resolve(respuesta))
-    const res = await docDocumentoService.descargarPdf(12)
-    expect(api.get).toHaveBeenCalledWith(`${BASE}/12/pdf`, { responseType: 'blob' })
+    const params = { tipo_documento_id: 1, entidad_id: 345 }
+    const res = await docDocumentoService.pdf(params)
+    expect(api.get).toHaveBeenCalledWith(`${BASE}/pdf`, { params, responseType: 'blob' })
     expect(res).toBe(respuesta)
   })
 
-  it('anular envía el motivo', async () => {
-    api.post.mockReturnValue(ok({ data: { status: 2 } }))
-    await docDocumentoService.anular(12, 'Error en el valor')
-    expect(api.post).toHaveBeenCalledWith(`${BASE}/12/anular`, { motivo: 'Error en el valor' })
+  it('ya no expone generar ni anular (los documentos no se almacenan)', () => {
+    expect(docDocumentoService.generar).toBeUndefined()
+    expect(docDocumentoService.anular).toBeUndefined()
   })
 
   it('papelera y delete', async () => {
@@ -247,7 +248,7 @@ describe('docDocumentoService', () => {
   })
 
   it('propaga el 422 cuando no hay versión vigente', async () => {
-    api.post.mockRejectedValue({ response: { status: 422, data: { message: 'No hay versión vigente' } } })
-    await expect(docDocumentoService.generar({ tipo_documento_id: 1 })).rejects.toMatchObject({ response: { status: 422 } })
+    api.get.mockRejectedValue({ response: { status: 422, data: { message: 'No hay versión vigente' } } })
+    await expect(docDocumentoService.render({ tipo_documento_id: 1 })).rejects.toMatchObject({ response: { status: 422 } })
   })
 })

@@ -133,7 +133,7 @@
               </td>
               <td class="px-4 py-3">
                 <p class="font-medium text-slate-900">{{ plantilla.tipo_documento?.nombre ?? '—' }}</p>
-                <p v-if="plantilla.tipo_documento?.prefijo_numero" class="font-mono text-xs text-slate-400">{{ plantilla.tipo_documento.prefijo_numero }}</p>
+                <p v-if="plantilla.tipo_documento?.codigo" class="font-mono text-xs text-slate-400">{{ plantilla.tipo_documento.codigo }}</p>
               </td>
               <td class="px-4 py-3">
                 <p class="text-slate-900">{{ plantilla.nombre }}</p>
@@ -400,7 +400,7 @@ async function handleActivar() {
 
 async function handleInactivar(plantilla) {
   if (!await confirm(
-    `¿Inactivar "${plantilla.nombre}" (v${plantilla.version})? Si es la versión vigente, dejará de haber versión para emitir documentos nuevos.`,
+    `¿Inactivar "${plantilla.nombre}" (v${plantilla.version})? Si es la versión vigente, dejará de haber versión con la que imprimir el documento hoy.`,
     { title: 'Inactivar versión', confirmLabel: 'Inactivar' },
   )) return
   try {

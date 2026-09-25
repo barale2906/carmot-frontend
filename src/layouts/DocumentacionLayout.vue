@@ -5,7 +5,7 @@
         Académico · Documentación
       </h1>
       <p class="mt-1 text-sm text-slate-500">
-        Redacta y versiona las plantillas de los documentos del instituto y emite documentos con datos del sistema.
+        Redacta y versiona las plantillas de los documentos del instituto e imprime documentos con los datos del sistema.
       </p>
       <FormulariosNav :items="navItems" class="mt-4" />
     </header>

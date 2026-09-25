@@ -21,7 +21,7 @@ const docTipoDocumentoService = {
 
   /**
    * @param {{ codigo: string, nombre: string, descripcion?: string, entidad_type?: string|null,
-   *           se_ata_fecha?: boolean, campo_fecha_referencia?: string|null, prefijo_numero: string,
+   *           conforma_matricula?: boolean, campo_fecha_referencia?: string|null,
    *           variables?: string[] }} payload
    */
   async create(payload) {

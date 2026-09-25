@@ -3,13 +3,15 @@ import api from './api.js'
 const BASE = '/academico/documentacion/documentos'
 
 /**
- * Servicio de documentos emitidos. El contenido de un documento es inmutable:
- * se guarda ya renderizado y el backend decide qué versión de plantilla aplica.
- * Estados: 1 = Vigente, 2 = Anulado. El listado omite `contenido_renderizado`.
- * Permisos: aca_documentos, aca_documentoGenerar, aca_documentoAnular.
+ * Servicio de impresión de documentos. Nada del documento se almacena: cada
+ * `render`/`pdf` lo arma con los datos actuales del registro y el backend
+ * decide qué versión de plantilla aplica. Cada impresión deja una entrada en la
+ * bitácora (`getAll`), que no guarda contenido.
+ * Origen de una entrada: 0 = Impresión generada, 1 = Archivo subido.
+ * Permisos: aca_documentos, aca_documentoGenerar, aca_documentoAnular (papelera).
  */
 const docDocumentoService = {
-  /** @param {Object} params - Filtros: search, status, tipo_documento_id, origen, entidad_type, entidad_id, page, per_page */
+  /** @param {Object} params - Filtros: search (nombre de archivo), tipo_documento_id, origen, entidad_type, entidad_id, page, per_page */
   async getAll(params = {}) {
     const { data } = await api.get(BASE, { params })
     return data
@@ -26,23 +28,25 @@ const docDocumentoService = {
   },
 
   /**
-   * Emite un documento. `entidad_id` es obligatorio si el tipo declara `entidad_type`.
+   * Arma el documento y devuelve su HTML para mostrarlo en pantalla.
+   * `entidad_id` es obligatorio si el tipo declara `entidad_type`.
    *
-   * @param {{ tipo_documento_id: number, entidad_id?: number|null }} payload
+   * @param {{ tipo_documento_id: number, entidad_id?: number|null }} params
+   * @returns {Promise<{ data: { emision_id: number, tipo_documento: string, plantilla_id: number,
+   *           version: number, fecha_referencia: string|null, contenido: string } }>}
    */
-  async generar(payload) {
-    const { data } = await api.post(`${BASE}/generar`, payload)
+  async render(params) {
+    const { data } = await api.get(`${BASE}/render`, { params })
     return data
   },
 
-  /** Descarga el PDF (contenido congelado). Retorna la respuesta completa con el blob. */
-  async descargarPdf(id) {
-    return api.get(`${BASE}/${id}/pdf`, { responseType: 'blob' })
-  },
-
-  async anular(id, motivo) {
-    const { data } = await api.post(`${BASE}/${id}/anular`, { motivo })
-    return data
+  /**
+   * Arma el documento y lo devuelve en PDF. Retorna la respuesta completa con el blob.
+   *
+   * @param {{ tipo_documento_id: number, entidad_id?: number|null }} params
+   */
+  async pdf(params) {
+    return api.get(`${BASE}/pdf`, { params, responseType: 'blob' })
   },
 
   async delete(id) {

@@ -12,7 +12,7 @@ export function useDocTiposDocumento({ soloActivos = false } = {}) {
   const cargandoTipos = ref(false)
 
   const tiposOptions = computed(() =>
-    tipos.value.map((t) => ({ value: String(t.id), label: `${t.nombre} (${t.prefijo_numero})` })),
+    tipos.value.map((t) => ({ value: String(t.id), label: `${t.nombre} (${t.codigo})` })),
   )
 
   /** @param {number|string} id */

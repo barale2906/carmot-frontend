@@ -44,7 +44,7 @@
       <SectionHeader
         id="listado-tipos-heading"
         title="Tipos de documento"
-        description="Cada tipo define de qué registro toma sus datos, si su versión se ata a una fecha y su numeración consecutiva."
+        description="Cada tipo define de qué registro toma sus datos y si conforma la matrícula (su versión queda fija a la fecha de la matrícula)."
         class="mb-4"
       />
 
@@ -73,13 +73,10 @@
             <span class="text-slate-700">{{ row.entidad_nombre ?? 'Sin registro asociado' }}</span>
           </template>
           <template v-else-if="column.key === 'fecha'">
-            <span v-if="row.se_ata_fecha" class="text-slate-700">
-              {{ row.campo_fecha_referencia ? etiquetaCampoFecha(row.campo_fecha_referencia) : 'Fecha de generación' }}
+            <span v-if="row.conforma_matricula" class="text-slate-700">
+              {{ row.campo_fecha_referencia ? etiquetaCampoFecha(row.campo_fecha_referencia) : 'Fecha de impresión' }}
             </span>
             <span v-else class="text-slate-400">Siempre la vigente hoy</span>
-          </template>
-          <template v-else-if="column.key === 'prefijo_numero'">
-            <span class="font-mono text-slate-700">{{ row.prefijo_numero }}</span>
           </template>
           <template v-else-if="column.key === 'variables'">
             {{ row.variables_count ?? row.variables?.length ?? '—' }}
@@ -140,21 +137,20 @@
     >
       <form class="grid grid-cols-1 gap-4 pb-2 md:grid-cols-2" @submit.prevent="handleSubmit">
         <FormInput v-model="form.nombre" label="Nombre" placeholder="Ej: Contrato de matrícula" required :error="formErrors.nombre?.[0]" />
-        <FormInput v-model="form.codigo" label="Código" placeholder="Ej: CONTRATO" required :error="formErrors.codigo?.[0]" />
         <FormInput
-          v-model="form.prefijo_numero"
-          label="Prefijo del consecutivo"
-          placeholder="Ej: CONT"
+          v-model="form.codigo"
+          label="Código"
+          placeholder="Ej: CONTRATO"
           required
-          help="Cada tipo lleva su propia serie (CONT-2026-000001). Debe ser único entre todos los tipos."
-          :error="formErrors.prefijo_numero?.[0]"
+          help="Único entre todos los tipos. Nombra el PDF descargado (CONTRATO-345.pdf)."
+          :error="formErrors.codigo?.[0]"
         />
         <FormSelect
           v-model="form.entidad_type"
           label="Toma los datos de"
           placeholder="Sin registro asociado"
           :options="entidadOptions"
-          help="Registro del que salen las variables y tablas. Al generar se pide elegir uno."
+          help="Registro del que salen las variables y tablas. Al imprimir se pide elegir uno."
           :error="formErrors.entidad_type?.[0]"
           @change="form.campo_fecha_referencia = ''"
         />
@@ -164,20 +160,20 @@
 
         <div class="flex flex-col gap-3 rounded-lg border border-slate-200 p-4 md:col-span-2">
           <label class="flex items-start gap-2 text-sm text-slate-700">
-            <input v-model="form.se_ata_fecha" type="checkbox" class="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+            <input v-model="form.conforma_matricula" type="checkbox" class="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
             <span>
-              <span class="font-medium">La versión aplicable depende de una fecha del registro</span>
+              <span class="font-medium">Conforma la matrícula</span>
               <span class="block text-xs text-slate-500">
-                Marcar en contratos, pagarés y hojas de matrícula: se usa la versión vigente en esa fecha, no la de hoy.
-                Dejar sin marcar en cartas y certificaciones.
+                Marcar en contratos, pagarés y hojas de matrícula: al reimprimirse se usa la versión vigente en la fecha
+                de la matrícula, no la de hoy. Dejar sin marcar en sábanas de notas, constancias y cartas.
               </span>
             </span>
           </label>
           <FormSelect
-            v-if="form.se_ata_fecha"
+            v-if="form.conforma_matricula"
             v-model="form.campo_fecha_referencia"
             label="Fecha de referencia"
-            placeholder="Fecha de generación del documento"
+            placeholder="Fecha de impresión del documento"
             :options="camposFechaOptions"
             :disabled="!form.entidad_type"
             :error="formErrors.campo_fecha_referencia?.[0]"
@@ -223,7 +219,7 @@
           v-model="seleccionGlobal"
           label="Datos generales"
           search-placeholder="Buscar variable..."
-          hint="Número y fecha del documento, datos del instituto y usuario que genera."
+          hint="Fecha y tipo del documento, datos del instituto y usuario que imprime."
           :options="opcionesGlobal"
         />
         <p class="rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
@@ -248,7 +244,7 @@
         <li v-for="item in trashedItems" :key="item.id" class="flex items-center justify-between gap-3 py-3">
           <div>
             <p class="text-sm font-medium text-slate-900">{{ item.nombre }}</p>
-            <p class="font-mono text-xs text-slate-400">{{ item.codigo }} · {{ item.prefijo_numero }}</p>
+            <p class="font-mono text-xs text-slate-400">{{ item.codigo }}</p>
           </div>
           <div class="flex shrink-0 gap-2">
             <button type="button" :disabled="trashedBusy === item.id" class="rounded-lg bg-green-100 px-2.5 py-1.5 text-xs font-medium text-green-800 transition-colors hover:bg-green-200 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500" @click="handleRestore(item)">Restaurar</button>
@@ -316,12 +312,11 @@ const pagination = reactive({ currentPage: 1, lastPage: 1, total: 0, from: 0, to
 const filters    = reactive({ search: '', status: '' })
 
 const tableColumns = [
-  { key: 'nombre',         label: 'Tipo' },
-  { key: 'entidad',        label: 'Toma datos de' },
-  { key: 'fecha',          label: 'Versión según' },
-  { key: 'prefijo_numero', label: 'Prefijo' },
-  { key: 'variables',      label: 'Variables' },
-  { key: 'status',         label: 'Estado' },
+  { key: 'nombre',    label: 'Tipo' },
+  { key: 'entidad',   label: 'Toma datos de' },
+  { key: 'fecha',     label: 'Versión según' },
+  { key: 'variables', label: 'Variables' },
+  { key: 'status',    label: 'Estado' },
 ]
 
 async function loadTipos(page = 1) {
@@ -363,7 +358,7 @@ const formError   = ref('')
 const formErrors  = ref({})
 const form = reactive({
   codigo: '', nombre: '', descripcion: '', entidad_type: '',
-  se_ata_fecha: false, campo_fecha_referencia: '', prefijo_numero: '', status: 1,
+  conforma_matricula: false, campo_fecha_referencia: '', status: 1,
 })
 
 function resetForm(tipo = null) {
@@ -371,9 +366,8 @@ function resetForm(tipo = null) {
   form.nombre                 = tipo?.nombre ?? ''
   form.descripcion            = tipo?.descripcion ?? ''
   form.entidad_type           = tipo?.entidad_type ?? ''
-  form.se_ata_fecha           = tipo?.se_ata_fecha ?? false
+  form.conforma_matricula     = tipo?.conforma_matricula ?? false
   form.campo_fecha_referencia = tipo?.campo_fecha_referencia ?? ''
-  form.prefijo_numero         = tipo?.prefijo_numero ?? ''
   form.status                 = tipo?.status ?? 1
   formError.value = ''; formErrors.value = {}
 }
@@ -387,9 +381,8 @@ function buildPayload() {
     nombre:                 form.nombre.trim(),
     descripcion:            form.descripcion.trim() || null,
     entidad_type:           form.entidad_type || null,
-    se_ata_fecha:           form.se_ata_fecha,
-    campo_fecha_referencia: form.se_ata_fecha ? (form.campo_fecha_referencia || null) : null,
-    prefijo_numero:         form.prefijo_numero.trim().toUpperCase(),
+    conforma_matricula:     form.conforma_matricula,
+    campo_fecha_referencia: form.conforma_matricula ? (form.campo_fecha_referencia || null) : null,
   }
   if (editingItem.value) payload.status = Number(form.status)
   return payload

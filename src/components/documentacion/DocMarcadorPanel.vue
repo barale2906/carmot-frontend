@@ -44,6 +44,10 @@
       <p v-if="!bloques.length" class="text-xs text-slate-400">
         No hay tablas de consulta disponibles para la entidad de este tipo de documento.
       </p>
+      <p v-else class="rounded-lg bg-amber-50 p-2.5 text-xs text-amber-800">
+        Las tablas se consultan en cada impresión: al reimprimir muestran los datos de ese momento.
+        Las columnas y sus títulos sí quedan fijos en la versión.
+      </p>
       <article
         v-for="bloque in bloques"
         :key="bloque.clave"

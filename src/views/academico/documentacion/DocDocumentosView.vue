@@ -3,25 +3,25 @@
 
     <!-- Filtros y acciones -->
     <section aria-labelledby="filtros-documentos-heading" class="rounded-[14px] border border-black/10 bg-white p-6">
-      <h2 id="filtros-documentos-heading" class="sr-only">Filtros de documentos</h2>
+      <h2 id="filtros-documentos-heading" class="sr-only">Filtros de la bitácora</h2>
       <div class="flex flex-wrap items-end gap-4">
         <div class="min-w-0 flex-1 sm:max-w-xs">
-          <FormInputSearch v-model="filters.search" label="Buscar:" placeholder="Número de documento..." @input="onSearchInput" />
+          <FormInputSearch v-model="filters.search" label="Buscar:" placeholder="Nombre del archivo subido..." @input="onSearchInput" />
         </div>
         <div class="w-full sm:w-[260px]">
           <FormSelect v-model="filters.tipo_documento_id" label="Tipo de documento:" placeholder="Todos" :options="tiposOptions" @change="loadDocumentos(1)" />
         </div>
-        <div class="w-full sm:w-[160px]">
-          <FormSelect v-model="filters.status" label="Estado:" placeholder="Todos" :options="statusOptions" @change="loadDocumentos(1)" />
+        <div class="w-full sm:w-[190px]">
+          <FormSelect v-model="filters.origen" label="Origen:" placeholder="Todos" :options="origenOptions" @change="loadDocumentos(1)" />
         </div>
         <div class="flex w-full items-end gap-2 sm:w-auto">
           <button
             v-if="can('aca_documentoGenerar')"
             type="button"
             class="flex h-9 items-center gap-2 rounded-lg bg-[#213360] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            @click="showGenerar = true"
+            @click="openImprimir()"
           >
-            <NavIcon name="plus" class="size-4" /> Generar documento
+            <NavIcon name="plus" class="size-4" /> Imprimir documento
           </button>
           <button
             v-if="can('aca_documentoAnular')"
@@ -43,7 +43,7 @@
       <!-- Filtro por registro llegado desde otra pantalla (p. ej. una matrícula) -->
       <div v-if="filters.entidad_id" class="mt-4 flex items-center gap-2 text-xs text-slate-600">
         <span class="rounded-full bg-blue-50 px-2.5 py-1 font-medium text-blue-700">
-          Solo documentos del registro #{{ filters.entidad_id }}
+          Solo impresiones del registro #{{ filters.entidad_id }}
         </span>
         <button type="button" class="font-medium text-blue-700 underline" @click="quitarFiltroEntidad">Quitar</button>
       </div>
@@ -53,13 +53,13 @@
     <section aria-labelledby="listado-documentos-heading">
       <SectionHeader
         id="listado-documentos-heading"
-        title="Documentos emitidos"
-        description="El contenido de cada documento queda congelado al emitirlo: no cambia aunque cambien la plantilla o los datos."
+        title="Bitácora de impresiones"
+        description="Los documentos no se almacenan: se arman cada vez que se imprimen. Aquí queda quién imprimió qué, cuándo y con qué versión."
         class="mb-4"
       />
 
       <div v-if="loading" class="flex items-center justify-center rounded-[14px] border border-black/10 bg-white py-16">
-        <span class="text-sm text-slate-500">Cargando documentos...</span>
+        <span class="text-sm text-slate-500">Cargando bitácora...</span>
       </div>
       <div v-else-if="error" class="rounded-[14px] border border-red-200 bg-red-50 p-6">
         <p class="text-sm text-red-700">{{ error }}</p>
@@ -71,15 +71,13 @@
         :columns="tableColumns"
         :data="documentos"
         row-key="id"
-        aria-label="Listado de documentos emitidos"
+        aria-label="Bitácora de impresiones de documentos"
         actions-first
       >
         <template #cell="{ column, row }">
-          <template v-if="column.key === 'numero_documento'">
-            <span class="font-mono font-medium text-slate-900">{{ row.numero_documento }}</span>
-          </template>
-          <template v-else-if="column.key === 'tipo'">
-            {{ row.tipo_documento?.nombre ?? '—' }}
+          <template v-if="column.key === 'tipo'">
+            <p class="font-medium text-slate-900">{{ row.tipo_documento?.nombre ?? '—' }}</p>
+            <p v-if="row.nombre_original" class="text-xs text-slate-400">{{ row.nombre_original }}</p>
           </template>
           <template v-else-if="column.key === 'entidad'">
             <span v-if="row.entidad_id" class="text-slate-700">
@@ -90,47 +88,53 @@
           <template v-else-if="column.key === 'fecha_referencia'">
             {{ row.fecha_referencia ?? '—' }}
           </template>
+          <template v-else-if="column.key === 'generador'">
+            {{ row.generador?.nombre ?? '—' }}
+          </template>
           <template v-else-if="column.key === 'created_at'">
             {{ fechaHoraLocal(row.created_at) }}
           </template>
-          <template v-else-if="column.key === 'status'">
-            <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium" :class="documentoStatusClass(row.status)">
-              {{ row.status_text }}
+          <template v-else-if="column.key === 'origen'">
+            <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium" :class="documentoOrigenClass(row.origen)">
+              {{ row.origen_text }}
             </span>
           </template>
         </template>
 
         <template #actions="{ row }">
-          <button
-            type="button"
-            title="Ver documento"
-            class="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            @click="openDetalle(row)"
-          >
-            <NavIcon name="eye" class="size-4" />
-          </button>
-          <button
-            type="button"
-            title="Descargar PDF"
-            :disabled="descargando === row.id"
-            class="rounded p-1.5 text-slate-500 transition-colors hover:bg-blue-100 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-40"
-            @click="descargarPdf(row)"
+          <template v-if="row.origen === DOCUMENTO_ORIGEN.GENERADO && can('aca_documentoGenerar')">
+            <button
+              type="button"
+              title="Reimprimir en pantalla"
+              class="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              @click="openImprimir(row)"
+            >
+              <NavIcon name="eye" class="size-4" />
+            </button>
+            <button
+              type="button"
+              title="Descargar PDF"
+              :disabled="descargando === row.id"
+              class="rounded p-1.5 text-slate-500 transition-colors hover:bg-blue-100 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-40"
+              @click="descargarPdf(row)"
+            >
+              <NavIcon name="download" class="size-4" />
+            </button>
+          </template>
+          <a
+            v-else-if="row.google_drive_url"
+            :href="row.google_drive_url"
+            target="_blank"
+            rel="noopener"
+            title="Abrir archivo"
+            class="rounded p-1.5 text-slate-500 transition-colors hover:bg-blue-100 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <NavIcon name="download" class="size-4" />
-          </button>
+          </a>
           <button
-            v-if="can('aca_documentoAnular') && row.status === DOCUMENTO_STATUS.VIGENTE"
+            v-if="can('aca_documentoAnular')"
             type="button"
-            title="Anular documento"
-            class="rounded p-1.5 text-slate-500 transition-colors hover:bg-amber-100 hover:text-amber-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            @click="openAnular(row)"
-          >
-            <NavIcon name="ban" class="size-4" />
-          </button>
-          <button
-            v-if="can('aca_documentoAnular') && row.status === DOCUMENTO_STATUS.ANULADO"
-            type="button"
-            title="Eliminar documento anulado"
+            title="Eliminar de la bitácora"
             class="rounded p-1.5 text-slate-500 transition-colors hover:bg-red-100 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
             @click="handleDelete(row)"
           >
@@ -139,94 +143,20 @@
         </template>
       </DataTable>
 
-      <DocPaginacion :pagination="pagination" entidad="documentos" @page="goToPage" />
+      <DocPaginacion :pagination="pagination" entidad="registros" @page="goToPage" />
     </section>
 
-    <DocGenerarModal v-model="showGenerar" @generado="onGenerado" />
-
-    <!-- Modal: Detalle -->
-    <ModalBase
-      v-model="showDetalle"
-      :title="detalle?.numero_documento ?? 'Documento'"
-      :description="detalle?.tipo_documento?.nombre ?? ''"
-      size="xl"
-    >
-      <div v-if="detalleLoading" class="py-12 text-center text-sm text-slate-500">Cargando documento...</div>
-      <div v-else-if="detalle" class="flex flex-col gap-4 pb-4">
-        <dl class="grid grid-cols-2 gap-3 rounded-lg bg-slate-50 p-4 text-sm md:grid-cols-4">
-          <div>
-            <dt class="text-xs text-slate-500">Versión aplicada</dt>
-            <dd class="font-medium text-slate-800">
-              {{ detalle.plantilla ? `${detalle.plantilla.nombre} (v${detalle.plantilla.version})` : '—' }}
-            </dd>
-          </div>
-          <div>
-            <dt class="text-xs text-slate-500">Fecha de referencia</dt>
-            <dd class="font-medium text-slate-800">{{ detalle.fecha_referencia ?? '—' }}</dd>
-          </div>
-          <div>
-            <dt class="text-xs text-slate-500">Generado</dt>
-            <dd class="font-medium text-slate-800">{{ fechaHoraLocal(detalle.created_at) }}</dd>
-          </div>
-          <div>
-            <dt class="text-xs text-slate-500">Por</dt>
-            <dd class="font-medium text-slate-800">{{ detalle.generador?.nombre ?? '—' }}</dd>
-          </div>
-        </dl>
-        <DocHtmlPreview
-          :html="detalle.contenido_renderizado ?? ''"
-          :anulado="detalle.status === DOCUMENTO_STATUS.ANULADO"
-          :motivo-anulacion="detalle.motivo_anulacion ?? ''"
-        />
-      </div>
-      <p v-else-if="detalleError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ detalleError }}</p>
-
-      <template #footer>
-        <button type="button" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showDetalle = false">Cerrar</button>
-        <button
-          v-if="detalle"
-          type="button"
-          :disabled="descargando === detalle.id"
-          class="flex items-center gap-2 rounded-lg bg-[#213360] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-          @click="descargarPdf(detalle)"
-        >
-          <NavIcon name="download" class="size-4" />
-          {{ descargando === detalle.id ? 'Descargando...' : 'Descargar PDF' }}
-        </button>
-      </template>
-    </ModalBase>
-
-    <!-- Modal: Anular -->
-    <ModalBase v-model="showAnular" title="Anular documento" :description="anularTarget?.numero_documento ?? ''">
-      <div class="flex flex-col gap-3 pb-2">
-        <p class="text-sm text-slate-600">
-          El documento no se borra: queda marcado como anulado (también en su PDF) y se conserva el motivo.
-        </p>
-        <FormTextarea v-model="motivo" label="Motivo de anulación" placeholder="Ej: Error en el valor de la matrícula" :rows="3" required />
-        <p v-if="anularError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ anularError }}</p>
-      </div>
-      <template #footer>
-        <button type="button" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showAnular = false">Cancelar</button>
-        <button
-          type="button"
-          :disabled="anulando || !motivo.trim()"
-          class="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50"
-          @click="handleAnular"
-        >
-          {{ anulando ? 'Anulando...' : 'Anular documento' }}
-        </button>
-      </template>
-    </ModalBase>
+    <DocImprimirModal v-model="showImprimir" :inicial="imprimirInicial" @impreso="onImpreso" />
 
     <!-- Modal: Papelera -->
-    <ModalBase v-model="showTrashed" title="Papelera de documentos" description="Documentos eliminados. Puedes restaurarlos o eliminarlos permanentemente.">
+    <ModalBase v-model="showTrashed" title="Papelera de la bitácora" description="Entradas eliminadas. Puedes restaurarlas o eliminarlas permanentemente.">
       <div v-if="trashedLoading" class="py-8 text-center text-sm text-slate-500">Cargando papelera...</div>
-      <div v-else-if="!trashedItems.length" class="py-6 text-center text-sm text-slate-400">No hay documentos eliminados.</div>
+      <div v-else-if="!trashedItems.length" class="py-6 text-center text-sm text-slate-400">No hay entradas eliminadas.</div>
       <ul v-else class="divide-y divide-slate-100">
         <li v-for="item in trashedItems" :key="item.id" class="flex items-center justify-between gap-3 py-3">
           <div>
-            <p class="font-mono text-sm font-medium text-slate-900">{{ item.numero_documento }}</p>
-            <p class="text-xs text-slate-400">{{ item.tipo_documento?.nombre ?? '—' }} · {{ item.status_text }}</p>
+            <p class="text-sm font-medium text-slate-900">{{ describirEntrada(item) }}</p>
+            <p class="text-xs text-slate-400">{{ item.origen_text }} · {{ fechaHoraLocal(item.created_at) }}</p>
           </div>
           <div class="flex shrink-0 gap-2">
             <button type="button" :disabled="trashedBusy === item.id" class="rounded-lg bg-green-100 px-2.5 py-1.5 text-xs font-medium text-green-800 transition-colors hover:bg-green-200 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500" @click="handleRestore(item)">Restaurar</button>
@@ -250,22 +180,20 @@ import { useDocTiposDocumento } from '@/composables/useDocTiposDocumento.js'
 import { useNotification }      from '@/composables/useNotification'
 import { useConfirm }           from '@/composables/useConfirm.js'
 import {
-  DOCUMENTO_STATUS,
-  documentoStatusClass,
+  DOCUMENTO_ORIGEN,
+  documentoOrigenClass,
   fechaHoraLocal,
   nombreArchivoDocumento,
 } from '@/utils/documentacion.js'
 import { descargarBlob, mensajeErrorBlob } from '@/utils/descargas.js'
-import SectionHeader   from '@/components/activos/SectionHeader.vue'
-import DataTable       from '@/components/activos/DataTable.vue'
-import NavIcon         from '@/components/icons/NavIcon.vue'
-import FormInputSearch from '@/components/forms/FormInputSearch.vue'
-import FormSelect      from '@/components/forms/FormSelect.vue'
-import FormTextarea    from '@/components/forms/FormTextarea.vue'
-import ModalBase       from '@/components/ModalBase.vue'
-import DocPaginacion   from '@/components/documentacion/DocPaginacion.vue'
-import DocGenerarModal from '@/components/documentacion/DocGenerarModal.vue'
-import DocHtmlPreview  from '@/components/documentacion/DocHtmlPreview.vue'
+import SectionHeader    from '@/components/activos/SectionHeader.vue'
+import DataTable        from '@/components/activos/DataTable.vue'
+import NavIcon          from '@/components/icons/NavIcon.vue'
+import FormInputSearch  from '@/components/forms/FormInputSearch.vue'
+import FormSelect       from '@/components/forms/FormSelect.vue'
+import ModalBase        from '@/components/ModalBase.vue'
+import DocPaginacion    from '@/components/documentacion/DocPaginacion.vue'
+import DocImprimirModal from '@/components/documentacion/DocImprimirModal.vue'
 
 const route  = useRoute()
 const router = useRouter()
@@ -276,12 +204,18 @@ const { tiposOptions, loadTipos } = useDocTiposDocumento()
 
 const mensajeError = (e, fallback) => e?.response?.data?.message ?? fallback
 
-const statusOptions = ref([])
+/** Texto corto de una entrada para confirmaciones y papelera. */
+function describirEntrada(item) {
+  const tipo = item.tipo_documento?.nombre ?? item.nombre_original ?? 'Documento'
+  return item.entidad_id ? `${tipo} · registro #${item.entidad_id}` : tipo
+}
+
+const origenOptions = ref([])
 
 async function loadFilters() {
   try {
     const res = await docDocumentoService.getFilters()
-    statusOptions.value = Object.entries(res.data?.status_options ?? {}).map(([value, label]) => ({ value, label }))
+    origenOptions.value = Object.entries(res.data?.origen_options ?? {}).map(([value, label]) => ({ value, label }))
   } catch { /* selector vacío */ }
 }
 
@@ -293,18 +227,18 @@ const pagination = reactive({ currentPage: 1, lastPage: 1, total: 0, from: 0, to
 const filters    = reactive({
   search:            '',
   tipo_documento_id: '',
-  status:            '',
+  origen:            '',
   entidad_type:      route.query.entidad_type ?? '',
   entidad_id:        route.query.entidad_id ?? '',
 })
 
 const tableColumns = [
-  { key: 'numero_documento', label: 'Número' },
-  { key: 'tipo',             label: 'Tipo' },
+  { key: 'tipo',             label: 'Documento' },
   { key: 'entidad',          label: 'Registro' },
   { key: 'fecha_referencia', label: 'Fecha de referencia' },
-  { key: 'created_at',       label: 'Generado' },
-  { key: 'status',           label: 'Estado' },
+  { key: 'generador',        label: 'Impreso por' },
+  { key: 'created_at',       label: 'Fecha' },
+  { key: 'origen',           label: 'Origen' },
 ]
 
 async function loadDocumentos(page = 1) {
@@ -314,7 +248,7 @@ async function loadDocumentos(page = 1) {
     const params = { page, per_page: 15 }
     if (filters.search)            params.search            = filters.search
     if (filters.tipo_documento_id) params.tipo_documento_id = filters.tipo_documento_id
-    if (filters.status !== '')     params.status            = filters.status
+    if (filters.origen !== '')     params.origen            = filters.origen
     if (filters.entidad_id) {
       params.entidad_type = filters.entidad_type
       params.entidad_id   = filters.entidad_id
@@ -329,7 +263,7 @@ async function loadDocumentos(page = 1) {
       pagination.to          = res.meta.to   ?? 0
     }
   } catch (e) {
-    error.value = mensajeError(e, 'Error al cargar los documentos.')
+    error.value = mensajeError(e, 'Error al cargar la bitácora.')
   } finally {
     loading.value = false
   }
@@ -341,7 +275,7 @@ function onSearchInput() {
   searchTimer = setTimeout(() => loadDocumentos(1), 400)
 }
 function clearFilters() {
-  filters.search = ''; filters.tipo_documento_id = ''; filters.status = ''
+  filters.search = ''; filters.tipo_documento_id = ''; filters.origen = ''
   loadDocumentos(1)
 }
 function quitarFiltroEntidad() {
@@ -351,42 +285,31 @@ function quitarFiltroEntidad() {
 }
 function goToPage(page) { if (page >= 1 && page <= pagination.lastPage) loadDocumentos(page) }
 
-// ─── Generar ──────────────────────────────────────────────────────────────────
-const showGenerar = ref(false)
+// ─── Imprimir / reimprimir ────────────────────────────────────────────────────
+const showImprimir    = ref(false)
+const imprimirInicial = ref(null)
+const descargando     = ref(null)
 
-function onGenerado(documento) {
-  notifySuccess(`Documento ${documento.numero_documento} generado.`)
-  loadDocumentos(1)
-  openDetalle(documento)
+/** Sin entrada abre el formulario vacío; con una entrada de la bitácora la reimprime. */
+function openImprimir(entrada = null) {
+  imprimirInicial.value = entrada
+    ? { tipo_documento_id: entrada.tipo_documento_id, entidad_id: entrada.entidad_id }
+    : null
+  showImprimir.value = true
 }
 
-// ─── Detalle y PDF ────────────────────────────────────────────────────────────
-const showDetalle    = ref(false)
-const detalle        = ref(null)
-const detalleLoading = ref(false)
-const detalleError   = ref('')
-const descargando    = ref(null)
+// Cada impresión deja una entrada nueva: se refresca la primera página.
+function onImpreso() { loadDocumentos(1) }
 
-async function openDetalle(documento) {
-  showDetalle.value    = true
-  detalle.value        = null
-  detalleError.value   = ''
-  detalleLoading.value = true
+async function descargarPdf(entrada) {
+  descargando.value = entrada.id
   try {
-    const res = await docDocumentoService.getById(documento.id)
-    detalle.value = res.data
-  } catch (e) {
-    detalleError.value = mensajeError(e, 'No se pudo cargar el documento.')
-  } finally {
-    detalleLoading.value = false
-  }
-}
-
-async function descargarPdf(documento) {
-  descargando.value = documento.id
-  try {
-    const res = await docDocumentoService.descargarPdf(documento.id)
-    descargarBlob(res.data, nombreArchivoDocumento(documento), 'application/pdf')
+    const res = await docDocumentoService.pdf({
+      tipo_documento_id: entrada.tipo_documento_id,
+      ...(entrada.entidad_id ? { entidad_id: entrada.entidad_id } : {}),
+    })
+    descargarBlob(res.data, nombreArchivoDocumento(entrada.tipo_documento?.codigo, entrada.entidad_id), 'application/pdf')
+    loadDocumentos(1)
   } catch (e) {
     notifyError(await mensajeErrorBlob(e, 'No se pudo descargar el PDF.'))
   } finally {
@@ -394,43 +317,15 @@ async function descargarPdf(documento) {
   }
 }
 
-// ─── Anular / eliminar ────────────────────────────────────────────────────────
-const showAnular   = ref(false)
-const anularTarget = ref(null)
-const motivo       = ref('')
-const anulando     = ref(false)
-const anularError  = ref('')
-
-function openAnular(documento) {
-  anularTarget.value = documento
-  motivo.value       = ''
-  anularError.value  = ''
-  showAnular.value   = true
-}
-
-async function handleAnular() {
-  anulando.value    = true
-  anularError.value = ''
+// ─── Eliminar ─────────────────────────────────────────────────────────────────
+async function handleDelete(entrada) {
+  if (!await confirm(`¿Eliminar de la bitácora "${describirEntrada(entrada)}"? Podrás restaurarla desde la papelera.`, { title: 'Eliminar entrada', confirmLabel: 'Eliminar' })) return
   try {
-    await docDocumentoService.anular(anularTarget.value.id, motivo.value.trim())
-    showAnular.value = false
-    notifySuccess(`Documento ${anularTarget.value.numero_documento} anulado.`)
+    await docDocumentoService.delete(entrada.id)
+    notifySuccess('Entrada eliminada de la bitácora.')
     loadDocumentos(pagination.currentPage)
   } catch (e) {
-    anularError.value = e?.response?.data?.errors?.motivo?.[0] ?? mensajeError(e, 'No se pudo anular el documento.')
-  } finally {
-    anulando.value = false
-  }
-}
-
-async function handleDelete(documento) {
-  if (!await confirm(`¿Eliminar el documento anulado ${documento.numero_documento}? Podrás restaurarlo desde la papelera.`, { title: 'Eliminar documento', confirmLabel: 'Eliminar' })) return
-  try {
-    await docDocumentoService.delete(documento.id)
-    notifySuccess('Documento eliminado.')
-    loadDocumentos(pagination.currentPage)
-  } catch (e) {
-    notifyError(mensajeError(e, 'No se pudo eliminar el documento.'))
+    notifyError(mensajeError(e, 'No se pudo eliminar la entrada.'))
   }
 }
 
@@ -457,25 +352,25 @@ async function handleRestore(item) {
   trashedBusy.value = item.id
   try {
     await docDocumentoService.restore(item.id)
-    notifySuccess(`Documento ${item.numero_documento} restaurado.`)
+    notifySuccess('Entrada restaurada.')
     trashedItems.value = trashedItems.value.filter((i) => i.id !== item.id)
     loadDocumentos(pagination.currentPage)
   } catch (e) {
-    notifyError(mensajeError(e, 'No se pudo restaurar el documento.'))
+    notifyError(mensajeError(e, 'No se pudo restaurar la entrada.'))
   } finally {
     trashedBusy.value = null
   }
 }
 
 async function handleForceDelete(item) {
-  if (!await confirm(`¿Eliminar permanentemente ${item.numero_documento}? Esta acción no se puede deshacer.`, { title: 'Eliminar definitivamente', confirmLabel: 'Eliminar' })) return
+  if (!await confirm(`¿Eliminar permanentemente "${describirEntrada(item)}"? Esta acción no se puede deshacer.`, { title: 'Eliminar definitivamente', confirmLabel: 'Eliminar' })) return
   trashedBusy.value = item.id
   try {
     await docDocumentoService.forceDelete(item.id)
-    notifySuccess(`Documento ${item.numero_documento} eliminado permanentemente.`)
+    notifySuccess('Entrada eliminada permanentemente.')
     trashedItems.value = trashedItems.value.filter((i) => i.id !== item.id)
   } catch (e) {
-    notifyError(mensajeError(e, 'No se pudo eliminar el documento.'))
+    notifyError(mensajeError(e, 'No se pudo eliminar la entrada.'))
   } finally {
     trashedBusy.value = null
   }

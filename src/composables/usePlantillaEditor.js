@@ -151,7 +151,7 @@ export function usePlantillaEditor() {
     await cargarBloques(plantilla.value.id)
   }
 
-  /** HTML con variables y bloques resueltos contra un registro real, sin emitir documento. */
+  /** HTML con variables y bloques resueltos contra un registro real, sin dejar entrada en la bitácora. */
   async function previsualizar(entidadId) {
     const res = await docPlantillaService.previsualizar(plantilla.value.id, entidadId)
     return res.data?.contenido ?? ''

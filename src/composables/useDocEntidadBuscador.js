@@ -76,7 +76,7 @@ export const ADAPTADORES_ENTIDAD = {
 
 /**
  * Búsqueda del registro asociado a un documento (el `entidad_id` que exigen
- * generar y previsualizar), según la entidad del tipo de documento.
+ * imprimir y previsualizar), según la entidad del tipo de documento.
  *
  * @param {import('vue').Ref<string|null>} entidadType - Clase completa de la entidad del tipo
  */
