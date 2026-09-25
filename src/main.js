@@ -88,6 +88,19 @@ const routes = [
     ]
   },
   {
+    path: '/ayudas',
+    component: MainLayout,
+    children: [
+      {
+        path: '',
+        name: 'Ayudas',
+        // Carga diferida: el manual solo se descarga al abrir Ayudas
+        component: () => import('./views/AyudasView.vue'),
+        meta: { title: 'Ayudas' }
+      }
+    ]
+  },
+  {
     path: '/activos',
     component: MainLayout,
     children: [

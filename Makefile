@@ -6,7 +6,7 @@ GREEN = \033[0;32m
 YELLOW = \033[0;33m
 NC = \033[0m
 
-.PHONY: up down stop start restart show-urls npm vue day-end day-start build-staging build-production build test test-run test-coverage
+.PHONY: up down stop start restart show-urls npm vue day-end day-start build-staging build-production build despliegue_pruebas test test-run test-coverage
 
 up:
 	@echo -e '$(GREEN)=> Iniciando contenedores Docker$(NC)'
@@ -48,6 +48,12 @@ build-production:
 	@echo -e '$(GREEN)=> Build producción (Vite) dentro de Docker$(NC)'
 	docker compose run --rm --no-deps vue sh -c "npm ci && npm run build"
 	@echo -e '$(GREEN)=> dist/ listo. Sube el contenido a public_html en HestiaCP.$(NC)'
+
+# Build para servidor de pruebas (https://carmotapi.gislasas.com)
+despliegue_pruebas:
+	@echo -e '$(GREEN)=> Build para servidor de pruebas$(NC)'
+	docker compose run --rm --no-deps -e VITE_API_URL=https://carmotapi.gislasas.com/api vue sh -c "npm ci && npm run build"
+	@echo -e '$(GREEN)=> dist/ listo. Sube su contenido al directorio raíz del servidor de pruebas.$(NC)'
 
 # Build para cualquier servidor. Uso: make build BACKEND=https://tuapi.com
 # El /api se agrega automáticamente; no incluyas barra al final del BACKEND.

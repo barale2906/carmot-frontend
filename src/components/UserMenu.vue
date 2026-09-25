@@ -44,6 +44,14 @@
             <span>Ver Perfil</span>
           </a>
           
+          <a href="#" class="dropdown-item" @click.prevent="goToAyudas">
+            <svg class="dropdown-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.095m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" 
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Ayudas</span>
+          </a>
+          
           <button class="dropdown-item logout-item" @click="handleLogout">
             <svg class="dropdown-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M9 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H9M16 17L21 12M21 12L16 7M21 12H9" 
@@ -105,6 +113,11 @@ const closeMenu = () => {
 const goToProfile = () => {
   closeMenu()
   router.push('/perfil')
+}
+
+const goToAyudas = () => {
+  closeMenu()
+  router.push('/ayudas')
 }
 
 const handleLogout = async () => {
