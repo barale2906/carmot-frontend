@@ -350,7 +350,7 @@ async function loadStatistics() {
 // ─── Catálogos de selección ───────────────────────────────────────────────────
 const categoriaOptions = ref([{ value: '', label: 'Todas las categorías' }])
 const unidadOptions    = ref([{ value: '', label: 'Sin unidad de medida' }])
-const simplesOptions   = ref([]) // solo simples activos — para variantes de grupos
+const simplesOptions   = ref([]) // simples activos sin grupo — candidatos a variantes
 const gruposOptions    = ref([]) // solo grupos activos — para componentes de kits
 
 async function loadCatalogos() {
@@ -363,7 +363,8 @@ async function loadCatalogos() {
     categoriaOptions.value = [{ value: '', label: 'Todas las categorías' }, ...(cats.data ?? cats).map(c => ({ value: c.id, label: c.nombre }))]
     unidadOptions.value    = [{ value: '', label: 'Sin unidad de medida' }, ...(units.data ?? units).map(u => ({ value: u.id, label: `${u.nombre} (${u.abreviatura})` }))]
     const todos = prods.data ?? prods ?? []
-    simplesOptions.value = todos.filter(p => p.tipo === 'simple').map(p => ({ value: p.id, label: p.nombre }))
+    // Un simple solo puede pertenecer a un grupo: se excluyen los ya asignados
+    simplesOptions.value = todos.filter(p => p.tipo === 'simple' && !p.producto_padre_id).map(p => ({ value: p.id, label: p.nombre }))
     gruposOptions.value  = todos.filter(p => p.tipo === 'grupo').map(p => ({ value: p.id, label: p.nombre }))
   } catch { /* no bloquea */ }
 }
@@ -521,6 +522,7 @@ async function handleAddComponente() {
       notifySuccess('Variante agregada.')
       const res = await invProductoService.getVariantes(componentesProducto.value.id)
       componentes.value = res.data ?? []
+      loadCatalogos() // el simple deja de estar disponible para otros grupos
     } else {
       // Kit: agrega un grupo al kit via inv_kit_componentes
       await invProductoService.addComponente(componentesProducto.value.id, {
@@ -547,6 +549,7 @@ async function handleDeleteComponente(comp) {
       // Desvincula el simple del grupo poniendo producto_padre_id en null
       await invProductoService.removeVariante(comp.id)
       notifySuccess('Variante eliminada del grupo.')
+      loadCatalogos() // el simple vuelve a estar disponible
     } else {
       await invProductoService.deleteComponente(componentesProducto.value.id, comp.id)
       notifySuccess('Componente eliminado.')

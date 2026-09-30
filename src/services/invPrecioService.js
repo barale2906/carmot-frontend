@@ -55,6 +55,18 @@ const invPrecioService = {
   },
 
   /**
+   * Desglose de precios de los componentes de un kit en una lista:
+   * precio unitario × cantidad por componente, con rango (min/max) para grupos.
+   *
+   * @param {number} listaId
+   * @param {number} kitId
+   */
+  async getDesgloseKit(listaId, kitId) {
+    const { data } = await api.get(`${BASE}/lista/${listaId}/kit/${kitId}/desglose`)
+    return data
+  },
+
+  /**
    * Sincroniza (upsert masivo) los precios de una lista de inventario.
    * Solo funciona en listas con status En Proceso (1).
    * Los productos no incluidos en items son eliminados (soft-delete).

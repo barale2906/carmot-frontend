@@ -303,7 +303,7 @@
       </section>
 
       <!-- Modal: Crear / Editar precio -->
-      <ModalBase v-model="showForm" :title="editingItem ? 'Editar precio' : 'Nuevo precio'" description="Precio de inventario vinculado a una lista de precios activa de inventario.">
+      <ModalBase v-model="showForm" :size="selectedProducto?.tipo === 'kit' ? 'lg' : 'md'" :title="editingItem ? 'Editar precio' : 'Nuevo precio'" description="Precio de inventario vinculado a una lista de precios activa de inventario.">
         <form class="flex flex-col gap-4 pb-2" @submit.prevent="handleSubmit">
           <InvProductoBuscador
             label="Producto"
@@ -318,7 +318,7 @@
           <template v-if="selectedProducto?.tipo === 'grupo'">
             <div class="rounded-lg border border-blue-200 bg-blue-50 p-3">
               <p class="text-xs font-medium text-blue-800">
-                Producto grupo — el precio se asignará a todas sus variantes.
+                Producto grupo — el precio se asignará a todas sus variantes activas.
               </p>
               <div v-if="loadingVariantes" class="mt-1.5 text-xs text-blue-600">Cargando variantes...</div>
               <div v-else-if="grupoVariantes.length" class="mt-2 flex flex-wrap gap-1">
@@ -328,11 +328,83 @@
                   class="inline-flex rounded bg-blue-100 px-2 py-0.5 text-xs text-blue-700"
                 >{{ v.nombre }}</span>
               </div>
-              <p v-else class="mt-1.5 text-xs text-blue-500">Este grupo no tiene variantes registradas.</p>
+              <p v-else class="mt-1.5 text-xs text-blue-500">Este grupo no tiene variantes activas; agrégalas antes de asignarle precio.</p>
             </div>
           </template>
 
           <FormSelect v-model="form.lista_precio_id" label="Lista de precios" placeholder="Selecciona..." :options="listaPrecioOptions" required :error="formErrors.lista_precio_id?.[0]" />
+
+          <!-- Desglose del kit: referencia para calcular su precio en la lista elegida -->
+          <template v-if="selectedProducto?.tipo === 'kit'">
+            <div class="rounded-lg border border-purple-200 bg-purple-50 p-3">
+              <p class="text-xs font-medium text-purple-800">Componentes del kit — precio unitario × cantidad en la lista seleccionada</p>
+
+              <p v-if="!form.lista_precio_id" class="mt-1.5 text-xs text-purple-600">Selecciona una lista de precios para ver el desglose.</p>
+              <p v-else-if="loadingDesglose" class="mt-1.5 text-xs text-purple-600">Calculando desglose...</p>
+              <p v-else-if="!desgloseKit?.componentes?.length" class="mt-1.5 text-xs text-purple-600">Este kit no tiene componentes definidos.</p>
+
+              <template v-else>
+                <table class="mt-2 w-full text-xs">
+                  <thead>
+                    <tr class="text-left text-purple-700">
+                      <th class="py-1 font-medium">Componente</th>
+                      <th class="py-1 text-center font-medium">Cant.</th>
+                      <th class="py-1 text-right font-medium">P. unitario</th>
+                      <th class="py-1 text-right font-medium">Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-purple-100">
+                    <tr v-for="c in desgloseKit.componentes" :key="c.kit_componente_id" class="align-top text-slate-700">
+                      <td class="py-1.5">
+                        <span class="font-medium">{{ c.nombre }}</span>
+                        <span v-if="c.tipo === 'grupo'" class="ml-1 text-[10px] uppercase text-purple-500">grupo</span>
+                        <!-- Detalle de variantes solo cuando aporta: precios distintos o faltantes -->
+                        <div v-if="c.variantes.length && (!c.completo || c.precio_unitario_min !== c.precio_unitario_max)" class="mt-0.5 flex flex-wrap gap-1">
+                          <span
+                            v-for="v in c.variantes"
+                            :key="v.id"
+                            :class="v.precio == null ? 'bg-red-100 text-red-700' : 'bg-white text-slate-600'"
+                            class="rounded px-1.5 py-0.5 text-[10px]"
+                          >{{ v.nombre }}: {{ v.precio == null ? 'sin precio' : formatCurrency(v.precio) }}</span>
+                        </div>
+                      </td>
+                      <td class="py-1.5 text-center">{{ c.cantidad }}</td>
+                      <td class="py-1.5 text-right font-mono">{{ formatRango(c.precio_unitario_min, c.precio_unitario_max) }}</td>
+                      <td class="py-1.5 text-right font-mono" :class="c.completo ? '' : 'text-red-600'">{{ formatRango(c.subtotal_min, c.subtotal_max) }}</td>
+                    </tr>
+                  </tbody>
+                  <tfoot>
+                    <tr class="border-t border-purple-200 text-purple-900">
+                      <td colspan="3" class="pt-1.5 font-semibold">Suma de componentes</td>
+                      <td class="pt-1.5 text-right font-mono font-semibold">{{ formatRango(desgloseKit.total_min, desgloseKit.total_max) }}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+
+                <p v-if="!desgloseKit.completo" class="mt-2 text-xs text-red-600">
+                  Hay componentes o variantes sin precio en esta lista; la suma no los incluye.
+                </p>
+                <p v-if="desgloseKit.total_min !== desgloseKit.total_max" class="mt-1 text-xs text-purple-600">
+                  El total es un rango porque las variantes de algún grupo tienen precios distintos.
+                </p>
+
+                <div class="mt-2 flex flex-wrap items-center gap-2">
+                  <span v-if="desgloseKit.precio_actual != null" class="text-xs text-slate-600">
+                    Precio actual del kit: <strong class="font-mono">{{ formatCurrency(desgloseKit.precio_actual) }}</strong>
+                  </span>
+                  <span v-if="diferenciaKit" class="text-xs" :class="diferenciaKit.clase">{{ diferenciaKit.texto }}</span>
+                  <span class="flex-1" />
+                  <button
+                    v-for="total in totalesSugeridos"
+                    :key="total"
+                    type="button"
+                    class="rounded bg-purple-600 px-2 py-1 text-xs font-medium text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                    @click="form.precio = total"
+                  >Usar {{ formatCurrency(total) }}</button>
+                </div>
+              </template>
+            </div>
+          </template>
           <FormInput v-model="form.precio" label="Precio" type="number" min="0" step="0.01" placeholder="0.00" required :error="formErrors.precio?.[0]" />
           <FormTextarea v-model="form.observaciones" label="Observaciones" placeholder="Observaciones opcionales..." :rows="2" :error="formErrors.observaciones?.[0]" />
           <div v-if="formError" class="rounded-lg border border-red-200 bg-red-50 p-3">
@@ -721,6 +793,47 @@ const form             = reactive({ ...emptyForm })
 const selectedProducto = ref(null)   // objeto completo del producto elegido
 const grupoVariantes   = ref([])     // variantes del grupo seleccionado
 const loadingVariantes = ref(false)
+const desgloseKit      = ref(null)   // desglose de componentes del kit en la lista elegida
+const loadingDesglose  = ref(false)
+
+const formatRango = (min, max) => {
+  if (min == null) return '—'
+  return min === max ? formatCurrency(min) : `${formatCurrency(min)} – ${formatCurrency(max)}`
+}
+
+// Totales que se pueden aplicar como precio del kit (uno solo si no hay rango)
+const totalesSugeridos = computed(() => {
+  const d = desgloseKit.value
+  if (!d?.componentes?.length || !d.total_max) return []
+  return d.total_min === d.total_max ? [d.total_min] : [d.total_min, d.total_max]
+})
+
+// Compara el precio digitado contra la suma de componentes
+const diferenciaKit = computed(() => {
+  const d = desgloseKit.value
+  const precio = Number(form.precio)
+  if (!d?.total_max || !form.precio || Number.isNaN(precio)) return null
+  if (precio >= d.total_min && precio <= d.total_max) return { texto: 'Igual a la suma de componentes', clase: 'text-slate-500' }
+  const base = precio < d.total_min ? d.total_min : d.total_max
+  const pct  = Math.round(((precio - base) / base) * 100)
+  return precio < base
+    ? { texto: `Descuento de ${formatCurrency(base - precio)} (${Math.abs(pct)}%) vs. componentes`, clase: 'text-green-700' }
+    : { texto: `${formatCurrency(precio - base)} (${pct}%) por encima de los componentes`, clase: 'text-amber-700' }
+})
+
+async function loadDesgloseKit() {
+  desgloseKit.value = null
+  if (selectedProducto.value?.tipo !== 'kit' || !form.lista_precio_id) return
+  loadingDesglose.value = true
+  try {
+    const res = await invPrecioService.getDesgloseKit(form.lista_precio_id, selectedProducto.value.id)
+    desgloseKit.value = res.data ?? null
+  } catch { desgloseKit.value = null }
+  finally { loadingDesglose.value = false }
+}
+
+// Recalcula al cambiar el kit o la lista
+watch(() => [selectedProducto.value?.id, form.lista_precio_id], loadDesgloseKit)
 
 async function onProductoSelect(p) {
   form.producto_id    = p.id
@@ -730,7 +843,8 @@ async function onProductoSelect(p) {
     loadingVariantes.value = true
     try {
       const res = await invProductoService.getVariantes(p.id)
-      grupoVariantes.value = res.data ?? res ?? []
+      // Solo las variantes activas reciben el precio (igual que en el backend)
+      grupoVariantes.value = (res.data ?? res ?? []).filter(v => Number(v.status) === 1)
     } catch { grupoVariantes.value = [] }
     finally { loadingVariantes.value = false }
   }
@@ -780,31 +894,11 @@ async function handleSubmit() {
       // Editar: siempre actualización directa del registro
       await invPrecioService.update(editingItem.value.id, { precio, observaciones })
       notifySuccess('Precio actualizado.')
-    } else if (selectedProducto.value?.tipo === 'grupo' && grupoVariantes.value.length) {
-      // Grupo → sincronizar: requiere lista En Proceso (status=1)
-      const listaSeleccionada = listaPrecioRaw.value.find(l => Number(l.id) === Number(lista_id))
-      if (listaSeleccionada?.status !== 1) {
-        formError.value = 'Para asignar precio a un grupo, la lista debe estar en estado "En Proceso".'
-        saving.value = false
-        return
-      }
-      // Primero cargamos los precios existentes en la lista para no borrar otros productos.
-      const existingRes = await invPrecioService.getAll({ lista_precio_id: lista_id, per_page: 200 })
-      const existingItems = (existingRes.data ?? []).map(p => ({
-        producto_id:  p.producto_id,
-        precio:       Number(p.precio),
-        observaciones: p.observaciones ?? null,
-      }))
-      // Las variantes del grupo reemplazan sus entradas previas (mismo producto_id); el resto se conserva.
-      const varianteIds = new Set(grupoVariantes.value.map(v => v.id))
-      const itemsBase   = existingItems.filter(p => !varianteIds.has(p.producto_id))
-      const itemsGrupo  = [{ producto_id: selectedProducto.value.id, precio, observaciones }]
-      await invPrecioService.sincronizar(lista_id, [...itemsBase, ...itemsGrupo])
-      notifySuccess(`Precio asignado al grupo y sus ${grupoVariantes.value.length} variante(s).`)
     } else {
-      // Simple/Kit: POST /precios hace updateOrCreate en el backend
-      await invPrecioService.create({ producto_id: form.producto_id, lista_precio_id: lista_id, precio, observaciones })
-      notifySuccess('Precio guardado.')
+      // POST /precios hace updateOrCreate en el backend. Si el producto es un grupo,
+      // el backend asigna el precio a cada variante activa sin tocar el resto de la lista.
+      const res = await invPrecioService.create({ producto_id: form.producto_id, lista_precio_id: lista_id, precio, observaciones })
+      notifySuccess(res?.message ?? 'Precio guardado.')
     }
     showForm.value = false
     loadPrecios(pagination.currentPage)
