@@ -87,41 +87,43 @@
         </template>
 
         <template #actions="{ row }">
-          <button
-            v-if="can('aca_docTipoEditar')"
-            type="button"
-            title="Editar tipo"
-            class="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            @click="openEdit(row)"
-          >
-            <NavIcon name="pencil" class="size-4" />
-          </button>
-          <button
-            v-if="can('aca_docTipoVariables')"
-            type="button"
-            title="Variables habilitadas"
-            class="rounded p-1.5 text-slate-500 transition-colors hover:bg-blue-100 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            @click="openVariables(row)"
-          >
-            <NavIcon name="list_alt" class="size-4" />
-          </button>
-          <RouterLink
-            v-if="can('aca_docPlantillas')"
-            :to="{ path: '/academico/documentacion/plantillas', query: { tipo_documento_id: row.id } }"
-            title="Ver versiones de plantilla"
-            class="rounded p-1.5 text-slate-500 transition-colors hover:bg-purple-100 hover:text-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <NavIcon name="description" class="size-4" />
-          </RouterLink>
-          <button
-            v-if="can('aca_docTipoInactivar')"
-            type="button"
-            title="Eliminar tipo"
-            class="rounded p-1.5 text-slate-500 transition-colors hover:bg-red-100 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
-            @click="handleDelete(row)"
-          >
-            <NavIcon name="trash" class="size-4" />
-          </button>
+          <div class="flex items-center gap-1 whitespace-nowrap">
+            <button
+              v-if="can('aca_docTipoEditar')"
+              type="button"
+              title="Editar tipo"
+              class="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              @click="openEdit(row)"
+            >
+              <NavIcon name="pencil" class="size-4" />
+            </button>
+            <button
+              v-if="can('aca_docTipoVariables')"
+              type="button"
+              title="Variables habilitadas"
+              class="rounded p-1.5 text-slate-500 transition-colors hover:bg-blue-100 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              @click="openVariables(row)"
+            >
+              <NavIcon name="braces" class="size-4" />
+            </button>
+            <RouterLink
+              v-if="can('aca_docPlantillas')"
+              :to="{ path: '/academico/documentacion/plantillas', query: { tipo_documento_id: row.id } }"
+              title="Ver versiones de plantilla"
+              class="rounded p-1.5 text-slate-500 transition-colors hover:bg-purple-100 hover:text-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <NavIcon name="layers" class="size-4" />
+            </RouterLink>
+            <button
+              v-if="can('aca_docTipoInactivar')"
+              type="button"
+              title="Eliminar tipo"
+              class="rounded p-1.5 text-slate-500 transition-colors hover:bg-red-100 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+              @click="handleDelete(row)"
+            >
+              <NavIcon name="trash" class="size-4" />
+            </button>
+          </div>
         </template>
       </DataTable>
 

@@ -112,9 +112,11 @@ const normalizar = (texto) => texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toL
 const gruposFiltrados = computed(() => {
   const termino = normalizar(filtro.value.trim())
   const coincide = (v) => !termino || normalizar(v.label).includes(termino)
+  // Orden alfabético por etiqueta visible, ignorando tildes y mayúsculas
+  const ordenar = (items) => items.filter(coincide).sort((a, b) => a.label.localeCompare(b.label, 'es', { sensitivity: 'base' }))
   return [
-    { id: 'entidad', titulo: 'Datos del registro', items: agrupadas.value.entidad.filter(coincide) },
-    { id: 'global',  titulo: 'Datos generales',    items: agrupadas.value.global.filter(coincide) },
+    { id: 'entidad', titulo: 'Datos del registro', items: ordenar(agrupadas.value.entidad) },
+    { id: 'global',  titulo: 'Datos generales',    items: ordenar(agrupadas.value.global) },
   ].filter((g) => g.items.length)
 })
 </script>

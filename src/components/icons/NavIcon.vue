@@ -81,5 +81,7 @@ const icons = {
   arrow_up:         () => svg([path('M12 19V5M5 12l7-7 7 7')]),
   arrow_down:       () => svg([path('M12 5v14M19 12l-7 7-7-7')]),
   ban:              () => svg([circle('12', '12', '9'), path('M5.6 5.6l12.8 12.8')]),
+  braces:           () => svg([path('M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5a2 2 0 0 0 2 2h1'), path('M16 21h1a2 2 0 0 0 2-2v-5a2 2 0 0 1 2-2 2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1')]),
+  layers:           () => svg([path('M12 2L2 7l10 5 10-5-10-5z'), path('M2 17l10 5 10-5M2 12l10 5 10-5')]),
 }
 </script>
