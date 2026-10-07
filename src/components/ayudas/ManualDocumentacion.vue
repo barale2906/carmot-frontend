@@ -19,6 +19,17 @@
         ]"
         leyenda="Se configura de izquierda a derecha, pero en el día a día solo se usa la pestaña Documentos."
       />
+      <AyudaCaptura
+        :src="capturaDocumentos"
+        alt="Pestaña Documentos con los filtros, el botón Imprimir documento y la bitácora de impresiones"
+        :marcas="[
+          { x: 36, y: 20.5, titulo: 'Pestañas del módulo', texto: 'Documentos, Plantillas y Tipos de documento.' },
+          { x: 2.9, y: 52.7, titulo: 'Filtros', texto: 'Para encontrar una impresión en la bitácora.' },
+          { x: 65.5, y: 48.6, titulo: 'Imprimir documento', texto: 'El botón que más va a usar.' },
+          { x: 80.7, y: 48.6, titulo: 'Papelera', texto: 'Entradas de la bitácora eliminadas, que se pueden restaurar.' },
+          { x: 11.5, y: 88.7, titulo: 'Acciones', texto: 'Botones de cada fila de la bitácora (ver sección 3).' }
+        ]"
+      />
     </AyudaSeccion>
 
     <AyudaSeccion id="doc-imprimir" numero="2" titulo="Imprimir un documento (uso diario)" descripcion="Lo que la mayoría de usuarios necesita.">
@@ -35,6 +46,18 @@
       <p class="text-slate-600">
         Busque este botón en la parte superior: <AyudaBoton icono="plus">Imprimir documento</AyudaBoton>
       </p>
+      <AyudaCaptura
+        :src="capturaImprimir"
+        alt="Ventana Imprimir documento con el tipo de documento elegido y el buscador del registro"
+        :marcas="[
+          { x: 50, y: 47.8, titulo: 'Tipo de documento' },
+          { x: 50, y: 62.1, titulo: 'Registro', texto: 'Escriba al menos 2 letras del estudiante o del curso y elija de la lista.' },
+          { x: 50, y: 76.1, titulo: 'Versión que se usará', texto: 'Le indica qué versión de la plantilla sale impresa (ver sección 5).' },
+          { x: 60, y: 85.5, titulo: 'Ver documento', texto: 'Muestra la vista previa para imprimirlo.' },
+          { x: 73.1, y: 85.5, titulo: 'Descargar PDF' }
+        ]"
+        leyenda="Los botones se habilitan cuando ya eligió el tipo y el registro."
+      />
       <AyudaNota tipo="info">
         Los documentos <strong>no se guardan</strong>: se arman de nuevo cada vez que se imprimen, con los datos
         actuales del sistema. La bitácora solo deja constancia de <em>quién</em> imprimió <em>qué</em> y <em>cuándo</em>.
@@ -78,6 +101,15 @@
         leyenda="Ciclo de vida de una versión de plantilla."
       />
       <h3 class="pt-2 font-semibold text-slate-900">Crear una versión nueva</h3>
+      <AyudaCaptura
+        :src="capturaNuevaVersion"
+        alt="Ventana Nueva versión con los campos Tipo de documento y Nombre de la versión"
+        :marcas="[
+          { x: 50, y: 57.9, titulo: 'Tipo de documento', texto: 'El documento al que pertenece la versión.' },
+          { x: 50, y: 72.8, titulo: 'Nombre de la versión', texto: 'Algo que la identifique, ej: Contrato 2026.' },
+          { x: 57.2, y: 77.5, titulo: 'Crear y editar', texto: 'Crea el borrador y abre el editor.' }
+        ]"
+      />
       <AyudaPasos
         :pasos="[
           { titulo: 'En la pestaña «Plantillas», pulse «Nueva versión».', texto: 'Elija el tipo de documento y póngale un nombre (ej: Contrato 2026). Se abre el editor.' },
@@ -180,4 +212,8 @@ import AyudaFlujo     from './AyudaFlujo.vue'
 import AyudaBoton     from './AyudaBoton.vue'
 import AyudaIconos    from './AyudaIconos.vue'
 import AyudaPreguntas from './AyudaPreguntas.vue'
+import AyudaCaptura   from './AyudaCaptura.vue'
+import capturaDocumentos   from '@/assets/images/ayudas/documentacion/documentos.png'
+import capturaImprimir     from '@/assets/images/ayudas/documentacion/imprimir.png'
+import capturaNuevaVersion from '@/assets/images/ayudas/documentacion/nueva-version.png'
 </script>

@@ -7,7 +7,7 @@
       </p>
 
       <!-- Selector de módulo -->
-      <nav class="mt-4 grid gap-3 sm:grid-cols-3" aria-label="Módulos del manual">
+      <nav class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Módulos del manual">
         <button
           v-for="modulo in MODULOS"
           :key="modulo.clave"
@@ -64,6 +64,7 @@ import NavIcon                 from '@/components/icons/NavIcon.vue'
 import ManualDocumentacion     from '@/components/ayudas/ManualDocumentacion.vue'
 import ManualMatriculas        from '@/components/ayudas/ManualMatriculas.vue'
 import ManualInventarios       from '@/components/ayudas/ManualInventarios.vue'
+import ManualIngreso           from '@/components/ayudas/ManualIngreso.vue'
 
 const route  = useRoute()
 const router = useRouter()
@@ -109,6 +110,15 @@ const MODULOS = [
       { id: 'inv-stock',          titulo: 'Existencias y movimientos' },
       { id: 'inv-compras',        titulo: 'Órdenes de compra' },
       { id: 'inv-faq',            titulo: 'Preguntas frecuentes' }
+    ]
+  },
+  {
+    clave: 'ingreso', titulo: 'Ingreso al sistema', icono: 'security', componente: ManualIngreso,
+    resumen: 'Iniciar sesión y resolver errores de acceso.',
+    secciones: [
+      { id: 'ing-pantalla', titulo: 'La pantalla de ingreso' },
+      { id: 'ing-pasos',    titulo: 'Ingresar paso a paso' },
+      { id: 'ing-error',    titulo: 'Si los datos no son correctos' }
     ]
   }
 ]
