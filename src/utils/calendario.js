@@ -73,3 +73,39 @@ export function formatFechaCorta(fecha) {
   if (isNaN(d.getTime())) return fecha
   return d.toLocaleDateString('es-CO', { day: 'numeric', month: 'numeric', year: 'numeric' })
 }
+
+const NOMBRES_DIA = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']
+
+/**
+ * Indica si 'YYYY-MM-DD' cae en alguno de los días de clase (nombres en español, con o sin tildes).
+ * @param {string} fecha
+ * @param {string[]} diasClase  p. ej. ['lunes', 'miércoles']
+ */
+export function esDiaDeClase(fecha, diasClase = []) {
+  const d = new Date(`${String(fecha).slice(0, 10)}T00:00:00`)
+  if (isNaN(d.getTime())) return false
+  const quitarTildes = (t) => String(t).normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
+  return diasClase.map(quitarTildes).includes(NOMBRES_DIA[d.getDay()])
+}
+
+/**
+ * Suma días a 'YYYY-MM-DD' y devuelve 'YYYY-MM-DD' (sin desfase de zona horaria).
+ * @param {string} fecha
+ * @param {number} dias
+ */
+export function sumarDias(fecha, dias) {
+  const d = new Date(`${String(fecha).slice(0, 10)}T00:00:00`)
+  d.setDate(d.getDate() + dias)
+  return toIsoDate(d.getFullYear(), d.getMonth(), d.getDate())
+}
+
+/**
+ * Días entre dos fechas 'YYYY-MM-DD' (hasta - desde).
+ * @param {string} desde
+ * @param {string} hasta
+ */
+export function diferenciaDias(desde, hasta) {
+  const a = new Date(`${String(desde).slice(0, 10)}T00:00:00`)
+  const b = new Date(`${String(hasta).slice(0, 10)}T00:00:00`)
+  return Math.round((b - a) / 86400000)
+}

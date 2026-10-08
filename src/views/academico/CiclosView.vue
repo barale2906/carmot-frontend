@@ -118,6 +118,9 @@
             <button v-if="!row.deleted_at" type="button" class="rounded p-1.5 text-slate-500 transition-colors hover:bg-amber-100 hover:text-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500" title="Aplazamientos" @click="openAplazar(row)">
               <NavIcon name="calendario" class="size-4" />
             </button>
+            <button v-if="!row.deleted_at && can('aca_cicloCrear')" type="button" class="rounded p-1.5 text-slate-500 transition-colors hover:bg-emerald-100 hover:text-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500" title="Clonar" @click="openClonar(row)">
+              <NavIcon name="copy" class="size-4" />
+            </button>
             <button v-if="!row.deleted_at" type="button" class="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500" title="Editar" @click="openEdit(row)">
               <NavIcon name="pencil" class="size-4" />
             </button>
@@ -584,6 +587,14 @@
             <NavIcon name="list_alt" class="size-3.5" /> Planeación por tema
           </button>
           <button
+            v-if="can('aca_cicloCrear')"
+            type="button"
+            class="flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            @click="openClonar(detailCiclo)"
+          >
+            <NavIcon name="copy" class="size-3.5" /> Clonar ciclo
+          </button>
+          <button
             type="button"
             :disabled="recalculando"
             class="flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -771,6 +782,7 @@
 
   <!-- ── Modal: Planeación por tema ─────────────────────────────────────── -->
   <PlaneacionCicloModal v-model="showPlaneacionModal" :ciclo="detailCiclo" />
+  <ClonarCicloModal v-model="showClonarModal" :ciclo="targetClonarCiclo" @cloned="onCicloClonado" />
 
   <!-- ── Modal: Detalle del grupo ───────────────────────────────────────── -->
   <ModalBase
@@ -848,12 +860,15 @@ import ModalBase from '@/components/ModalBase.vue'
 import AplazarCicloModal from '@/components/academico/AplazarCicloModal.vue'
 import AjusteCicloResumen from '@/components/academico/AjusteCicloResumen.vue'
 import PlaneacionCicloModal from '@/components/academico/PlaneacionCicloModal.vue'
+import ClonarCicloModal from '@/components/academico/ClonarCicloModal.vue'
 import cicloService from '@/services/cicloService.js'
 import sedeService from '@/services/sedeService.js'
 import cursoService from '@/services/cursoService.js'
 import { useNotification } from '@/composables/useNotification'
+import { usePermisos } from '@/composables/usePermisos'
 
 const { success: notifySuccess } = useNotification()
+const { can, loadPermisos } = usePermisos()
 
 const JORNADAS = [
   { value: 0, label: 'Mañana' },
@@ -1411,6 +1426,22 @@ async function recalcularFechas() {
   }
 }
 
+// ─── Clonar ciclo ─────────────────────────────────────────────────────────────
+const showClonarModal   = ref(false)
+const targetClonarCiclo = ref(null)
+
+function openClonar(ciclo) {
+  targetClonarCiclo.value = ciclo
+  showClonarModal.value   = true
+}
+
+/** Cierra el detalle (si estaba abierto), refresca el listado y abre el detalle del ciclo nuevo. */
+async function onCicloClonado(nuevo) {
+  showDetailModal.value = false
+  await loadCiclos(1)
+  if (nuevo?.id) await openDetail(nuevo)
+}
+
 // ─── Modal Aplazamientos ──────────────────────────────────────────────────────
 const showAplazarModal = ref(false)
 const targetAplazarCiclo = ref(null)
@@ -1451,6 +1482,7 @@ function formatDate(value) {
 }
 
 onMounted(async () => {
+  loadPermisos().catch(() => {})
   await loadCiclos(1)
   if (!apiError.value) {
     await Promise.all([loadStatistics(), loadMasterData()])

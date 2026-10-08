@@ -104,6 +104,16 @@ const cicloService = {
     return data
   },
 
+  async sugerenciaClonar(id, config = {}) {
+    const { data } = await api.get(`${BASE}/${id}/clonar/sugerencia`, config)
+    return data
+  },
+
+  async clonar(id, payload, config = {}) {
+    const { data } = await api.post(`${BASE}/${id}/clonar`, payload, config)
+    return data
+  },
+
   async generarClasesProgramadas(grupoId, cicloId, config = {}) {
     const { data } = await api.post(
       `${BASE_CLASES}/generar-automaticas`,
