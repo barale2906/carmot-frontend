@@ -3,7 +3,7 @@
     v-model="visible"
     :title="ciclo ? `Planeación: ${ciclo.nombre}` : 'Planeación del ciclo'"
     description="Horas por tema según el ajuste del ciclo. El currículo no se modifica; las fechas de cada tema son estimadas."
-    size="xl"
+    size="full"
   >
     <template #icon>
       <span class="flex size-5 shrink-0 items-center justify-center text-[#213360]">
@@ -11,7 +11,7 @@
       </span>
     </template>
 
-    <div class="max-h-[72vh] overflow-y-auto pb-2 pr-1">
+    <div class="max-h-[calc(100dvh-14rem)] overflow-y-auto pb-2 pr-1">
       <div v-if="loading" class="flex items-center justify-center py-12">
         <span class="text-sm text-slate-500">Cargando planeación...</span>
       </div>
@@ -33,6 +33,8 @@
         <p v-if="!planeacion.grupos.length" class="py-6 text-center text-sm text-slate-400">
           El ciclo no tiene grupos asignados.
         </p>
+
+        <GanttPlaneacion v-else :grupos="planeacion.grupos" />
 
         <!-- Un bloque por grupo (módulo) en orden de dictado -->
         <section
@@ -110,6 +112,15 @@
     </div>
 
     <template #footer>
+      <p v-if="errorDescarga" class="mr-auto self-center text-sm text-red-600">{{ errorDescarga }}</p>
+      <button
+        type="button"
+        class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+        :disabled="!planeacion?.grupos?.length || descargando"
+        @click="descargarExcel"
+      >
+        {{ descargando ? 'Generando...' : 'Descargar Excel' }}
+      </button>
       <button
         type="button"
         class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -126,8 +137,10 @@ import { ref, computed, watch } from 'vue'
 import ModalBase            from '@/components/ModalBase.vue'
 import NavIcon              from '@/components/icons/NavIcon.vue'
 import AjusteCicloResumen   from '@/components/academico/AjusteCicloResumen.vue'
+import GanttPlaneacion      from '@/components/academico/GanttPlaneacion.vue'
 import cicloService         from '@/services/cicloService.js'
 import { formatFechaCorta } from '@/utils/calendario.js'
+import { descargarBlob, mensajeErrorBlob } from '@/utils/descargas.js'
 
 /**
  * Planeación de solo lectura de un ciclo: grupo → tópico → tema, con las horas
@@ -149,6 +162,8 @@ const planeacion = ref(null)
 const loading    = ref(false)
 const error      = ref('')
 const abiertos   = ref([])
+const descargando = ref(false)
+const errorDescarga = ref('')
 
 async function load() {
   if (!props.ciclo?.id) return
@@ -163,6 +178,19 @@ async function load() {
     error.value = e?.response?.data?.message ?? 'No se pudo cargar la planeación del ciclo.'
   } finally {
     loading.value = false
+  }
+}
+
+async function descargarExcel() {
+  descargando.value  = true
+  errorDescarga.value = ''
+  try {
+    const blob = await cicloService.planeacionExcel(props.ciclo.id)
+    descargarBlob(blob, `planeacion-${props.ciclo.nombre}.xlsx`)
+  } catch (e) {
+    errorDescarga.value = await mensajeErrorBlob(e, 'No se pudo descargar el Excel de la planeación.')
+  } finally {
+    descargando.value = false
   }
 }
 

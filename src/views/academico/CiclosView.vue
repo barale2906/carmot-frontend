@@ -487,7 +487,7 @@
   </ModalBase>
 
   <!-- ── Modal: Detalle del ciclo ────────────────────────────────────────── -->
-  <ModalBase v-model="showDetailModal" title="Detalle del ciclo">
+  <ModalBase v-model="showDetailModal" title="Detalle del ciclo" size="full">
     <template #icon>
       <span class="flex size-5 shrink-0 items-center justify-center text-[#213360]">
         <NavIcon name="academico" class="size-5" />

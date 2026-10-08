@@ -99,6 +99,11 @@ const cicloService = {
     return data
   },
 
+  async planeacionExcel(id) {
+    const response = await api.get(`${BASE}/${id}/planeacion/excel`, { responseType: 'blob' })
+    return response.data
+  },
+
   async informacionCalculo(id) {
     const { data } = await api.get(`${BASE}/${id}/informacion-calculo`)
     return data
