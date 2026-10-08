@@ -224,6 +224,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
   const estudianteEstado        = ref('idle')   // 'idle' | 'found' | 'not_found'
   const resultadosBusqueda      = ref([])
   let   _busquedaTimer          = null
+  let   _busquedaSeq            = 0
   const estudianteEncontrado    = ref(null)
   const actualizarEstudiante    = ref(false)
   const matriculasExistentes = ref([])
@@ -431,7 +432,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
         return !precioLoading.value && !!precioSeleccionado.value
       case 3:
         if (verificandoMatricula.value) return false
-        if (estudianteEstado.value === 'found') return !yaMatriculadoEnCiclo.value
+        if (estudianteEstado.value === 'found') return !yaMatriculadoEnCurso.value
         if (estudianteEstado.value === 'not_found') {
           return (
             !!estudianteForm.primer_nombre &&
@@ -550,7 +551,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     }
 
     // Si ya hay un estudiante encontrado, la verificación de duplicado depende
-    // del ciclo (curso + ciclo), así que debe repetirse al cambiarlo.
+    // del curso; al volver a elegir curso/ciclo se repite.
     if (estudianteEstado.value === 'found' && estudianteEncontrado.value) {
       await _verificarMatriculaExistente(estudianteEncontrado.value.id)
     }
@@ -598,6 +599,8 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     if (!q) return
 
     clearTimeout(_busquedaTimer)
+    // El input sigue habilitado mientras se busca: se descartan respuestas de búsquedas anteriores
+    const seq = ++_busquedaSeq
     estudianteBuscando.value   = true
     resultadosBusqueda.value   = []
     apiError.value             = ''
@@ -608,11 +611,13 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
         { search: q, per_page: 10, with: 'roles' },
         { _silent: true }
       )
+      if (seq !== _busquedaSeq) return
       resultadosBusqueda.value = res.data ?? []
     } catch {
+      if (seq !== _busquedaSeq) return
       resultadosBusqueda.value = []
     } finally {
-      estudianteBuscando.value = false
+      if (seq === _busquedaSeq) estudianteBuscando.value = false
     }
   }
 
@@ -661,20 +666,19 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
   }
 
   /**
-   * Verifica si el estudiante ya tiene una matrícula activa en la combinación
-   * curso + ciclo seleccionada. La regla de negocio del backend valida esa
-   * combinación exacta (no solo el curso): un estudiante puede matricularse en
-   * el mismo curso si es un ciclo distinto.
+   * Verifica si el estudiante ya tiene una matrícula vigente (status = 1) en el
+   * curso seleccionado, en cualquier ciclo. Igual que el backend, solo permite
+   * matricularlo de nuevo en el mismo curso cuando la anterior ya no está vigente
+   * (inactiva por finalización/cancelación, o anulada).
    */
   async function _verificarMatriculaExistente(estudianteId) {
-    if (!estudianteId || !cursoId.value || !cicloId.value) return
+    if (!estudianteId || !cursoId.value) return
     verificandoMatricula.value = true
     matriculasExistentes.value = []
     try {
       const res = await matriculaService.getAll({
         estudiante_id: estudianteId,
         curso_id:      cursoId.value,
-        ciclo_id:      cicloId.value,
         status:        1,
         with:          'ciclo,ciclo.sede',
         per_page:      10
@@ -738,7 +742,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     } catch { /* 404 u otro error: el estudiante no tiene matrículas previas */ }
   }
 
-  const yaMatriculadoEnCiclo = computed(() => matriculasExistentes.value.some(m => m.status === 1))
+  const yaMatriculadoEnCurso = computed(() => matriculasExistentes.value.some(m => m.status === 1))
 
   function resetEstudianteBusqueda() {
     clearTimeout(_busquedaTimer)
@@ -1215,7 +1219,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     buscarEstudiante, buscarEstudianteDebounced,
     seleccionarCandidato, registrarNuevoEstudiante, ocultarResultados,
     resultadosBusqueda, resetEstudianteBusqueda, estudianteResumen,
-    matriculasExistentes, verificandoMatricula, yaMatriculadoEnCiclo,
+    matriculasExistentes, verificandoMatricula, yaMatriculadoEnCurso,
     matriculaReferenciaId, fotoExistente,
 
     // Paso 4 — Datos personales

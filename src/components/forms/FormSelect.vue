@@ -11,41 +11,19 @@
       <FormFieldHelp v-if="help" :text="help" />
     </div>
     <span v-if="help" :id="`${selectId}-help`" class="sr-only">{{ help }}</span>
-    <div class="relative">
-      <select
-        :id="selectId"
-        :value="modelValue"
-        :required="required"
-        :disabled="disabled"
-      class="w-full appearance-none rounded-lg border-0 px-3 py-2 pr-9 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-offset-0 disabled:opacity-50 [&>option]:text-slate-500"
-      :class="error
-        ? 'bg-red-50 focus:ring-red-500 ring-1 ring-red-300'
-        : 'bg-[#f3f3f5] focus:ring-blue-500'"
+    <SearchableSelect
+      :id="selectId"
+      :model-value="modelValue"
+      :options="options"
+      :placeholder="placeholder"
+      :required="required"
+      :disabled="disabled"
+      :invalid="!!error"
       :aria-invalid="error ? 'true' : undefined"
       :aria-describedby="ariaDescribedBy"
-        v-bind="$attrs"
-        @change="onChange"
-      >
-        <option value="" disabled>
-          {{ placeholder }}
-        </option>
-        <option
-          v-for="opt in options"
-          :key="opt.value"
-          :value="opt.value"
-        >
-          {{ opt.label }}
-        </option>
-      </select>
-      <span
-        class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500"
-        aria-hidden="true"
-      >
-        <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-        </svg>
-      </span>
-    </div>
+      v-bind="$attrs"
+      @change="onChange"
+    />
     <p
       v-if="error"
       :id="`${selectId}-error`"
@@ -66,7 +44,8 @@
 
 <script setup>
 import { computed } from 'vue'
-import FormFieldHelp from '@/components/forms/FormFieldHelp.vue'
+import FormFieldHelp    from '@/components/forms/FormFieldHelp.vue'
+import SearchableSelect from '@/components/forms/SearchableSelect.vue'
 
 defineOptions({ inheritAttrs: false })
 
@@ -88,16 +67,16 @@ const props = defineProps({
   span: { type: String, default: 'half', validator: (v) => ['half', 'full'].includes(v) }
 })
 
-// 'change' se declara como emit propio (no solo v-model) para que Vue lo saque de $attrs:
-// si quedara en $attrs, el @change del padre se ligaría al <select> ANTES que este
-// @change interno (por el orden de v-bind="$attrs" vs @change en el template) y se
-// dispararía con el valor previo, un turno por detrás de la selección real.
+// 'change' se declara como emit propio (no solo v-model) para que Vue lo saque de $attrs
+// y el @change del padre se dispare siempre DESPUÉS de update:modelValue, con el valor nuevo.
 const emit = defineEmits(['update:modelValue', 'change'])
 
-function onChange(event) {
-  const value = event.target?.value ?? ''
-  emit('update:modelValue', value)
-  emit('change', value)
+// Se emite el valor como texto, igual que el <select> nativo al que reemplaza este
+// componente: los usos existentes (filtros, payloads) cuentan con recibir strings.
+function onChange(value) {
+  const texto = value == null ? '' : String(value)
+  emit('update:modelValue', texto)
+  emit('change', texto)
 }
 
 const selectId = computed(() => `select-${Math.random().toString(36).slice(2, 9)}`)

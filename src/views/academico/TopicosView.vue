@@ -257,30 +257,13 @@
           </div>
 
           <!-- Dropdown para agregar temas -->
-          <div class="relative">
-            <select
-              class="w-full appearance-none rounded-lg border-0 bg-[#f3f3f5] px-3 py-2 pr-9 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              :value="''"
-              :disabled="temasLoading"
-              @change="addTema($event.target.value); $event.target.value = ''"
-            >
-              <option value="" disabled>
-                {{ temasLoading ? 'Cargando temas...' : 'Seleccionar tema para agregar...' }}
-              </option>
-              <option
-                v-for="tema in temasDisponibles"
-                :key="tema.id"
-                :value="tema.id"
-              >
-                {{ tema.duracion != null ? `${tema.duracion}h — ` : '' }}{{ tema.nombre }}
-              </option>
-            </select>
-            <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden="true">
-              <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-              </svg>
-            </span>
-          </div>
+          <SearchableSelect
+            model-value=""
+            :options="temaOptions"
+            :disabled="temasLoading"
+            :placeholder="temasLoading ? 'Cargando temas...' : 'Seleccionar tema para agregar...'"
+            @change="addTema"
+          />
 
           <!-- Badges de temas seleccionados -->
           <div v-if="form.temaIds.length" class="flex flex-wrap gap-1.5 rounded-lg border border-black/10 bg-slate-50 p-2">
@@ -499,6 +482,7 @@ import FormInput from '@/components/forms/FormInput.vue'
 import FormTextarea from '@/components/forms/FormTextarea.vue'
 import FormInputSearch from '@/components/forms/FormInputSearch.vue'
 import FormSelect from '@/components/forms/FormSelect.vue'
+import SearchableSelect from '@/components/forms/SearchableSelect.vue'
 import FormFieldHelp from '@/components/forms/FormFieldHelp.vue'
 import NavIcon from '@/components/icons/NavIcon.vue'
 import ModalBase from '@/components/ModalBase.vue'
@@ -637,8 +621,10 @@ async function loadTemasCatalogo() {
 }
 
 /** Temas aún no seleccionados (para el dropdown) */
-const temasDisponibles = computed(() =>
-  todosLosTemas.value.filter((t) => !form.temaIds.includes(t.id))
+const temaOptions = computed(() =>
+  todosLosTemas.value
+    .filter((t) => !form.temaIds.includes(t.id))
+    .map((t) => ({ value: t.id, label: t.duracion != null ? `${t.duracion}h — ${t.nombre}` : t.nombre }))
 )
 
 function getTemaNombre(id) {

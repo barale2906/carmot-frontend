@@ -19,6 +19,7 @@ import SedesView from './views/configuracion/SedesView.vue'
 import AreasView from './views/configuracion/AreasView.vue'
 import HorariosView from './views/configuracion/HorariosView.vue'
 import EpsView from './views/configuracion/EpsView.vue'
+import DiasNoLaborablesView from './views/configuracion/DiasNoLaborablesView.vue'
 import AcademicoLayout from './layouts/AcademicoLayout.vue'
 import ProgramacionesLayout from './layouts/ProgramacionesLayout.vue'
 import FinancieroLayout from './layouts/FinancieroLayout.vue'
@@ -353,6 +354,11 @@ const routes = [
         path: 'bancos',
         name: 'Bancos',
         component: BancosView
+      },
+      {
+        path: 'dias-no-laborables',
+        name: 'DiasNoLaborables',
+        component: DiasNoLaborablesView
       }
     ]
   },

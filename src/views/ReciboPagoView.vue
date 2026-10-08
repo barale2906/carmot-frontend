@@ -325,15 +325,12 @@
         <div class="flex flex-wrap gap-3 items-end">
           <div class="flex-1 min-w-[180px]">
             <label class="mb-1 block text-xs font-medium text-slate-700">Concepto</label>
-            <select
+            <SearchableSelect
               v-model="conceptoSeleccionado"
-              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option :value="null" disabled>-- Seleccionar --</option>
-              <option v-for="c in conceptosDisponibles" :key="c.id" :value="c">
-                {{ c.nombre }} — $ {{ formatMoney(c.valor) }}
-              </option>
-            </select>
+              :options="conceptoOptions"
+              placeholder="-- Seleccionar --"
+              variant="outline"
+            />
           </div>
           <div class="w-24">
             <label class="mb-1 block text-xs font-medium text-slate-700">Cantidad</label>
@@ -432,13 +429,12 @@
               <div class="flex flex-wrap items-end gap-3">
                 <div class="min-w-[160px] flex-1">
                   <label class="mb-1 block text-xs font-medium text-slate-700">Método</label>
-                  <select
+                  <SearchableSelect
                     v-model="mp.medio_pago"
-                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    :options="mediosPagoOpciones"
+                    variant="outline"
                     @change="onMedioPagoEntradaChange(idx)"
-                  >
-                    <option v-for="op in mediosPagoOpciones" :key="op.value" :value="op.value">{{ op.label }}</option>
-                  </select>
+                  />
                 </div>
                 <div class="w-40">
                   <label class="mb-1 block text-xs font-medium text-slate-700">Valor</label>
@@ -503,15 +499,12 @@
                   <!-- Banco origen -->
                   <div>
                     <label class="mb-1 block text-xs font-medium text-slate-700">Banco origen <span class="text-red-500">*</span></label>
-                    <select
+                    <SearchableSelect
                       v-model="mp.banco_id"
-                      class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    >
-                      <option :value="null" disabled>-- Seleccionar banco --</option>
-                      <option v-for="b in bancosActivos" :key="b.id" :value="b.id">
-                        {{ b.nombre }}{{ b.codigo ? ` (${b.codigo})` : '' }}
-                      </option>
-                    </select>
+                      :options="bancoOptions"
+                      placeholder="-- Seleccionar banco --"
+                      variant="outline"
+                    />
                   </div>
 
                   <!-- Número de transacción -->
@@ -699,6 +692,7 @@ import Logo                       from '@/components/Logo.vue'
 import FormInputSearch             from '@/components/forms/FormInputSearch.vue'
 import FormInput                   from '@/components/forms/FormInput.vue'
 import FormSelect                  from '@/components/forms/FormSelect.vue'
+import SearchableSelect            from '@/components/forms/SearchableSelect.vue'
 import ModalPagoTarjeta            from '@/components/ModalPagoTarjeta.vue'
 import ModalPagoConsignacion       from '@/components/ModalPagoConsignacion.vue'
 import userService                 from '@/services/userService.js'
@@ -707,6 +701,7 @@ import conceptoPagoService         from '@/services/conceptoPagoService.js'
 import reciboPagoService           from '@/services/reciboPagoService.js'
 import { authService }             from '@/services/authService.js'
 import { useNotification }         from '@/composables/useNotification'
+import { opcionesBanco }           from '@/utils/formatters.js'
 import bancoService                from '@/services/bancoService.js'
 
 const route  = useRoute()
@@ -744,6 +739,9 @@ const detalleInfo       = ref(null)
 // ─── Conceptos adicionales ────────────────────────────────────────────────────
 const conceptosDisponibles  = ref([])
 const conceptoSeleccionado  = ref(null)
+const conceptoOptions       = computed(() =>
+  conceptosDisponibles.value.map((c) => ({ value: c, label: `${c.nombre} — $ ${formatMoney(c.valor)}` }))
+)
 const cantidadConcepto      = ref(1)
 const conceptosAdicionales  = ref([])   // [{ concepto_id, nombre, valor, cantidad }]
 
@@ -760,6 +758,7 @@ const notificando               = ref(false)
 
 // ─── Bancos activos (para selector inline de transferencia) ───────────────────
 const bancosActivos = ref([])
+const bancoOptions  = computed(() => opcionesBanco(bancosActivos.value))
 
 async function cargarBancosActivos() {
   if (bancosActivos.value.length) return

@@ -54,8 +54,8 @@ const cicloService = {
     return data
   },
 
-  async previsualizar(params = {}) {
-    const { data } = await api.get(`${BASE}/previsualizar`, { params })
+  async previsualizar(params = {}, config = {}) {
+    const { data } = await api.get(`${BASE}/previsualizar`, { params, ...config })
     return data
   },
 
@@ -91,6 +91,11 @@ const cicloService = {
 
   async cronograma(id) {
     const { data } = await api.get(`${BASE}/${id}/cronograma`)
+    return data
+  },
+
+  async planeacion(id) {
+    const { data } = await api.get(`${BASE}/${id}/planeacion`)
     return data
   },
 

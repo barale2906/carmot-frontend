@@ -19,14 +19,12 @@
         <div class="flex flex-wrap items-end gap-4">
           <div class="w-full sm:w-48">
             <label class="mb-1 block text-xs font-medium text-slate-700">Sede</label>
-            <select
+            <SearchableSelect
               v-model="filters.sede_id"
-              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              :options="sedeOptions"
+              variant="outline"
               @change="loadPendientes(1)"
-            >
-              <option :value="null">Todas las sedes</option>
-              <option v-for="s in sedes" :key="s.id" :value="s.id">{{ s.nombre }}</option>
-            </select>
+            />
           </div>
           <button
             type="button"
@@ -363,6 +361,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import reciboPagoService   from '@/services/reciboPagoService.js'
 import ModalBase           from '@/components/ModalBase.vue'
+import SearchableSelect    from '@/components/forms/SearchableSelect.vue'
 import { useNotification } from '@/composables/useNotification'
 
 const { success: notifySuccess } = useNotification()
@@ -381,6 +380,10 @@ const pendientes  = ref([])
 const loading     = ref(false)
 const error       = ref('')
 const sedes       = ref([])
+const sedeOptions = computed(() => [
+  { value: null, label: 'Todas las sedes' },
+  ...sedes.value.map((s) => ({ value: s.id, label: s.nombre }))
+])
 const filters     = reactive({ sede_id: null })
 const pagination  = reactive({ currentPage: 1, lastPage: 1, total: 0, from: 0, to: 0 })
 

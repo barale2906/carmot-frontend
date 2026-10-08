@@ -265,27 +265,15 @@
             :required="true"
             :error="fieldErrors.documento?.[0]"
           />
-          <div class="flex flex-col gap-2">
-            <div class="flex flex-wrap items-center gap-1">
-              <label class="text-sm font-medium text-slate-900">
-                Rol <span class="text-red-500" aria-hidden="true">*</span>
-              </label>
-              <FormFieldHelp text="Permisos y menús que tendrá el usuario en la aplicación." />
-            </div>
-            <select
-              v-model="form.rol"
-              class="w-full appearance-none rounded-lg border-0 bg-[#f3f3f5] px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Seleccione un rol</option>
-              <option
-                v-for="opt in availableRoles"
-                :key="opt.name"
-                :value="opt.name"
-              >
-                {{ opt.name }}
-              </option>
-            </select>
-          </div>
+          <FormSelect
+            v-model="form.rol"
+            label="Rol"
+            placeholder="Seleccione un rol"
+            help="Permisos y menús que tendrá el usuario en la aplicación."
+            :options="rolOptions"
+            :required="true"
+            :error="fieldErrors.rol?.[0]"
+          />
 
           <template v-if="!editingUser">
             <FormInput
@@ -351,30 +339,13 @@
 
           <template v-else>
             <!-- Dropdown selector -->
-            <div class="relative">
-              <select
-                class="w-full appearance-none rounded-lg border-0 bg-[#f3f3f5] px-3 py-2 pr-9 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                :value="''"
-                :disabled="sedesLoading"
-                @change="addSede($event.target.value); $event.target.value = ''"
-              >
-                <option value="" disabled>
-                  {{ sedesLoading ? 'Cargando sedes...' : 'Seleccionar sede para agregar...' }}
-                </option>
-                <option
-                  v-for="sede in sedesDisponibles"
-                  :key="sede.id"
-                  :value="sede.id"
-                >
-                  {{ sede.nombre }}
-                </option>
-              </select>
-              <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden="true">
-                <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
-              </span>
-            </div>
+            <SearchableSelect
+              model-value=""
+              :options="sedeOptions"
+              :disabled="sedesLoading"
+              :placeholder="sedesLoading ? 'Cargando sedes...' : 'Seleccionar sede para agregar...'"
+              @change="addSede"
+            />
 
             <!-- Badges de sedes seleccionadas -->
             <div v-if="form.sedes.length" class="flex flex-wrap gap-1.5 rounded-lg border border-black/10 bg-slate-50 p-2">
@@ -629,6 +600,7 @@ import StatusBadge from '@/components/activos/StatusBadge.vue'
 import FormInput from '@/components/forms/FormInput.vue'
 import FormInputSearch from '@/components/forms/FormInputSearch.vue'
 import FormSelect from '@/components/forms/FormSelect.vue'
+import SearchableSelect from '@/components/forms/SearchableSelect.vue'
 import FormFieldHelp from '@/components/forms/FormFieldHelp.vue'
 import NavIcon from '@/components/icons/NavIcon.vue'
 import ModalBase from '@/components/ModalBase.vue'
@@ -674,8 +646,10 @@ const isSuperUsuario = computed(() =>
   form.rol.toLowerCase() === 'superusuario'
 )
 
-const sedesDisponibles = computed(() =>
-  availableSedes.value.filter((s) => !form.sedes.includes(s.id))
+const sedeOptions = computed(() =>
+  availableSedes.value
+    .filter((s) => !form.sedes.includes(s.id))
+    .map((s) => ({ value: s.id, label: s.nombre }))
 )
 
 function getSedeNombre(id) {

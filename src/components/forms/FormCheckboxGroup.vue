@@ -63,6 +63,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import FormFieldHelp from '@/components/forms/FormFieldHelp.vue'
+import { filtrarOpciones } from '@/utils/busqueda.js'
 
 const props = defineProps({
   modelValue:        { type: Array,  default: () => [] },
@@ -88,17 +89,7 @@ const filterText = ref('')
 
 const internalValue = computed(() => props.modelValue ?? [])
 
-function normalize(str) {
-  return str?.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase() ?? ''
-}
-
-const filteredOptions = computed(() => {
-  const q = normalize(filterText.value.trim())
-  if (!q) return props.options
-  return props.options.filter(
-    (o) => normalize(o.label).includes(q) || normalize(o.description).includes(q)
-  )
-})
+const filteredOptions = computed(() => filtrarOpciones(props.options, filterText.value))
 
 const fieldClass = computed(() => (props.span === 'half' ? '' : 'md:col-span-2'))
 

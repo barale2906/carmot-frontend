@@ -38,6 +38,9 @@ const navItems = computed(() => {
   if (userPermissions.value.includes('co_bancos')) {
     items.push({ label: 'Bancos', to: '/configuracion/bancos' })
   }
+  if (userPermissions.value.includes('co_diasNoLaborables')) {
+    items.push({ label: 'Días no laborables', to: '/configuracion/dias-no-laborables' })
+  }
   return items
 })
 </script>

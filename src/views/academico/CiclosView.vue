@@ -96,7 +96,15 @@
             <template v-else-if="column.key === 'sede'">{{ row.sede?.nombre ?? '—' }}</template>
             <template v-else-if="column.key === 'curso'">{{ row.curso?.nombre ?? '—' }}</template>
             <template v-else-if="column.key === 'fecha_inicio'">{{ formatDate(value) }}</template>
-            <template v-else-if="column.key === 'fecha_fin'">{{ formatDate(value) }}</template>
+            <template v-else-if="column.key === 'fecha_fin'">
+              <span class="inline-flex items-center gap-1">
+                {{ formatDate(value) }}
+                <span v-if="row.fecha_fin_automatica === false" class="rounded-full bg-violet-100 px-1.5 py-0.5 text-xs font-medium text-violet-800" title="Fecha fin fija">Fija</span>
+                <span v-if="row.ajuste?.advertencia" class="text-amber-600" :title="row.ajuste.advertencia">
+                  <NavIcon name="pendientes" class="size-4" />
+                </span>
+              </span>
+            </template>
             <template v-else-if="column.key === 'grupos_count'">
               <span v-if="value" class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">{{ value }}</span>
               <span v-else class="text-slate-400">—</span>
@@ -202,25 +210,71 @@
           />
           <div class="flex flex-col gap-2">
             <div class="flex flex-wrap items-center gap-1">
-              <label class="text-sm font-medium text-slate-900">Fecha fin</label>
-              <FormFieldHelp text="Fin del ciclo: manual o calculada sumando duraciones de módulos según grupos." />
+              <span class="text-sm font-medium text-slate-900">Fecha fin</span>
+              <FormFieldHelp text="Automática: el día de la última sesión real al dictar el 100 % de las horas. Fija: la defines tú y el sistema ajusta las horas de cada tema para terminar en esa fecha." />
             </div>
-            <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
-              <input
-                v-model="form.fecha_fin_automatica"
-                type="checkbox"
-                class="size-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-              />
-              Calcular automáticamente según grupos
-            </label>
+            <div class="flex rounded-lg border border-slate-200 bg-white p-0.5" role="radiogroup" aria-label="Modo de fecha fin">
+              <button
+                v-for="modo in MODOS_FECHA_FIN"
+                :key="String(modo.value)"
+                type="button"
+                role="radio"
+                class="flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                :class="form.fecha_fin_automatica === modo.value ? 'bg-[#213360] text-white' : 'text-slate-600 hover:bg-slate-100'"
+                :aria-checked="form.fecha_fin_automatica === modo.value"
+                @click="form.fecha_fin_automatica = modo.value"
+              >
+                {{ modo.label }}
+              </button>
+            </div>
             <FormInput
               v-if="!form.fecha_fin_automatica"
               v-model="form.fecha_fin"
-              label="Fecha fin manual"
               type="date"
-              help="Último día del ciclo si no usas cálculo automático."
+              :min="form.fecha_inicio || undefined"
+              :required="true"
+              :error="fieldErrors.fecha_fin?.[0]"
             />
-            <p v-else class="text-xs text-slate-500">El sistema sumará la duración de cada módulo según el orden de los grupos asignados.</p>
+            <p v-else class="text-xs text-slate-500">
+              Se calcula con los horarios de los grupos, la sede y los días no laborables. Se dicta el 100 % de las horas.
+            </p>
+            <p
+              v-if="form.fecha_fin_automatica && fechaFinCalculada"
+              class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800"
+            >
+              Fecha fin calculada: <strong>{{ formatDate(fechaFinCalculada) }}</strong>
+              <span class="block text-xs text-emerald-700">Según los grupos seleccionados. Se confirma al guardar el ciclo.</span>
+            </p>
+          </div>
+        </div>
+
+        <!-- Simulación del ajuste en modo fijo -->
+        <div v-if="!form.fecha_fin_automatica && form.fecha_fin && prevData?.fecha_fin" class="rounded-lg border border-black/10 p-3">
+          <p class="mb-2 text-xs font-medium text-slate-700">Simulación con la fecha fin fijada</p>
+          <AjusteCicloResumen
+            :fecha-fin="prevData.fecha_fin"
+            :fecha-fin-teorica="prevData.fecha_fin_teorica ?? fechaFinCalculada"
+            :factor="prevData.factor_ajuste"
+            :horas-semana-sugeridas="prevData.horas_semana_sugeridas"
+            :advertencia="prevData.advertencia"
+          />
+          <!-- Grupos que ya se dictan en otro ciclo: tramo fijo, el backend no los ajusta -->
+          <div
+            v-if="gruposCompartidosSeleccionados.length"
+            class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800"
+            role="alert"
+          >
+            <p>
+              {{ gruposCompartidosSeleccionados.length === gruposSeleccionados.length
+                ? 'Todos los grupos seleccionados'
+                : `${gruposCompartidosSeleccionados.length} de los grupos seleccionados` }}
+              ya se dictan en otro ciclo (slot activo). Comparten sus fechas y horas con ese ciclo, por eso no se ajustan a la fecha fin fijada.
+            </p>
+            <ul v-if="gruposCompartidosFueraDeFecha.length" class="mt-1 list-inside list-disc">
+              <li v-for="grupo in gruposCompartidosFueraDeFecha" :key="grupo.grupo_id">
+                <strong>{{ grupo.grupo_nombre }}</strong> termina el {{ formatDate(grupo.fecha_fin) }}, después de la fecha fin fijada.
+              </li>
+            </ul>
           </div>
         </div>
 
@@ -229,7 +283,7 @@
           <div>
             <p class="text-sm font-medium text-slate-900">Grupos a asignar</p>
             <p class="mt-0.5 text-xs text-slate-500">
-              Selecciona los grupos que dictarán el ciclo. Pueden existir varios horarios (grupos) por módulo; márcalos todos los que apliquen. El orden se puede ajustar después de crear el ciclo.
+              Selecciona un grupo (horario) por módulo para dictar el ciclo. El orden se puede ajustar después de crear el ciclo.
             </p>
           </div>
 
@@ -278,11 +332,20 @@
                 </div>
                 <span class="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium"
                   :class="moduloTieneGrupoSeleccionado(modulo) ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'">
-                  {{ moduloTieneGrupoSeleccionado(modulo) ? 'Con grupos' : 'Sin asignar' }}
+                  {{ moduloTieneGrupoSeleccionado(modulo) ? 'Con grupo' : 'Sin asignar' }}
                 </span>
+                <button
+                  v-if="moduloTieneGrupoSeleccionado(modulo)"
+                  type="button"
+                  class="shrink-0 text-xs font-medium text-slate-500 underline hover:text-slate-700"
+                  title="Dejar el módulo sin grupo asignado"
+                  @click="quitarGrupoModulo(modulo)"
+                >
+                  Quitar
+                </button>
               </div>
 
-              <!-- Grupos del módulo como checkboxes -->
+              <!-- Un solo grupo por módulo en un ciclo -->
               <div v-if="!modulo.grupos?.length" class="pl-8 text-xs italic text-slate-400">
                 Sin grupos disponibles para este módulo.
               </div>
@@ -294,10 +357,12 @@
                   :class="gruposSeleccionados.includes(grupo.grupo_id) ? 'bg-blue-50 ring-1 ring-inset ring-blue-200' : ''"
                 >
                   <input
-                    type="checkbox"
+                    type="radio"
+                    :name="`modulo-${modulo.modulo_id}`"
                     :value="grupo.grupo_id"
-                    v-model="gruposSeleccionados"
-                    class="mt-0.5 size-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    :checked="gruposSeleccionados.includes(grupo.grupo_id)"
+                    class="mt-0.5 size-3.5 border-slate-300 text-blue-600 focus:ring-blue-500"
+                    @change="seleccionarGrupoModulo(modulo, grupo.grupo_id)"
                   />
                   <div class="min-w-0 flex-1">
                     <p class="font-medium text-slate-900">{{ grupo.grupo_nombre }}</p>
@@ -311,6 +376,25 @@
                         :class="grupo.con_fechas ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'"
                       >{{ grupo.con_fechas ? 'Slot activo' : 'Estimado' }}</span>
                     </div>
+                    <div
+                      v-if="grupo.sesiones || esHorasReducidas(grupo.horas_planeadas, modulo.duracion) || grupo.dias_omitidos?.length"
+                      class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500"
+                    >
+                      <span v-if="grupo.sesiones">{{ grupo.sesiones }} sesiones</span>
+                      <span
+                        v-if="esHorasReducidas(grupo.horas_planeadas, modulo.duracion)"
+                        class="font-medium text-amber-700"
+                      >
+                        · {{ formatHoras(grupo.horas_planeadas) }} de {{ modulo.duracion }}h
+                      </span>
+                      <span
+                        v-if="grupo.dias_omitidos?.length"
+                        class="text-red-600"
+                        :title="grupo.dias_omitidos.map((d) => `${formatDate(d.fecha)}: ${d.nombre}`).join('\n')"
+                      >
+                        · {{ grupo.dias_omitidos.length }} {{ grupo.dias_omitidos.length === 1 ? 'día no laborable omitido' : 'días no laborables omitidos' }}
+                      </span>
+                    </div>
                   </div>
                 </label>
               </div>
@@ -319,7 +403,12 @@
             <!-- Resumen -->
             <div class="rounded-lg border px-3 py-2 text-xs"
               :class="gruposSeleccionados.length ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-slate-200 bg-slate-50 text-slate-500'">
-              {{ gruposSeleccionados.length ? `${gruposSeleccionados.length} grupo(s) seleccionado(s). El orden definitivo se puede ajustar tras crear el ciclo.` : 'Ningún grupo seleccionado.' }}
+              <template v-if="gruposSeleccionados.length">
+                {{ gruposSeleccionados.length }} de {{ prevData.modulos.length }} módulo(s) con grupo.
+                <template v-if="form.fecha_fin_automatica && fechaFinCalculada">Fecha fin estimada: <strong>{{ formatDate(fechaFinCalculada) }}</strong>.</template>
+                El orden definitivo se puede ajustar tras crear el ciclo.
+              </template>
+              <template v-else>Ningún grupo seleccionado.</template>
             </div>
           </div>
         </div>
@@ -425,8 +514,17 @@
         </div>
         <div>
           <dt class="font-medium text-slate-500">Fecha fin</dt>
-          <dd class="mt-0.5 text-slate-900">{{ formatDate(detailCiclo.fecha_fin) }}</dd>
+          <dd class="mt-0.5 text-slate-900">
+            {{ formatDate(detailCiclo.fecha_fin) }}
+            <span
+              class="ml-1 rounded-full px-1.5 py-0.5 text-xs font-medium"
+              :class="detailCiclo.fecha_fin_automatica === false ? 'bg-violet-100 text-violet-800' : 'bg-slate-100 text-slate-600'"
+            >
+              {{ detailCiclo.fecha_fin_automatica === false ? 'Fija' : 'Automática' }}
+            </span>
+          </dd>
         </div>
+
         <div>
           <dt class="font-medium text-slate-500">Duración</dt>
           <dd class="mt-0.5 text-slate-900">{{ detailCiclo.duracion_dias ? `${detailCiclo.duracion_dias} días` : '—' }}</dd>
@@ -463,6 +561,42 @@
           <dd class="mt-0.5 text-slate-900">{{ formatDate(detailCiclo.created_at) }}</dd>
         </div>
 
+        <!-- Ajuste de horas (modo fecha fin fija) -->
+        <div v-if="detailCiclo.fecha_fin_automatica === false" class="col-span-2">
+          <dt class="mb-1.5 font-medium text-slate-500">Ajuste de horas</dt>
+          <dd>
+            <AjusteCicloResumen
+              :fecha-fin="detailCiclo.fecha_fin"
+              :fecha-fin-teorica="detailCiclo.fecha_fin_teorica"
+              :factor="detailCiclo.ajuste?.factor ?? null"
+              :advertencia="detailCiclo.ajuste?.advertencia ?? null"
+            />
+          </dd>
+        </div>
+
+        <!-- Acciones de planeación -->
+        <div v-if="!detailCiclo.deleted_at" class="col-span-2 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            class="flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            @click="showPlaneacionModal = true"
+          >
+            <NavIcon name="list_alt" class="size-3.5" /> Planeación por tema
+          </button>
+          <button
+            type="button"
+            :disabled="recalculando"
+            class="flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            :title="detailCiclo.fecha_fin_automatica === false
+              ? 'Recalcula el ajuste de horas con los horarios y días no laborables actuales (la fecha fin fijada se mantiene)'
+              : 'Recalcula las fechas con los horarios y días no laborables actuales'"
+            @click="recalcularFechas"
+          >
+            <NavIcon name="track_changes" class="size-3.5" /> {{ recalculando ? 'Recalculando...' : 'Recalcular fechas' }}
+          </button>
+          <span v-if="recalcularError" class="text-xs text-red-600">{{ recalcularError }}</span>
+        </div>
+
         <!-- Grupos del ciclo: reordenables y con generación de clases -->
         <div v-if="detailGrupos.length" class="col-span-2">
           <dt class="mb-2 flex items-center justify-between font-medium text-slate-500">
@@ -496,9 +630,26 @@
                     <span v-if="grupo.profesor"> · {{ grupo.profesor.name }}</span>
                   </p>
                   <!-- Fechas del slot en el pivot -->
-                  <p v-if="grupo.fecha_inicio_grupo" class="mt-0.5 text-xs text-blue-600">
-                    {{ formatDate(grupo.fecha_inicio_grupo) }}
-                    <template v-if="grupo.fecha_fin_grupo"> – {{ formatDate(grupo.fecha_fin_grupo) }}</template>
+                  <p v-if="grupo.fecha_inicio_grupo" class="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-blue-600">
+                    <span>
+                      {{ formatDate(grupo.fecha_inicio_grupo) }}
+                      <template v-if="grupo.fecha_fin_grupo"> – {{ formatDate(grupo.fecha_fin_grupo) }}</template>
+                    </span>
+                    <span
+                      v-if="esHorasReducidas(grupo.horas_planeadas, grupo.modulo?.duracion)"
+                      class="font-medium text-amber-700"
+                      title="Horas de contenido asignadas en este ciclo frente a la duración del módulo"
+                    >
+                      {{ formatHoras(grupo.horas_planeadas) }} de {{ grupo.modulo.duracion }}h
+                    </span>
+                    <!-- Grupo compartido: sus fechas las define otro ciclo y no se ajustan aquí -->
+                    <span
+                      v-if="grupo.ciclo_origen_id"
+                      class="rounded-full bg-slate-200 px-1.5 py-0.5 font-medium text-slate-600"
+                      :title="`Fechas tomadas del ciclo #${grupo.ciclo_origen_id}, que comparte este grupo`"
+                    >
+                      Compartido · ciclo #{{ grupo.ciclo_origen_id }}
+                    </span>
                   </p>
                 </div>
                 <!-- Acciones del grupo -->
@@ -529,7 +680,13 @@
                 class="border-t border-black/5 px-3 py-1.5 text-xs"
                 :class="clasesResultado[grupo.id].error ? 'text-red-600' : 'text-emerald-700'"
               >
-                {{ clasesResultado[grupo.id].error ?? `${clasesResultado[grupo.id].count} clases generadas correctamente.` }}
+                <template v-if="clasesResultado[grupo.id].error">{{ clasesResultado[grupo.id].error }}</template>
+                <template v-else>
+                  {{ clasesResultado[grupo.id].count }} clases generadas correctamente.
+                  <span v-if="clasesResultado[grupo.id].omitidas" class="text-amber-700">
+                    {{ clasesResultado[grupo.id].omitidas }} {{ clasesResultado[grupo.id].omitidas === 1 ? 'sesión omitida' : 'sesiones omitidas' }} por días no laborables.
+                  </span>
+                </template>
               </div>
             </div>
           </dd>
@@ -580,7 +737,17 @@
                 </div>
                 <div class="shrink-0 text-right text-slate-500">
                   <p>{{ formatDate(entrada.fecha_inicio_grupo) }} – {{ formatDate(entrada.fecha_fin_grupo) }}</p>
-                  <p>{{ entrada.total_horas_semana }}h/sem · {{ entrada.semanas_estimadas }} sem</p>
+                  <p>
+                    {{ entrada.horas_por_semana ?? entrada.total_horas_semana }}h/sem · {{ entrada.semanas_estimadas }} sem
+                    <template v-if="entrada.sesiones"> · {{ entrada.sesiones }} sesiones</template>
+                  </p>
+                  <p
+                    v-if="entrada.dias_omitidos?.length"
+                    class="text-red-600"
+                    :title="entrada.dias_omitidos.map((d) => `${formatDate(d.fecha)}: ${d.nombre}`).join('\n')"
+                  >
+                    {{ entrada.dias_omitidos.length }} {{ entrada.dias_omitidos.length === 1 ? 'día no laborable omitido' : 'días no laborables omitidos' }}
+                  </p>
                 </div>
               </div>
               <div v-if="cronogramaData.resumen" class="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-700">
@@ -601,6 +768,9 @@
     :ciclo="targetAplazarCiclo"
     @updated="loadCiclos(pagination.currentPage)"
   />
+
+  <!-- ── Modal: Planeación por tema ─────────────────────────────────────── -->
+  <PlaneacionCicloModal v-model="showPlaneacionModal" :ciclo="detailCiclo" />
 
   <!-- ── Modal: Detalle del grupo ───────────────────────────────────────── -->
   <ModalBase
@@ -676,6 +846,8 @@ import FormFieldHelp from '@/components/forms/FormFieldHelp.vue'
 import NavIcon from '@/components/icons/NavIcon.vue'
 import ModalBase from '@/components/ModalBase.vue'
 import AplazarCicloModal from '@/components/academico/AplazarCicloModal.vue'
+import AjusteCicloResumen from '@/components/academico/AjusteCicloResumen.vue'
+import PlaneacionCicloModal from '@/components/academico/PlaneacionCicloModal.vue'
 import cicloService from '@/services/cicloService.js'
 import sedeService from '@/services/sedeService.js'
 import cursoService from '@/services/cursoService.js'
@@ -689,6 +861,11 @@ const JORNADAS = [
   { value: 2, label: 'Noche' },
   { value: 3, label: 'Fin de semana mañana' },
   { value: 4, label: 'Fin de semana tarde' }
+]
+
+const MODOS_FECHA_FIN = [
+  { value: true,  label: 'Automática' },
+  { value: false, label: 'Fija' }
 ]
 
 function getJornadaLabel(val) {
@@ -784,6 +961,40 @@ function moduloTieneGrupoSeleccionado(modulo) {
   return (modulo.grupos ?? []).some((g) => gruposSeleccionados.value.includes(g.grupo_id))
 }
 
+function idsGruposModulo(modulo) {
+  return (modulo.grupos ?? []).map((g) => g.grupo_id)
+}
+
+/** Un ciclo dicta cada módulo con un solo grupo: elegir uno reemplaza al anterior del mismo módulo. */
+function seleccionarGrupoModulo(modulo, grupoId) {
+  const delModulo = idsGruposModulo(modulo)
+  gruposSeleccionados.value = [...gruposSeleccionados.value.filter((id) => !delModulo.includes(id)), grupoId]
+}
+
+function quitarGrupoModulo(modulo) {
+  const delModulo = idsGruposModulo(modulo)
+  gruposSeleccionados.value = gruposSeleccionados.value.filter((id) => !delModulo.includes(id))
+}
+
+const gruposPrevSeleccionados = computed(() =>
+  (prevData.value?.modulos ?? [])
+    .flatMap((m) => m.grupos ?? [])
+    .filter((g) => gruposSeleccionados.value.includes(g.grupo_id))
+)
+
+const gruposCompartidosSeleccionados = computed(() => gruposPrevSeleccionados.value.filter((g) => g.con_fechas))
+
+const gruposCompartidosFueraDeFecha = computed(() =>
+  gruposCompartidosSeleccionados.value.filter((g) => form.fecha_fin && g.fecha_fin > form.fecha_fin)
+)
+
+/** Última fecha fin entre los grupos seleccionados en la previsualización (modo automático). */
+const fechaFinCalculada = computed(() => {
+  const fechas = gruposPrevSeleccionados.value.filter((g) => g.fecha_fin).map((g) => g.fecha_fin)
+  if (fechas.length) return fechas.sort().at(-1)
+  return gruposSeleccionados.value.length ? null : (prevData.value?.fecha_fin_teorica ?? null)
+})
+
 // ─── Watchers: recarga previsualización cuando cambian curso o fecha ──────────
 watch([() => form.curso_id, () => form.fecha_inicio], ([cursoId, fechaInicio]) => {
   gruposSeleccionados.value = []
@@ -796,6 +1007,18 @@ watch([() => form.curso_id, () => form.fecha_inicio], ([cursoId, fechaInicio]) =
 
 watch(() => form.sede_id, () => {
   gruposSeleccionados.value = []
+})
+
+// En modo fijo la previsualización simula el ajuste con la fecha fin elegida
+watch([() => form.fecha_fin_automatica, () => form.fecha_fin], ([automatica, fechaFin], [automaticaAnterior]) => {
+  if (fieldErrors.value.fecha_fin && (automatica || fechaFin)) {
+    const { fecha_fin: _omitido, ...resto } = fieldErrors.value
+    fieldErrors.value = resto
+  }
+  if (!showFormModal.value || !form.curso_id || !form.fecha_inicio) return
+  if (automatica && automatica === automaticaAnterior) return
+  if (!automatica && !fechaFin) return
+  previsualizarCalendario({ conservarSeleccion: true })
 })
 
 // ─── Listado de ciclos ────────────────────────────────────────────────────────
@@ -874,13 +1097,23 @@ const prevData    = ref(null)
 const prevLoading = ref(false)
 const prevError   = ref('')
 
-async function previsualizarCalendario() {
+function previsualizarParams() {
+  const params = { curso_id: form.curso_id, fecha_inicio: form.fecha_inicio }
+  if (!form.fecha_fin_automatica && form.fecha_fin > form.fecha_inicio) params.fecha_fin = form.fecha_fin
+  return params
+}
+
+/**
+ * @param {{ conservarSeleccion?: boolean }} [opciones] al cambiar solo la fecha fin
+ *   se mantiene la lista visible para no perder la selección de grupos.
+ */
+async function previsualizarCalendario({ conservarSeleccion = false } = {}) {
   if (!form.curso_id || !form.fecha_inicio) return
-  prevLoading.value = true
-  prevData.value    = null
+  prevLoading.value = !conservarSeleccion
+  if (!conservarSeleccion) prevData.value = null
   prevError.value   = ''
   try {
-    const res = await cicloService.previsualizar({ curso_id: form.curso_id, fecha_inicio: form.fecha_inicio })
+    const res = await cicloService.previsualizar(previsualizarParams(), { _silent: true })
     prevData.value = res.data
   } catch (e) {
     prevError.value = e?.response?.data?.message ?? 'Error al previsualizar el calendario.'
@@ -935,7 +1168,7 @@ async function openEdit(ciclo) {
   if (form.curso_id && form.fecha_inicio) {
     try {
       const [prevRes, cicloRes] = await Promise.all([
-        cicloService.previsualizar({ curso_id: form.curso_id, fecha_inicio: form.fecha_inicio }),
+        cicloService.previsualizar(previsualizarParams(), { _silent: true }),
         cicloService.getById(ciclo.id, { with: 'grupos' })
       ])
       prevData.value = prevRes.data
@@ -950,6 +1183,10 @@ async function openEdit(ciclo) {
 async function submitForm() {
   formError.value = ''
   fieldErrors.value = {}
+  if (!form.fecha_fin_automatica && !form.fecha_fin) {
+    fieldErrors.value = { fecha_fin: ['Con fecha fin fija debes indicar la fecha fin.'] }
+    return
+  }
   formLoading.value = true
   try {
     const payload = {
@@ -961,7 +1198,7 @@ async function submitForm() {
       status: Number(form.status)
     }
     if (form.descripcion?.trim()) payload.descripcion = form.descripcion.trim()
-    if (!form.fecha_fin_automatica && form.fecha_fin) payload.fecha_fin = form.fecha_fin
+    if (!form.fecha_fin_automatica) payload.fecha_fin = form.fecha_fin
     if (form.inscritos !== '' && form.inscritos !== null) payload.inscritos = Number(form.inscritos)
     if (gruposSeleccionados.value.length) payload.grupos = [...gruposSeleccionados.value]
 
@@ -1129,7 +1366,7 @@ async function generarClases(grupo) {
   delete clasesResultado[grupo.id]
   try {
     const res = await cicloService.generarClasesProgramadas(grupo.id, detailCiclo.value.id, { _silent: true })
-    clasesResultado[grupo.id] = { count: res.clases_generadas ?? 0, error: null }
+    clasesResultado[grupo.id] = { count: res.clases_generadas ?? 0, omitidas: res.clases_omitidas ?? 0, error: null }
   } catch (e) {
     clasesResultado[grupo.id] = { count: 0, error: e?.response?.data?.message ?? 'Error al generar clases.' }
   } finally {
@@ -1153,6 +1390,27 @@ async function loadCronograma(cicloId) {
   }
 }
 
+// ─── Recalcular fechas y planeación por tema ─────────────────────────────────
+const recalculando        = ref(false)
+const recalcularError     = ref('')
+const showPlaneacionModal = ref(false)
+
+/** En modo fijo conserva la fecha fin y recalcula el ajuste; en automático recalcula la fecha fin. */
+async function recalcularFechas() {
+  if (!detailCiclo.value?.id) return
+  recalculando.value    = true
+  recalcularError.value = ''
+  try {
+    await cicloService.calcularFechaFin(detailCiclo.value.id)
+    notifySuccess(`Las fechas del ciclo "${detailCiclo.value.nombre}" fueron recalculadas.`)
+    await Promise.all([openDetail(detailCiclo.value), loadCiclos(pagination.currentPage)])
+  } catch (e) {
+    recalcularError.value = e?.response?.data?.message ?? 'No se pudieron recalcular las fechas.'
+  } finally {
+    recalculando.value = false
+  }
+}
+
 // ─── Modal Aplazamientos ──────────────────────────────────────────────────────
 const showAplazarModal = ref(false)
 const targetAplazarCiclo = ref(null)
@@ -1172,6 +1430,16 @@ function openGrupoDetalle(grupo) {
 }
 
 // ─── Utilidades ───────────────────────────────────────────────────────────────
+/** Horas planeadas por debajo de la duración del módulo (ajuste por fecha fin fija). */
+function esHorasReducidas(horasPlaneadas, duracion) {
+  return horasPlaneadas !== null && horasPlaneadas !== undefined && Number(duracion) > 0 &&
+    Number(horasPlaneadas) < Number(duracion)
+}
+
+function formatHoras(valor) {
+  return `${Number(valor).toLocaleString('es-CO', { maximumFractionDigits: 2 })}h`
+}
+
 function formatDate(value) {
   if (!value) return '—'
   // Las fechas "YYYY-MM-DD" se parsean como UTC medianoche; usar los componentes

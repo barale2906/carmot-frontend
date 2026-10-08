@@ -48,6 +48,7 @@ const pageTitle = computed(() => {
     { prefix: '/configuracion/areas',     title: 'Configuración' },
     { prefix: '/configuracion/horarios',  title: 'Configuración' },
     { prefix: '/configuracion/eps',       title: 'Configuración' },
+    { prefix: '/configuracion/dias-no-laborables', title: 'Configuración' },
     { prefix: '/configuracion',           title: 'Configuración' },
     { prefix: '/dashboard',               title: 'Dashboard' },
     { prefix: '/estudiantes',             title: 'Estudiantes' },

@@ -7,14 +7,15 @@
       role="toolbar"
       aria-label="Formato del documento"
     >
-      <select
-        class="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      <SearchableSelect
+        :model-value="estiloActual"
+        :options="ESTILOS"
+        size="sm"
+        variant="outline"
+        class="w-32"
         title="Estilo del párrafo"
-        :value="estiloActual"
-        @change="aplicarEstilo($event.target.value)"
-      >
-        <option v-for="estilo in ESTILOS" :key="estilo.value" :value="estilo.value">{{ estilo.label }}</option>
-      </select>
+        @change="aplicarEstilo"
+      />
 
       <template v-for="(grupo, i) in gruposBotones" :key="i">
         <span class="mx-1 h-5 w-px bg-slate-200" aria-hidden="true" />
@@ -78,6 +79,7 @@ import { TableKit }                  from '@tiptap/extension-table'
 import { TextStyle, Color }          from '@tiptap/extension-text-style'
 import { DocVariable, DocBloque }    from './extensions/docMarcadores.js'
 import { prepararContenidoEditor, limpiarContenidoEditor } from '@/utils/documentacion.js'
+import SearchableSelect              from '@/components/forms/SearchableSelect.vue'
 import '@/assets/styles/documentacion.css'
 
 const props = defineProps({

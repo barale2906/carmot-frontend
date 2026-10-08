@@ -188,15 +188,14 @@
                       <span v-else>{{ formatCurrency(item.precio_unitario) }}</span>
                     </td>
                     <td class="px-2 py-2 text-right">
-                      <select
+                      <SearchableSelect
                         v-model="item.descuento_id"
-                        class="rounded border border-slate-200 px-2 py-1 text-xs text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      >
-                        <option :value="null">Sin desc.</option>
-                        <option v-for="d in descuentosActivos" :key="d.id" :value="d.id">
-                          {{ d.nombre }} ({{ d.tipo === 'porcentual' ? d.valor + '%' : formatCurrency(d.valor) }})
-                        </option>
-                      </select>
+                        :options="descuentoOptions"
+                        size="sm"
+                        variant="outline"
+                        class="ml-auto w-40"
+                        aria-label="Descuento"
+                      />
                     </td>
                     <td class="px-2 py-2 text-right font-mono font-medium text-slate-900">{{ formatCurrency(item.cantidad * item.precio_unitario) }}</td>
                     <td class="px-2 py-2 text-right">
@@ -279,13 +278,12 @@
                   <div class="flex items-center gap-2">
                     <div class="flex-1">
                       <label class="mb-1 block text-xs font-medium text-slate-600">Medio</label>
-                      <select
+                      <SearchableSelect
                         v-model="mp.medio_pago"
-                        class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        :options="mediosPagoOptions"
+                        variant="outline"
                         @change="onMedioPagoChange(idx)"
-                      >
-                        <option v-for="m in mediosPagoOptions" :key="m.value" :value="m.value">{{ m.label }}</option>
-                      </select>
+                      />
                     </div>
                     <div class="flex-1">
                       <label class="mb-1 block text-xs font-medium text-slate-600">Valor</label>
@@ -305,10 +303,12 @@
                   <div v-if="mp.medio_pago === 'transferencia'" class="mt-3 grid grid-cols-2 gap-3">
                     <div>
                       <label class="mb-1 block text-xs font-medium text-slate-600">Banco</label>
-                      <select v-model="mp.banco_id" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                        <option :value="null">Selecciona...</option>
-                        <option v-for="b in bancoOptions" :key="b.value" :value="b.value">{{ b.label }}</option>
-                      </select>
+                      <SearchableSelect
+                        v-model="mp.banco_id"
+                        :options="bancoOptions"
+                        placeholder="Selecciona..."
+                        variant="outline"
+                      />
                     </div>
                     <div>
                       <label class="mb-1 block text-xs font-medium text-slate-600">Referencia</label>
@@ -333,13 +333,13 @@
                   <div v-if="mp.medio_pago === 'tarjeta_debito' || mp.medio_pago === 'tarjeta_credito'" class="mt-3 grid grid-cols-2 gap-3">
                     <div>
                       <label class="mb-1 block text-xs font-medium text-slate-600">Tipo de tarjeta</label>
-                      <select v-model="mp.tipo_tarjeta" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" @change="onValorChange">
-                        <option value="">Selecciona...</option>
-                        <option value="visa">Visa</option>
-                        <option value="mastercard">Mastercard</option>
-                        <option value="amex">American Express</option>
-                        <option value="otro">Otro</option>
-                      </select>
+                      <SearchableSelect
+                        v-model="mp.tipo_tarjeta"
+                        :options="TIPOS_TARJETA"
+                        placeholder="Selecciona..."
+                        variant="outline"
+                        @change="onValorChange"
+                      />
                     </div>
                     <div>
                       <label class="mb-1 block text-xs font-medium text-slate-600">Referencia</label>
@@ -465,6 +465,7 @@ import {
 import NavIcon              from '@/components/icons/NavIcon.vue'
 import FormInput            from '@/components/forms/FormInput.vue'
 import FormSelect           from '@/components/forms/FormSelect.vue'
+import SearchableSelect     from '@/components/forms/SearchableSelect.vue'
 import InvProductoBuscador  from '@/components/inventario/InvProductoBuscador.vue'
 import InvVentaItemEntrega  from '@/components/inventario/InvVentaItemEntrega.vue'
 
@@ -604,6 +605,13 @@ async function loadAlmacenes() {
 // ─── Paso 2: Productos + descuentos ──────────────────────────────────────────
 const items             = ref([])
 const descuentosActivos = ref([])
+const descuentoOptions  = computed(() => [
+  { value: null, label: 'Sin desc.' },
+  ...descuentosActivos.value.map((d) => ({
+    value: d.id,
+    label: `${d.nombre} (${d.tipo === 'porcentual' ? d.valor + '%' : formatCurrency(d.valor)})`
+  }))
+])
 
 const totalItems = computed(() => items.value.reduce((s, i) => s + i.cantidad * i.precio_unitario, 0))
 
@@ -677,6 +685,12 @@ const mediosPagoOptions = [
 
 const mediosPago   = ref([{ medio_pago: 'efectivo', valor: 0, banco_id: null, referencia: '', numero_transaccion: '', tipo_tarjeta: '' }])
 const bancoOptions = ref([])
+const TIPOS_TARJETA = [
+  { value: 'visa',       label: 'Visa' },
+  { value: 'mastercard', label: 'Mastercard' },
+  { value: 'amex',       label: 'American Express' },
+  { value: 'otro',       label: 'Otro' },
+]
 const comprobante  = ref(null)
 const sobrecargos  = ref([])
 const aplicarSobrecargos = ref(false)

@@ -579,15 +579,11 @@
       <!-- Banco -->
       <div>
         <label class="mb-1 block text-sm font-medium text-slate-700">Banco origen <span class="text-red-500">*</span></label>
-        <select
+        <SearchableSelect
           v-model="reenviarForm.banco_id"
-          class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-        >
-          <option :value="null">-- Sin cambio --</option>
-          <option v-for="b in bancosActivos" :key="b.id" :value="b.id">
-            {{ b.nombre }}{{ b.codigo ? ` (${b.codigo})` : '' }}
-          </option>
-        </select>
+          :options="bancoReenvioOptions"
+          variant="outline"
+        />
       </div>
 
       <!-- Número de transacción -->
@@ -673,12 +669,14 @@ import StatusBadge             from '@/components/activos/StatusBadge.vue'
 import FormInput               from '@/components/forms/FormInput.vue'
 import FormInputSearch         from '@/components/forms/FormInputSearch.vue'
 import FormSelect              from '@/components/forms/FormSelect.vue'
+import SearchableSelect        from '@/components/forms/SearchableSelect.vue'
 import NavIcon                 from '@/components/icons/NavIcon.vue'
 import ModalBase               from '@/components/ModalBase.vue'
 import ReciboPrintModal        from '@/components/financiero/ReciboPrintModal.vue'
 import reciboPagoService       from '@/services/reciboPagoService.js'
 import bancoService            from '@/services/bancoService.js'
 import { useNotification }     from '@/composables/useNotification'
+import { opcionesBanco }       from '@/utils/formatters.js'
 
 const router = useRouter()
 const { success: notifySuccess, error: notifyError } = useNotification()
@@ -690,6 +688,10 @@ const canPdf    = ref(true)
 
 // ─── Bancos activos (para modal reenviar) ─────────────────────────────────────
 const bancosActivos = ref([])
+const bancoReenvioOptions = computed(() => [
+  { value: null, label: '-- Sin cambio --' },
+  ...opcionesBanco(bancosActivos.value)
+])
 
 // ─── Columnas de la tabla ─────────────────────────────────────────────────────
 const tableColumns = [

@@ -69,16 +69,17 @@
           </span>
 
           <!-- Variante: solo en componentes grupo que aún no la tienen asignada -->
-          <select
+          <SearchableSelect
             v-if="comp.componente_tipo === 'grupo' && !comp.producto_entregado && comp.status !== 'entregado'"
             v-model="seleccion[comp.id].variante"
-            class="rounded border border-slate-200 px-2 py-1 text-xs text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            :options="opcionesVariante(comp.variantes)"
+            placeholder="Elige variante..."
+            size="sm"
+            variant="outline"
+            class="w-52"
             :aria-label="`Variante de ${comp.componente_nombre}`"
             @change="onVarianteChange(comp)"
-          >
-            <option value="">Elige variante...</option>
-            <option v-for="v in comp.variantes ?? []" :key="v.id" :value="v.id">{{ v.nombre }} (stock: {{ v.stock_disponible }})</option>
-          </select>
+          />
 
           <span class="text-slate-500">{{ comp.cantidad_entregada }}/{{ comp.cantidad_solicitada }}</span>
 
@@ -152,6 +153,7 @@
  * @emits actualizado — tras una entrega que modificó el pedido; el padre recarga la bandeja
  */
 import { ref, reactive, computed, watch } from 'vue'
+import SearchableSelect    from '@/components/forms/SearchableSelect.vue'
 import invEntregaService   from '@/services/invEntregaService.js'
 import { useNotification } from '@/composables/useNotification'
 import {
@@ -161,6 +163,7 @@ import {
   stockComponente,
   cantidadSugerida,
   payloadComponentes,
+  opcionesVariante,
   interpretarResultadoEntrega,
 } from '@/utils/invEntregas.js'
 

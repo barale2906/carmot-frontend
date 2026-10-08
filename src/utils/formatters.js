@@ -20,3 +20,16 @@ export function nombreCompleto(usuario) {
 
   return usuario.name ?? usuario.email ?? ''
 }
+
+/**
+ * Convierte bancos `{ id, nombre, codigo? }` en opciones de select: "Bancolombia (007)".
+ *
+ * @param {Array<{ id: number, nombre: string, codigo?: string }>} bancos
+ * @returns {Array<{ value: number, label: string }>}
+ */
+export function opcionesBanco(bancos) {
+  return (bancos ?? []).map((b) => ({
+    value: b.id,
+    label: b.codigo ? `${b.nombre} (${b.codigo})` : b.nombre
+  }))
+}

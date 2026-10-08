@@ -26,16 +26,13 @@
         <label class="mb-1 block text-sm font-medium text-slate-700">
           Banco origen <span class="text-red-500">*</span>
         </label>
-        <select
+        <SearchableSelect
           v-model="bancoId"
-          class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          :class="{ 'border-red-300': errorBanco }"
-        >
-          <option :value="null" disabled>-- Seleccionar banco --</option>
-          <option v-for="b in bancos" :key="b.id" :value="b.id">
-            {{ b.nombre }}{{ b.codigo ? ` (${b.codigo})` : '' }}
-          </option>
-        </select>
+          :options="bancoOptions"
+          placeholder="-- Seleccionar banco --"
+          variant="outline"
+          :invalid="!!errorBanco"
+        />
         <p v-if="errorBanco" class="mt-1 text-xs text-red-600">{{ errorBanco }}</p>
         <p v-if="cargandoBancos" class="mt-1 text-xs text-slate-400">Cargando bancos...</p>
       </div>
@@ -97,9 +94,11 @@
 </template>
 
 <script setup>
-import { ref, watch }  from 'vue'
-import ModalBase       from '@/components/ModalBase.vue'
-import bancoService    from '@/services/bancoService.js'
+import { ref, computed, watch } from 'vue'
+import ModalBase                from '@/components/ModalBase.vue'
+import SearchableSelect         from '@/components/forms/SearchableSelect.vue'
+import bancoService             from '@/services/bancoService.js'
+import { opcionesBanco }        from '@/utils/formatters.js'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false }
@@ -110,6 +109,7 @@ const emit = defineEmits(['update:modelValue', 'confirm'])
 const bancos          = ref([])
 const cargandoBancos  = ref(false)
 const bancoId         = ref(null)
+const bancoOptions    = computed(() => opcionesBanco(bancos.value))
 const numeroTransaccion = ref('')
 const comprobanteFile = ref(null)
 const nombreArchivo   = ref('')

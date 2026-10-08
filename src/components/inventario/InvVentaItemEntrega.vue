@@ -53,18 +53,17 @@
           <span class="font-normal text-slate-400">× {{ comp.cantidad_requerida }}</span>
         </span>
 
-        <select
+        <SearchableSelect
           v-if="comp.componente_tipo === 'grupo'"
-          :value="variantes[comp.kit_componente_id] ?? ''"
-          class="rounded border border-slate-200 px-2 py-1 text-xs text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          :model-value="variantes[comp.kit_componente_id] ?? ''"
+          :options="opcionesVariante(comp.variantes)"
+          placeholder="Elige variante..."
+          size="sm"
+          variant="outline"
+          class="w-52"
           :aria-label="`Variante de ${comp.componente_nombre}`"
-          @change="seleccionarVariante(comp.kit_componente_id, $event.target.value)"
-        >
-          <option value="">Elige variante...</option>
-          <option v-for="v in comp.variantes" :key="v.id" :value="v.id">
-            {{ v.nombre }} (stock: {{ v.stock_disponible }})
-          </option>
-        </select>
+          @change="seleccionarVariante(comp.kit_componente_id, $event)"
+        />
         <span v-else-if="comp.stock_disponible != null" class="text-slate-500">Stock: {{ comp.stock_disponible }}</span>
 
         <span class="rounded-full px-2 py-0.5 font-medium" :class="TONOS[estadoEntregaComponente(comp).tono]">
@@ -83,6 +82,8 @@
  */
 import { ref, computed, watch } from 'vue'
 import { estadoEntregaItem, estadoEntregaComponente } from '@/composables/useDisponibilidadVenta.js'
+import { opcionesVariante }                           from '@/utils/invEntregas.js'
+import SearchableSelect                               from '@/components/forms/SearchableSelect.vue'
 
 const props = defineProps({
   disponibilidad:  { type: Object,  default: null },

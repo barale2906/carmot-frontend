@@ -77,3 +77,8 @@ export function interpretarResultadoEntrega(res, item) {
   }
   return { tipo: 'sin_stock', mensaje: mensaje || 'Stock insuficiente: no se descargó inventario.' }
 }
+
+/** Variantes de un componente `grupo` como opciones de select, con su stock a la vista. */
+export function opcionesVariante(variantes) {
+  return (variantes ?? []).map((v) => ({ value: v.id, label: `${v.nombre} (stock: ${v.stock_disponible})` }))
+}

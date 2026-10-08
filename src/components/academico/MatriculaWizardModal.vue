@@ -10,10 +10,10 @@
     >
       <div
         v-if="open"
-        class="fixed inset-0 z-[1100] flex items-start justify-center overflow-y-auto bg-black/50 px-4 py-8"
+        class="fixed inset-0 z-[1100] flex items-center justify-center bg-black/50 p-4"
       >
         <div
-          class="relative my-auto w-full max-w-3xl rounded-xl border border-black/10 bg-white shadow-xl"
+          class="relative flex h-full w-full max-w-3xl flex-col rounded-xl border border-black/10 bg-white shadow-xl"
           @click.stop
         >
           <!-- Botón cerrar -->
@@ -32,7 +32,7 @@
           <!-- ═══════════════════════════════════════
                Cabecera + Stepper
           ═══════════════════════════════════════ -->
-          <div class="border-b border-black/5 px-6 pb-5 pt-6 pr-14">
+          <div class="shrink-0 border-b border-black/5 px-6 pb-5 pt-6 pr-14">
             <h2 class="text-lg font-semibold text-slate-900">Nueva Matrícula</h2>
             <p class="mt-0.5 text-sm text-slate-500">
               Sigue los pasos para inscribir al estudiante en el ciclo académico.
@@ -78,7 +78,7 @@
           <!-- ═══════════════════════════════════════
                Cuerpo (scrollable)
           ═══════════════════════════════════════ -->
-          <div class="max-h-[60vh] overflow-y-auto px-6 py-5">
+          <div class="min-h-0 flex-1 overflow-y-auto px-6 py-5">
             <!-- Error global de API -->
             <div
               v-if="apiError"
@@ -294,7 +294,7 @@
                   Buscar estudiante
                   <span class="ml-1 text-xs font-normal text-slate-500">— por nombre o número de documento</span>
                 </label>
-                <div class="relative">
+                <div class="relative" @focusout="onBusquedaFocusOut">
                   <div class="relative flex items-center">
                     <svg class="pointer-events-none absolute left-3 size-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -305,10 +305,8 @@
                       placeholder="Ej: Juan Pérez o 1020304050"
                       autocomplete="off"
                       class="w-full rounded-lg border-0 bg-[#f3f3f5] py-2 pl-9 pr-8 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      :disabled="estudianteBuscando"
                       @input="buscarEstudianteDebounced"
                       @keyup.enter="buscarEstudiante"
-                      @blur="() => setTimeout(ocultarResultados, 150)"
                     />
                     <BtnSpinner v-if="estudianteBuscando" class="absolute right-2.5 border-slate-300 border-t-slate-600" />
                   </div>
@@ -323,7 +321,8 @@
                       :key="est.id"
                       type="button"
                       class="flex w-full items-center gap-3 border-b border-black/5 px-4 py-2.5 text-left text-sm transition-colors last:border-0 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none"
-                      @mousedown.prevent="seleccionarCandidato(est)"
+                      @mousedown.prevent
+                      @click="seleccionarCandidato(est)"
                     >
                       <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#213360]/10 text-xs font-semibold text-[#213360]">
                         {{ (est.primer_nombre || est.name || '?')[0].toUpperCase() }}
@@ -343,7 +342,8 @@
                     <button
                       type="button"
                       class="flex w-full items-center gap-2 border-t border-black/5 bg-slate-50 px-4 py-2.5 text-left text-xs font-medium text-slate-600 hover:bg-amber-50 hover:text-amber-700 focus:outline-none"
-                      @mousedown.prevent="registrarNuevoEstudiante"
+                      @mousedown.prevent
+                      @click="registrarNuevoEstudiante"
                     >
                       <svg class="size-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
@@ -399,7 +399,7 @@
                 <!-- Verificando matrícula previa -->
                 <div v-if="verificandoMatricula" class="flex items-center gap-2 text-sm text-slate-500">
                   <BtnSpinner class="border-slate-300 border-t-slate-600" />
-                  Verificando inscripciones previas en este curso y ciclo...
+                  Verificando matrículas vigentes en este curso...
                 </div>
 
                 <!-- Error 422 del backend: duplicado detectado solo al guardar -->
@@ -408,12 +408,12 @@
                   {{ fieldErrors.estudiante_id[0] }}
                 </InfoPanel>
 
-                <!-- Bloqueo: ya matriculado activo en este curso y ciclo -->
-                <InfoPanel v-else-if="yaMatriculadoEnCiclo" color="amber">
-                  <template #title>Estudiante ya matriculado en este curso y ciclo</template>
-                  El estudiante ya tiene una matrícula activa en <strong>{{ cursosMap[cursoId] }}</strong>,
-                  ciclo <strong>{{ cicloSeleccionado?.nombre }}</strong>.
-                  No es posible registrar una nueva matrícula para la misma combinación de curso y ciclo.
+                <!-- Bloqueo: ya tiene una matrícula vigente en este curso (cualquier ciclo) -->
+                <InfoPanel v-else-if="yaMatriculadoEnCurso" color="amber">
+                  <template #title>Estudiante con matrícula vigente en este curso</template>
+                  El estudiante ya tiene una matrícula activa en <strong>{{ cursosMap[cursoId] }}</strong>.
+                  No es posible registrar una nueva matrícula en el mismo curso, sin importar el ciclo,
+                  hasta que la actual se finalice, cancele o anule.
                   <ul v-if="matriculasExistentes.length" class="mt-2 space-y-1">
                     <li
                       v-for="m in matriculasExistentes"
@@ -828,7 +828,7 @@
           <!-- ═══════════════════════════════════════
                Footer de navegación
           ═══════════════════════════════════════ -->
-          <div class="flex items-center justify-between border-t border-black/5 px-6 py-4">
+          <div class="flex shrink-0 items-center justify-between border-t border-black/5 px-6 py-4">
             <button
               type="button"
               class="rounded-lg border border-black/10 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60"
@@ -918,7 +918,7 @@ const {
   buscarEstudiante, buscarEstudianteDebounced,
   seleccionarCandidato, registrarNuevoEstudiante, ocultarResultados,
   resultadosBusqueda, resetEstudianteBusqueda, estudianteResumen,
-  matriculasExistentes, verificandoMatricula, yaMatriculadoEnCiclo,
+  matriculasExistentes, verificandoMatricula, yaMatriculadoEnCurso,
   matriculaReferenciaId, fotoExistente,
 
   // Paso 4 — Datos personales
@@ -949,6 +949,11 @@ async function handleSubmit() {
     emit('saved', buildPrintData(matricula, estudianteId))
     emit('close')
   })
+}
+
+/** Oculta los resultados solo cuando el foco sale del buscador (permite navegar con Tab). */
+function onBusquedaFocusOut(event) {
+  if (!event.currentTarget.contains(event.relatedTarget)) ocultarResultados()
 }
 
 watch(() => props.open, (val) => { if (val) init() })

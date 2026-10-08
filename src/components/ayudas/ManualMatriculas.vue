@@ -111,7 +111,7 @@
         para imprimirla y hacerla firmar.
       </AyudaNota>
       <AyudaNota tipo="atencion" titulo="Matrícula duplicada">
-        Si el estudiante ya está matriculado en ese mismo curso y ciclo, el sistema le avisa y no permite repetirla.
+        Si el estudiante ya tiene una matrícula activa en ese mismo curso (en cualquier ciclo), el sistema le avisa y no permite registrar otra. Solo podrá matricularse de nuevo cuando la anterior esté finalizada, cancelada o anulada.
       </AyudaNota>
       <AyudaNota tipo="consejo">
         Busque siempre primero al estudiante por su número de documento. Solo si no aparece, use
