@@ -130,7 +130,9 @@ export function buildPrintDataFromRecord(record, { catalogs = {}, poblaciones = 
 
     medica: {
       enfermedadPrioritaria: Boolean(record.enfermedad_prioritaria),
-      discapacidad:          Boolean(record.discapacidad)
+      enfermedadDetalle:     record.enfermedad_detalle ?? '',
+      discapacidad:          Boolean(record.discapacidad),
+      tipoDiscapacidad:      record.tipo_discapacidad_texto ?? catalogs.tipos_discapacidad?.[record.tipo_discapacidad] ?? ''
     },
 
     detalleCurso: {
@@ -179,7 +181,7 @@ const FIELD_STEP_MAP = {
   fecha_nacimiento: 4, genero: 4, estado_civil: 4, grupo_sanguineo: 4, rh: 4,
   direccion: 4, lugar_origen_id: 4, celular: 4, telefono: 4,
   nivel_educacion: 4, ocupacion: 4, empresa: 4, estrato: 4, regimen_salud: 4, eps_id: 4,
-  enfermedad_prioritaria: 4, discapacidad: 4, foto: 4,
+  enfermedad_prioritaria: 4, enfermedad_detalle: 4, discapacidad: 4, tipo_discapacidad: 4, foto: 4,
   // Paso 3 — estudiante (matrícula duplicada detectada por el backend)
   estudiante_id: 3,
   // Paso 5 — detalles de matrícula
@@ -256,6 +258,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     rhs:                  {},
     niveles_educacion:    {},
     regimenes_salud:      {},
+    tipos_discapacidad:   {},
     poblaciones:          [],
     eps:                  []
   })
@@ -280,7 +283,9 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     regimen_salud:           '',
     eps_id:                  '',
     enfermedad_prioritaria:  false,
+    enfermedad_detalle:      '',
     discapacidad:            false,
+    tipo_discapacidad:       '',
     foto:                    null
   })
 
@@ -359,7 +364,8 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     gruposSanguineos:    objectToOptions(catalogs.grupos_sanguineos),
     rhs:                 objectToOptions(catalogs.rhs),
     nivelesEducacion:    objectToOptions(catalogs.niveles_educacion),
-    regimenesSalud:      objectToOptions(catalogs.regimenes_salud)
+    regimenesSalud:      objectToOptions(catalogs.regimenes_salud),
+    tiposDiscapacidad:   objectToOptions(catalogs.tipos_discapacidad)
   }))
 
   const epsOpciones = computed(() =>
@@ -724,7 +730,9 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
         regimen_salud:           d.regimen_salud           ?? '',
         eps_id:                  d.eps_id ? String(d.eps_id) : '',
         enfermedad_prioritaria:  Boolean(d.enfermedad_prioritaria),
-        discapacidad:            Boolean(d.discapacidad)
+        enfermedad_detalle:      d.enfermedad_detalle      ?? '',
+        discapacidad:            Boolean(d.discapacidad),
+        tipo_discapacidad:       d.tipo_discapacidad       ?? ''
       })
 
       // Campos del paso 5 (detalles de inscripción) que también entrega la precarga.
@@ -789,6 +797,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
         catalogs.rhs                  = data.rhs                  ?? {}
         catalogs.niveles_educacion    = data.niveles_educacion    ?? {}
         catalogs.regimenes_salud      = data.regimenes_salud      ?? {}
+        catalogs.tipos_discapacidad   = data.tipos_discapacidad   ?? {}
       } else {
         throw filtersRes.reason
       }
@@ -871,6 +880,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
    * Registra el precio elegido por el usuario y pre-rellena monto/cuota en detalles.
    * - Sin cuotas (numero_cuotas === null): pago de contado → monto = precio_contado.
    * - Con cuotas: financiado → monto = matrícula inicial, valor_cuota = cuota.
+   * - Con cuotas personalizadas (cuotas_detalle): no hay una cuota única, valor_cuota queda vacío.
    */
   function seleccionarPrecio(precio) {
     precioSeleccionado.value = precio
@@ -880,7 +890,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
       return
     }
     detalles.monto = precio.precio_contado
-    if (precio.numero_cuotas) {
+    if (precio.numero_cuotas && !precio.cuotas_detalle?.length) {
       detalles.valor_cuota = precio.valor_cuota
     } else {
       detalles.valor_cuota = ''
@@ -996,6 +1006,9 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
       // ── Booleanos (siempre presentes; backend usa cast booleano) ──────────
       enfermedad_prioritaria: Boolean(datosPersonales.enfermedad_prioritaria),
       discapacidad:           Boolean(datosPersonales.discapacidad),
+      // El detalle solo se envía si la condición está marcada
+      enfermedad_detalle:     datosPersonales.enfermedad_prioritaria ? str(datosPersonales.enfermedad_detalle) : null,
+      tipo_discapacidad:      datosPersonales.discapacidad ? str(datosPersonales.tipo_discapacidad) : null,
       conocimiento_curso:     Boolean(detalles.conocimiento_curso),
       aprueba_uso_imagen:     Boolean(detalles.aprueba_uso_imagen),
 
@@ -1100,7 +1113,9 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
 
       medica: {
         enfermedadPrioritaria: Boolean(datosPersonales.enfermedad_prioritaria),
-        discapacidad:          Boolean(datosPersonales.discapacidad)
+        enfermedadDetalle:     datosPersonales.enfermedad_detalle,
+        discapacidad:          Boolean(datosPersonales.discapacidad),
+        tipoDiscapacidad:      findLabel(catalogOpts.value.tiposDiscapacidad, datosPersonales.tipo_discapacidad)
       },
 
       detalleCurso: {
@@ -1259,7 +1274,7 @@ function _defaultDatosPersonales() {
     fecha_nacimiento: '', genero: '', estado_civil: '', grupo_sanguineo: '', rh: '',
     direccion: '', lugar_origen_id: '', celular: '', telefono: '',
     nivel_educacion: '', ocupacion: '', empresa: '', estrato: '', regimen_salud: '', eps_id: '',
-    enfermedad_prioritaria: false, discapacidad: false, foto: null
+    enfermedad_prioritaria: false, enfermedad_detalle: '', discapacidad: false, tipo_discapacidad: '', foto: null
   }
 }
 

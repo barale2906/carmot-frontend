@@ -113,11 +113,11 @@
               <PrintSection title="Información médica">
                 <PrintField
                   label="Enfermedades de atención prioritaria"
-                  :value="data.medica.enfermedadPrioritaria ? 'Sí, requiere atención' : 'Ninguna'"
+                  :value="data.medica.enfermedadPrioritaria ? (data.medica.enfermedadDetalle || 'Sí, requiere atención') : 'Ninguna'"
                 />
                 <PrintField
                   label="Discapacidad"
-                  :value="data.medica.discapacidad ? 'Sí' : 'Ninguna'"
+                  :value="data.medica.discapacidad ? (data.medica.tipoDiscapacidad || 'Sí') : 'Ninguna'"
                 />
               </PrintSection>
 

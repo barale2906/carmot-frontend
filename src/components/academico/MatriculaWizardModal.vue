@@ -247,8 +247,14 @@
                         Matrícula: <strong class="text-slate-700">{{ formatCOP(opcion.matricula) }}</strong>
                       </p>
                       <p class="text-xs text-slate-500">
-                        {{ opcion.numero_cuotas }} cuotas de
-                        <strong class="text-slate-700">{{ formatCOP(opcion.valor_cuota) }}</strong>
+                        <template v-if="opcion.cuotas_detalle?.length">
+                          {{ opcion.numero_cuotas }} cuotas:
+                          <strong class="text-slate-700">{{ opcion.cuotas_detalle.map((v) => formatCOP(v)).join(' · ') }}</strong>
+                        </template>
+                        <template v-else>
+                          {{ opcion.numero_cuotas }} cuotas de
+                          <strong class="text-slate-700">{{ formatCOP(opcion.valor_cuota) }}</strong>
+                        </template>
                       </p>
                       <p v-if="opcion.precio_total" class="mt-0.5 text-xs text-slate-400">
                         Total: {{ formatCOP(opcion.precio_total) }}
@@ -585,10 +591,28 @@
                     <template #label>Enfermedad prioritaria</template>
                     <template #help>Padece alguna enfermedad de atención prioritaria.</template>
                   </WizardCheckbox>
+                  <FormInput
+                    v-if="datosPersonales.enfermedad_prioritaria"
+                    v-model="datosPersonales.enfermedad_detalle"
+                    label="¿Cuál enfermedad?"
+                    placeholder="Digita la enfermedad"
+                    maxlength="255"
+                    required
+                    :error="fieldErrors.enfermedad_detalle?.[0]"
+                  />
                   <WizardCheckbox v-model="datosPersonales.discapacidad">
                     <template #label>Discapacidad</template>
                     <template #help>Presenta algún tipo de discapacidad.</template>
                   </WizardCheckbox>
+                  <FormSelect
+                    v-if="datosPersonales.discapacidad"
+                    v-model="datosPersonales.tipo_discapacidad"
+                    label="Tipo de discapacidad"
+                    placeholder="Seleccionar..."
+                    :options="catalogOpts.tiposDiscapacidad"
+                    required
+                    :error="fieldErrors.tipo_discapacidad?.[0]"
+                  />
                 </div>
               </WizardFieldset>
             </div>
@@ -665,7 +689,9 @@
                   <InfoItem label="Monto" :value="formatCOP(precioSeleccionado.precio_contado)" />
                   <InfoItem v-if="precioSeleccionado.numero_cuotas"
                     label="Cuotas"
-                    :value="`${precioSeleccionado.numero_cuotas} × ${formatCOP(precioSeleccionado.valor_cuota)}`"
+                    :value="precioSeleccionado.cuotas_detalle?.length
+                      ? precioSeleccionado.cuotas_detalle.map((v) => formatCOP(v)).join(' · ')
+                      : `${precioSeleccionado.numero_cuotas} × ${formatCOP(precioSeleccionado.valor_cuota)}`"
                   />
                   <InfoItem v-if="precioSeleccionado.precio_total"
                     label="Total"
@@ -686,6 +712,7 @@
                     required
                   />
                   <FormInput
+                    v-if="!precioSeleccionado?.cuotas_detalle?.length"
                     v-model="detalles.valor_cuota"
                     label="Valor por cuota"
                     type="number" step="0.01" min="0"
@@ -806,6 +833,16 @@
                   />
                   <InfoItem v-if="precioSeleccionado?.matricula && precioSeleccionado.numero_cuotas" label="Valor matrícula" :value="formatCOP(precioSeleccionado.matricula)" />
                   <InfoItem v-if="detalles.valor_cuota" label="Valor por cuota" :value="formatCOP(detalles.valor_cuota)" />
+                  <!-- Cuotas personalizadas: se detalla el valor de cada una -->
+                  <div v-if="precioSeleccionado?.cuotas_detalle?.length" class="col-span-2">
+                    <dt class="text-xs text-slate-400">Detalle de cuotas</dt>
+                    <dd class="mt-1 grid grid-cols-2 gap-x-6 gap-y-0.5 font-medium text-slate-800">
+                      <span v-for="(valor, i) in precioSeleccionado.cuotas_detalle" :key="i" class="flex justify-between">
+                        <span class="text-slate-500">Cuota {{ i + 1 }}</span>
+                        <span>{{ formatCOP(valor) }}</span>
+                      </span>
+                    </dd>
+                  </div>
                   <InfoItem v-if="precioSeleccionado?.precio_total" label="Total financiado" :value="formatCOP(precioSeleccionado.precio_total)" />
                   <InfoItem v-if="precioSeleccionado?.lista_precio" label="Lista de precios" :value="precioSeleccionado.lista_precio.nombre" />
                 </dl>

@@ -507,9 +507,8 @@
               </tr>
             </thead>
             <tbody>
+              <template v-for="(line, idx) in formPrecioLines" :key="line._key">
               <tr
-                v-for="(line, idx) in formPrecioLines"
-                :key="line._key"
                 class="border-b border-slate-100 align-top transition-colors hover:bg-slate-50/90"
               >
                 <td class="px-2 py-2 align-middle text-xs font-medium text-slate-500">{{ idx + 1 }}</td>
@@ -535,7 +534,7 @@
                     min="0"
                     placeholder="0"
                     :disabled="!puedeEditarPreciosEnForm"
-                    @blur="onBlurLineaPrecioContado(line)"
+                    @blur="onBlurLineaMonto(line, 'precio_contado')"
                   />
                 </td>
                 <td class="px-2 py-2 align-middle">
@@ -546,7 +545,7 @@
                     min="0"
                     placeholder="0"
                     :disabled="!puedeEditarPreciosEnForm"
-                    @blur="onBlurLineaMatricula(line)"
+                    @blur="onBlurLineaMonto(line, 'matricula')"
                   />
                 </td>
                 <td class="px-2 py-2 align-middle">
@@ -558,7 +557,7 @@
                       min="0"
                       placeholder="0"
                       :disabled="!puedeEditarPreciosEnForm"
-                      @blur="onBlurLineaPrecioTotal(line)"
+                      @blur="onBlurLineaMonto(line, 'precio_total')"
                     />
                   </template>
                   <span v-else class="block py-2 text-center text-xs text-slate-400">—</span>
@@ -578,7 +577,7 @@
                 </td>
                 <td class="px-2 py-2 align-middle text-xs text-slate-700">
                   <span v-if="formLineEsFinanciable(line)" class="block max-w-[6.5rem] leading-snug">
-                    {{ valorCuotaPreviewLine(line) }}
+                    {{ line.cuotas_detalle ? 'Personalizadas' : valorCuotaPreviewLine(line) }}
                   </span>
                   <span v-else class="block text-center text-slate-400">—</span>
                 </td>
@@ -602,6 +601,19 @@
                   </button>
                 </td>
               </tr>
+              <!-- Valor individual de cada cuota (opcional) -->
+              <tr v-if="formLineEsFinanciable(line)" class="border-b border-slate-100 bg-slate-50/50">
+                <td></td>
+                <td colspan="8" class="px-2 py-2">
+                  <CuotasDetalleEditor
+                    v-model="line.cuotas_detalle"
+                    :total="line.precio_total"
+                    :numero-cuotas="line.numero_cuotas"
+                    :disabled="!puedeEditarPreciosEnForm"
+                  />
+                </td>
+              </tr>
+              </template>
             </tbody>
           </table>
         </div>
@@ -908,7 +920,12 @@
                 <td class="px-3 py-2.5 text-right font-medium text-slate-900">{{ formatCOP(precio.precio_contado) }}</td>
                 <td class="px-3 py-2.5 text-right text-slate-700">{{ formatCOP(precio.matricula) }}</td>
                 <td class="px-3 py-2.5 text-right text-slate-700">{{ precio.numero_cuotas ?? '—' }}</td>
-                <td class="px-3 py-2.5 text-right text-slate-700">{{ precio.valor_cuota ? formatCOP(precio.valor_cuota) : '—' }}</td>
+                <td class="px-3 py-2.5 text-right text-slate-700"><template v-if="precio.cuotas_detalle?.length">
+                    <span class="text-xs text-slate-500">Personalizadas</span>
+                    <p class="text-xs">{{ precio.cuotas_detalle.map(formatCOP).join(' · ') }}</p>
+                  </template>
+                  <template v-else>{{ precio.valor_cuota ? formatCOP(precio.valor_cuota) : '—' }}</template>
+                </td>
                 <td class="px-3 py-2.5 text-right">
                   <div class="flex justify-end gap-1">
                     <button
@@ -1048,11 +1065,11 @@
           type="number"
           min="0"
           placeholder="0"
-          hint="Fijo al definirlo: matrícula + total financiado. Al salir se reparte en esos dos campos (financiable)."
+          hint="Igual a matrícula + total financiado. Al diligenciar dos de los tres campos se calcula el otro (financiable)."
           help="Importe total del ítem; en financiables debe cuadrar con matrícula + total financiado."
           :required="true"
           :error="precioFieldErrors.precio_contado?.[0]"
-          @blur="onBlurPrecioFormContado"
+          @blur="onBlurPrecioFormMonto('precio_contado')"
         />
         <FormInput
           v-model="precioForm.matricula"
@@ -1060,11 +1077,11 @@
           type="number"
           min="0"
           placeholder="0"
-          hint="Máximo igual al valor total. Si es financiable: al salir se recalcula el total financiado (valor total − matrícula)."
+          hint="Máximo igual al valor total. Si es financiable, junto con otro campo calcula el restante."
           help="Pago inicial separado del monto sujeto a cuotas."
           :required="true"
           :error="precioFieldErrors.matricula?.[0]"
-          @blur="onBlurPrecioFormMatricula"
+          @blur="onBlurPrecioFormMonto('matricula')"
         />
 
         <!-- Solo para financiables -->
@@ -1075,11 +1092,11 @@
             type="number"
             min="0"
             placeholder="0"
-            hint="No mayor al valor total − matrícula. Al salir se ajusta la matrícula para cuadrar el valor total (no se cambia el valor total)."
+            hint="No mayor al valor total. Junto con otro campo calcula el restante."
             help="Monto repartido en cuotas (valor total menos matrícula)."
             :required="true"
             :error="precioFieldErrors.precio_total?.[0]"
-            @blur="onBlurPrecioFormPrecioTotal"
+            @blur="onBlurPrecioFormMonto('precio_total')"
           />
           <FormInput
             v-model="precioForm.numero_cuotas"
@@ -1106,10 +1123,19 @@
             "
             class="sm:col-span-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900"
           >
-            El valor total debe coincidir con matrícula + precio total financiado. Pasa el foco por matrícula o total para recalcular sin cambiar el valor total.
+            El valor total debe coincidir con matrícula + precio total financiado. Edita dos de los tres campos para recalcular el restante.
+          </p>
+          <CuotasDetalleEditor
+            v-model="precioForm.cuotas_detalle"
+            class="sm:col-span-2"
+            :total="precioForm.precio_total"
+            :numero-cuotas="precioForm.numero_cuotas"
+          />
+          <p v-if="precioFieldErrors.cuotas_detalle?.[0]" class="sm:col-span-2 text-xs text-red-600">
+            {{ precioFieldErrors.cuotas_detalle[0] }}
           </p>
           <!-- Valor cuota calculado (read-only) -->
-          <div class="flex flex-col gap-2 sm:col-span-2">
+          <div v-if="!precioForm.cuotas_detalle" class="flex flex-col gap-2 sm:col-span-2">
             <div class="flex flex-wrap items-center gap-1">
               <label class="text-sm font-medium text-slate-900">Valor cuota <span class="text-slate-400 font-normal">(calculado)</span></label>
               <FormFieldHelp text="Importe orientativo por cuota; el servidor puede ajustar redondeos." />
@@ -1430,6 +1456,8 @@ import cursoService       from '@/services/cursoService.js'
 import moduloService      from '@/services/moduloService.js'
 import { usePoblacionSelector } from '@/composables/usePoblacion.js'
 import { useNotification } from '@/composables/useNotification'
+import CuotasDetalleEditor from '@/components/financiero/CuotasDetalleEditor.vue'
+import { mensajeCuotasDetalle, cuotasDetalleParaApi } from '@/utils/cuotasDetalle.js'
 
 const { success: notifySuccess, warning: notifyWarning } = useNotification()
 const { poblacionesOptions, poblacionesLoading, loadPoblaciones } = usePoblacionSelector()
@@ -1494,52 +1522,55 @@ function mensajeCoherenciaPreciosFinanciable(contado, matricula, precioTotal) {
   return `El valor total debe ser igual a matrícula + precio total financiado (${formatCOP(m)} + ${formatCOP(t)} = ${formatCOP(m + t)}; valor total indicado ${formatCOP(c)}).`
 }
 
-/**
- * Valor total (precio_contado) fijo: 0 ≤ matrícula ≤ valor total; total financiado = valor total − matrícula.
- * Al salir de valor total o matrícula.
- */
-function sincronizarPrecioTotalDesdeContadoYMatricula(target) {
-  const c = parseMontoCampo(target.precio_contado)
-  if (!Number.isFinite(c) || c < 0) return
-  let m = parseMontoCampo(target.matricula)
-  if (!Number.isFinite(m)) m = 0
-  m = Math.min(Math.max(0, m), c)
-  target.matricula = montoCampoAString(m)
-  target.precio_total = montoCampoAString(c - m)
+/** Orden de edición de los tres importes por objeto (línea o formulario): los dos últimos editados definen el tercero. */
+const ordenEdicionMontos = new WeakMap()
+
+function registrarEdicionMonto(target, campo) {
+  const orden = (ordenEdicionMontos.get(target) ?? []).filter((c) => c !== campo)
+  orden.push(campo)
+  ordenEdicionMontos.set(target, orden.slice(-2))
 }
 
 /**
- * Valor total fijo: 0 ≤ total financiado ≤ valor total; matrícula = valor total − total (nunca se altera precio_contado).
- * Al salir del total financiado.
+ * Producto financiable: valor total = matrícula + total financiado.
+ * Al diligenciar dos de los tres campos (los dos últimos editados) se calcula el restante.
+ * Con una sola edición se conserva el valor total como referencia fija.
+ * @param {object} target - línea o formulario con precio_contado, matricula y precio_total
+ * @param {'precio_contado'|'matricula'|'precio_total'} campo - campo del que se acaba de salir
  */
-function sincronizarMatriculaDesdeContadoYTotal(target) {
+function sincronizarMontosFinanciable(target, campo) {
+  if (target[campo] === '') return
+  registrarEdicionMonto(target, campo)
+  const orden = ordenEdicionMontos.get(target)
+  const par = new Set(orden)
   const c = parseMontoCampo(target.precio_contado)
+  const m = parseMontoCampo(target.matricula)
+  const t = parseMontoCampo(target.precio_total)
+
+  if (par.size === 2 && !par.has('precio_contado') && Number.isFinite(m) && Number.isFinite(t)) {
+    target.precio_contado = montoCampoAString(Math.max(0, m) + Math.max(0, t))
+    return
+  }
   if (!Number.isFinite(c) || c < 0) return
-  let t = parseMontoCampo(target.precio_total)
-  if (!Number.isFinite(t)) t = 0
-  t = Math.min(Math.max(0, t), c)
-  target.precio_total = montoCampoAString(t)
-  target.matricula = montoCampoAString(c - t)
+
+  const derivarTotal = par.size === 2 ? !par.has('precio_total') : campo !== 'precio_total'
+  if (derivarTotal) {
+    const mm = Math.min(Math.max(0, Number.isFinite(m) ? m : 0), c)
+    target.matricula = montoCampoAString(mm)
+    target.precio_total = montoCampoAString(c - mm)
+  } else {
+    const tt = Math.min(Math.max(0, Number.isFinite(t) ? t : 0), c)
+    target.precio_total = montoCampoAString(tt)
+    target.matricula = montoCampoAString(c - tt)
+  }
 }
 
-function onBlurLineaPrecioContado(line) {
-  if (formLineEsFinanciable(line)) sincronizarPrecioTotalDesdeContadoYMatricula(line)
-}
-function onBlurLineaMatricula(line) {
-  if (formLineEsFinanciable(line)) sincronizarPrecioTotalDesdeContadoYMatricula(line)
-}
-function onBlurLineaPrecioTotal(line) {
-  if (formLineEsFinanciable(line)) sincronizarMatriculaDesdeContadoYTotal(line)
+function onBlurLineaMonto(line, campo) {
+  if (formLineEsFinanciable(line)) sincronizarMontosFinanciable(line, campo)
 }
 
-function onBlurPrecioFormContado() {
-  if (precioEsFinanciable.value) sincronizarPrecioTotalDesdeContadoYMatricula(precioForm)
-}
-function onBlurPrecioFormMatricula() {
-  if (precioEsFinanciable.value) sincronizarPrecioTotalDesdeContadoYMatricula(precioForm)
-}
-function onBlurPrecioFormPrecioTotal() {
-  if (precioEsFinanciable.value) sincronizarMatriculaDesdeContadoYTotal(precioForm)
+function onBlurPrecioFormMonto(campo) {
+  if (precioEsFinanciable.value) sincronizarMontosFinanciable(precioForm, campo)
 }
 
 function precioFinanciableLineaCoherente(line) {
@@ -1594,6 +1625,7 @@ function emptyPrecioLine() {
     matricula: '',
     precio_total: '',
     numero_cuotas: '',
+    cuotas_detalle: null,
     observaciones: ''
   }
 }
@@ -1685,6 +1717,10 @@ function validateFormPrecioLines() {
       if (!Number.isFinite(nc) || nc < 1) {
         return `Línea ${i + 1}: el número de cuotas debe ser un entero mayor o igual a 1 (no 0).`
       }
+      if (line.cuotas_detalle) {
+        const errCuotas = mensajeCuotasDetalle(line.cuotas_detalle, line.precio_total, nc)
+        if (errCuotas) return `Línea ${i + 1}: ${errCuotas}`
+      }
       const coh = mensajeCoherenciaPreciosFinanciable(line.precio_contado, line.matricula, line.precio_total)
       if (coh) return `Línea ${i + 1}: ${coh}`
     }
@@ -1705,6 +1741,8 @@ function buildPrecioPayloadForUpdate(line) {
     if (total && cuotas && cuotas > 0) {
       payload.valor_cuota = Math.round(total / cuotas / 100) * 100
     }
+    // null devuelve el precio al cálculo automático
+    payload.cuotas_detalle = line.cuotas_detalle ? cuotasDetalleParaApi(line.cuotas_detalle) : null
   }
   if (line.observaciones?.trim()) payload.observaciones = line.observaciones.trim()
   return payload
@@ -1780,6 +1818,7 @@ async function loadPreciosParaFormulario(listaId) {
       matricula: p.matricula != null ? String(p.matricula) : '',
       precio_total: p.precio_total != null ? String(p.precio_total) : '',
       numero_cuotas: p.numero_cuotas != null && p.numero_cuotas !== '' ? String(p.numero_cuotas) : '',
+      cuotas_detalle: Array.isArray(p.cuotas_detalle) ? p.cuotas_detalle.map(String) : null,
       observaciones: p.observaciones ?? ''
     }))
     formPrecioLines.value = rows
@@ -2373,6 +2412,7 @@ const precioForm = reactive({
   matricula:      '',
   precio_total:   '',
   numero_cuotas:  '',
+  cuotas_detalle: null,
   observaciones:  ''
 })
 
@@ -2436,11 +2476,13 @@ async function loadProductos(force = false) {
 }
 
 function resetPrecioForm() {
+  ordenEdicionMontos.delete(precioForm)
   precioForm.producto_id    = ''
   precioForm.precio_contado = ''
   precioForm.matricula      = ''
   precioForm.precio_total   = ''
   precioForm.numero_cuotas  = ''
+  precioForm.cuotas_detalle = null
   precioForm.observaciones  = ''
   precioFormError.value     = ''
   precioFieldErrors.value   = {}
@@ -2462,6 +2504,7 @@ async function openPrecioEdit(precio) {
   precioForm.precio_total   = precio.precio_total   ?? ''
   precioForm.numero_cuotas =
     precio.numero_cuotas != null && precio.numero_cuotas !== '' ? String(precio.numero_cuotas) : ''
+  precioForm.cuotas_detalle = Array.isArray(precio.cuotas_detalle) ? precio.cuotas_detalle.map(String) : null
   precioForm.observaciones  = precio.observaciones  ?? ''
   showPrecioModal.value = true
 }
@@ -2484,6 +2527,13 @@ async function submitPrecio() {
       precioFormError.value = coh
       return
     }
+    if (precioForm.cuotas_detalle) {
+      const errCuotas = mensajeCuotasDetalle(precioForm.cuotas_detalle, precioForm.precio_total, nc)
+      if (errCuotas) {
+        precioFormError.value = errCuotas
+        return
+      }
+    }
   }
   precioLoading.value     = true
   try {
@@ -2497,6 +2547,8 @@ async function submitPrecio() {
       if (valorCuotaCalculado.value !== null) {
         payload.valor_cuota = valorCuotaCalculado.value
       }
+      // null devuelve el precio al cálculo automático
+      payload.cuotas_detalle = precioForm.cuotas_detalle ? cuotasDetalleParaApi(precioForm.cuotas_detalle) : null
     }
     if (precioForm.observaciones?.trim()) payload.observaciones = precioForm.observaciones.trim()
 
