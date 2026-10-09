@@ -274,6 +274,48 @@ describe('reciboPagoService', () => {
       expect(result.descuento_matricula.aplica).toBe(true)
       expect(result.descuento_matricula.valor).toBe(30000)
     })
+
+    it('con monto 0 devuelve las cuotas de costo cero (valor 0 o descuento del 100 %)', async () => {
+      api.post.mockResolvedValue({
+        data: {
+          data: {
+            aplica: false,
+            valor: 0,
+            motivo: 'No hay descuento por pronto pago activo.',
+            descuento: null,
+            descuento_matricula: { aplica: true, valor: 150000, motivo: 'Descuento matrícula (Beca)', descuento: null },
+            cuotas_costo_cero: [
+              { cartera_id: 5, numero_cuota: 0, valor: 150000, saldo: 150000, descuento: 150000, motivo: 'Beca' },
+              { cartera_id: 7, numero_cuota: 2, valor: 0, saldo: 0, descuento: 0, motivo: null },
+            ],
+          },
+        },
+      })
+
+      const result = await reciboPagoService.precalcularDescuento({ matricula_id: 10, monto_a_pagar: 0 })
+
+      expect(api.post).toHaveBeenCalledWith(`${BASE}/precalcular-descuento`, { matricula_id: 10, monto_a_pagar: 0 })
+      expect(result.data.cuotas_costo_cero).toHaveLength(2)
+      expect(result.data.cuotas_costo_cero[0].descuento).toBe(150000)
+    })
+  })
+
+  // ─── Recibo de costo cero ────────────────────────────────────────────────────
+  describe('create — recibo de costo cero', () => {
+    it('envía monto_a_pagar 0 sin medios de pago ni sobrecargos', async () => {
+      api.post.mockResolvedValue({ data: { data: { ...RECIBO, valor_total: 0, descuento_total: 150000 } } })
+      const payload = {
+        sede_id: 1, cajero_id: 3, matricula_id: 10, origen: 1,
+        fecha_recibo: '2026-10-08', fecha_transaccion: '2026-10-08',
+        monto_a_pagar: 0, aplicar_descuento: true,
+      }
+
+      const result = await reciboPagoService.create(payload, { _silent: true })
+
+      expect(api.post).toHaveBeenCalledWith(BASE, payload, { _silent: true })
+      expect(api.post.mock.calls[0][1]).not.toHaveProperty('medios_pago')
+      expect(result.data.valor_total).toBe(0)
+    })
   })
 
   // ─── precalcularSobrecargos ──────────────────────────────────────────────────

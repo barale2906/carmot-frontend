@@ -31,6 +31,7 @@ const reciboPagoService = {
    * Modo Clásico: incluye conceptos_pago y medios_pago
    * Modo A: incluye monto_a_distribuir
    * Modo B: incluye distribucion
+   * Costo cero: monto_a_pagar = 0 sin medios_pago — solo descarga cuotas de costo cero
    */
   async create(payload, config = {}) {
     const { data } = await api.post(BASE, payload, config)
@@ -98,8 +99,10 @@ const reciboPagoService = {
 
   /**
    * POST /financiero/recibos-pago/precalcular-descuento
-   * Payload: { matricula_id, monto_a_pagar, fecha_transaccion? }
-   * Retorna: { aplica, valor, motivo, descuento }
+   * Payload: { matricula_id, monto_a_pagar (puede ser 0), fecha_transaccion? }
+   * Retorna: { aplica, valor, motivo, descuento, descuento_matricula, cuotas_costo_cero }
+   * cuotas_costo_cero: [{ cartera_id, numero_cuota, valor, saldo, descuento, motivo }] — cuotas con
+   * valor 0 o descuento del 100 % que se descargan sin pago (recibo con monto_a_pagar = 0).
    */
   async precalcularDescuento(payload) {
     const { data } = await api.post(`${BASE}/precalcular-descuento`, payload)

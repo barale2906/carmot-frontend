@@ -170,6 +170,17 @@
             </table>
           </div>
 
+          <!-- Cuotas de costo cero (valor 0 o descuento del 100 %) -->
+          <div v-if="cuotasCostoCero.length" class="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
+            <p class="text-xs text-emerald-800">
+              <strong>{{ cuotasCostoCero.length === 1 ? '1 cuota tiene' : `${cuotasCostoCero.length} cuotas tienen` }} costo cero:</strong>
+              {{ cuotasCostoCero.map(c => etiquetaCuota(c.numero_cuota)).join(', ') }}.
+              <span class="mt-0.5 block text-[11px] text-emerald-700">
+                Se descargan sin pago en el próximo recibo. Con valor a pagar $ 0 se genera un recibo solo con ellas.
+              </span>
+            </p>
+          </div>
+
           <!-- Mínimo sugerido -->
           <div v-if="minimoAPagar > 0" class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
             <p class="text-xs text-amber-800">
@@ -232,7 +243,12 @@
                         <span class="font-medium">{{ item.conceptoNombre || item.label }}</span>
                         <span v-if="item.conceptoNombre" class="text-slate-400"> — {{ item.label }}</span>
                         <span
-                          v-if="item.pagado >= item.saldo"
+                          v-if="item.costoCero"
+                          class="ml-1.5 inline-flex rounded px-1.5 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-700"
+                          :title="item.motivo"
+                        >Costo cero</span>
+                        <span
+                          v-else-if="item.pagado >= item.saldo"
                           class="ml-1.5 inline-flex rounded px-1.5 py-0.5 text-[10px] font-semibold bg-[#213360] text-white"
                         >Pagada</span>
                         <span
@@ -408,8 +424,14 @@
           />
         </div>
 
+        <!-- Recibo de costo cero: no se registran medios de pago -->
+        <div v-if="esCostoCero" class="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          Este recibo no registra dinero: solo descarga las cuotas de costo cero (valor $ 0 o descuento del 100 %).
+          No requiere método de pago.
+        </div>
+
         <!-- Lista dinámica de medios de pago -->
-        <div class="mt-5">
+        <div v-else class="mt-5">
           <div class="mb-2 flex items-center justify-between">
             <span class="text-sm font-medium text-slate-700">Métodos de pago *</span>
             <span
@@ -612,7 +634,7 @@
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>
-          {{ guardando ? 'Guardando...' : 'Generar recibo' }}
+          {{ guardando ? 'Guardando...' : (esCostoCero ? 'Generar recibo sin pago' : 'Generar recibo') }}
         </button>
 
         <!-- Botón transferencia -->
@@ -750,6 +772,8 @@ const calculado        = ref(false)
 const calculando       = ref(false)
 const itemsCargados    = ref([])   // [{ tipo, label, valor?, cantidad?, saldo?, pagado }]
 const descuentoMotivo  = ref('')   // motivo cuando precalcular-descuento devuelve aplica:false
+// Cuotas con valor 0 o descuento del 100 %: se descargan sin pago (precalcular-descuento → cuotas_costo_cero)
+const cuotasCostoCero  = ref([])   // [{ cartera_id, numero_cuota, valor, saldo, descuento, motivo }]
 
 // ─── Recibo de transferencia creado (pendiente aprobación) ────────────────────
 const reciboTransferenciaCreado = ref(null)
@@ -819,11 +843,26 @@ const mediosPagoOpciones = [
 ]
 
 // ─── Computed ────────────────────────────────────────────────────────────────
-/** Cuotas con saldo pendiente, ordenadas de más antigua a más reciente. */
+const idsCostoCero = computed(() => new Set(cuotasCostoCero.value.map(c => c.cartera_id)))
+
+/**
+ * Cuotas que requieren pago, ordenadas de más antigua a más reciente.
+ * Excluye las de costo cero: el backend las descarga sin consumir el monto.
+ */
 const cuotasPendientes = computed(() =>
   historialCuotas.value
-    .filter(c => Number(c.saldo) > 0)
+    .filter(c => Number(c.saldo) > 0 && !idsCostoCero.value.has(c.id))
     .sort((a, b) => a.numero_cuota - b.numero_cuota)
+)
+
+/**
+ * Recibo de costo cero: valor a pagar 0, sin conceptos adicionales y con al menos una
+ * cuota de costo cero que descargar. Se envía sin medios de pago.
+ */
+const esCostoCero = computed(() =>
+  Number(form.monto_a_pagar) <= 0
+  && cuotasCostoCero.value.length > 0
+  && conceptosAdicionales.value.length === 0
 )
 
 /** Suma del saldo de cuotas vencidas o con vencimiento hoy — es el mínimo a pagar. */
@@ -851,7 +890,7 @@ const totalDescuentosAplicados = computed(() =>
 )
 
 const puedeCalcular = computed(() =>
-  Number(form.monto_a_pagar) > 0 && !!form.fecha_recibo
+  (Number(form.monto_a_pagar) > 0 || esCostoCero.value) && !!form.fecha_recibo
 )
 
 /** Suma de valores de todos los medios de pago ingresados */
@@ -871,7 +910,7 @@ const totalSobrecargo = computed(() =>
 
 /** True cuando algún medio de pago es transferencia (es exclusivo, no puede combinarse) */
 const hayTransferencia = computed(() =>
-  mediosPago.value.some(mp => mp.medio_pago === 'transferencia')
+  !esCostoCero.value && mediosPago.value.some(mp => mp.medio_pago === 'transferencia')
 )
 
 // Cuando hay exactamente un medio de pago, sincronizar su valor con el monto total
@@ -889,9 +928,15 @@ watch(() => form.monto_a_pagar, () => {
   calcularTimer = setTimeout(() => { if (puedeCalcular.value) calcular() }, 500)
 })
 
-// Recalcular inmediatamente al cambiar fecha o conceptos adicionales
+// Las cuotas de costo cero dependen de la fecha (vigencia del descuento): refrescarlas y recalcular
+watch(() => form.fecha_recibo, async () => {
+  await cargarCuotasCostoCero()
+  if (puedeCalcular.value) calcular()
+})
+
+// Recalcular inmediatamente al cambiar conceptos adicionales
 watch(
-  [() => form.fecha_recibo, () => conceptosAdicionales.value.length],
+  () => conceptosAdicionales.value.length,
   () => { if (puedeCalcular.value) calcular() }
 )
 
@@ -899,6 +944,15 @@ watch(
 function formatMoney(val) {
   if (val == null) return '0'
   return Number(val).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+}
+
+function etiquetaCuota(numeroCuota) {
+  return numeroCuota === 0 ? 'Matrícula' : `Cuota ${numeroCuota}`
+}
+
+/** cuota.concepto viene del backend (CarteraResource): 'Matrícula' o 'Pago de mensualidad' */
+function conceptoCuota(cuota) {
+  return cuota.concepto || (cuota.numero_cuota === 0 ? 'Matrícula' : 'Pago de mensualidad')
 }
 
 function cuotaEsVencida(cuota) {
@@ -1015,6 +1069,31 @@ async function cargarDetalleDeuda(matriculaId) {
   } finally {
     cargandoDetalle.value = false
   }
+
+  await cargarCuotasCostoCero()
+  if (puedeCalcular.value) calcular()
+}
+
+/**
+ * Consulta las cuotas de costo cero (valor 0 o descuento del 100 %) de la matrícula para la
+ * fecha de pago. precalcular-descuento con monto 0 las devuelve en cuotas_costo_cero.
+ */
+async function cargarCuotasCostoCero() {
+  const matriculaId = deudaSeleccionada.value?.matricula_id
+  if (!matriculaId) {
+    cuotasCostoCero.value = []
+    return
+  }
+  try {
+    const res = await reciboPagoService.precalcularDescuento({
+      matricula_id:      matriculaId,
+      monto_a_pagar:     0,
+      fecha_transaccion: form.fecha_recibo,
+    })
+    cuotasCostoCero.value = res.data?.cuotas_costo_cero ?? []
+  } catch {
+    cuotasCostoCero.value = []
+  }
 }
 
 // ─── Conceptos adicionales ────────────────────────────────────────────────────
@@ -1079,17 +1158,15 @@ async function calcular() {
     restante -= pagado
   }
 
+  const itemsCuota = []
   for (const cuota of cuotasPendientes.value) {
     if (restante <= 0) break
     const saldo  = Number(cuota.saldo)
     const pagado = Math.min(restante, saldo)
-    // cuota.concepto viene del backend (CarteraResource): 'Matrícula' o 'Pago de mensualidad'
-    const conceptoNombre = cuota.concepto
-      || (cuota.numero_cuota === 0 ? 'Matrícula' : 'Pago de mensualidad')
-    items.push({
+    itemsCuota.push({
       tipo:          'cuota',
-      label:         cuota.numero_cuota === 0 ? 'Matrícula' : `Cuota ${cuota.numero_cuota}`,
-      conceptoNombre,
+      label:         etiquetaCuota(cuota.numero_cuota),
+      conceptoNombre: conceptoCuota(cuota),
       numero_cuota:  cuota.numero_cuota,
       saldo,
       valorBruto:    Number(cuota.valor) || saldo,
@@ -1098,6 +1175,24 @@ async function calcular() {
     })
     restante -= pagado
   }
+
+  // Cuotas de costo cero: el backend las descarga en cualquier recibo sin consumir el monto
+  for (const cc of cuotasCostoCero.value) {
+    const cuota = historialCuotas.value.find(c => c.id === cc.cartera_id)
+    itemsCuota.push({
+      tipo:           'cuota',
+      label:          etiquetaCuota(cc.numero_cuota),
+      conceptoNombre: conceptoCuota(cuota ?? cc),
+      numero_cuota:   cc.numero_cuota,
+      saldo:          cc.saldo,
+      valorBruto:     cc.valor,
+      esAbonada:      false,
+      costoCero:      true,
+      motivo:         cc.motivo ?? 'Valor $ 0',
+      pagado:         0,
+    })
+  }
+  items.push(...itemsCuota.sort((a, b) => a.numero_cuota - b.numero_cuota))
 
   // Consultar descuento con el monto y fecha reales para reflejar las condiciones actuales
   if (items.some(i => i.tipo === 'cuota') && deudaSeleccionada.value?.matricula_id) {
@@ -1249,7 +1344,7 @@ async function onSubmit() {
     formError.value = 'Selecciona una obligación antes de continuar.'
     return
   }
-  if (!form.monto_a_pagar || Number(form.monto_a_pagar) <= 0) {
+  if (!esCostoCero.value && (!form.monto_a_pagar || Number(form.monto_a_pagar) <= 0)) {
     formError.value = 'El valor a pagar debe ser mayor a cero.'
     return
   }
@@ -1294,7 +1389,20 @@ async function onSubmit() {
 
   // Cuando hay comprobante se envía como multipart/form-data
   let reqPayload, reqConfig
-  if (comprobanteFile) {
+  if (esCostoCero.value) {
+    // Recibo de costo cero: monto 0 y sin medios de pago ni sobrecargos
+    reqPayload = {
+      sede_id:           sedeId,
+      cajero_id:         currentUser.value?.id ?? null,
+      matricula_id:      deudaSeleccionada.value.matricula_id,
+      origen:            1,
+      fecha_recibo:      form.fecha_recibo,
+      fecha_transaccion: form.fecha_recibo,
+      monto_a_pagar:     0,
+      aplicar_descuento: true,
+    }
+    reqConfig = { _silent: true }
+  } else if (comprobanteFile) {
     const fd = new FormData()
     fd.append('sede_id',           sedeId ?? '')
     fd.append('cajero_id',         currentUser.value?.id ?? '')
@@ -1392,6 +1500,7 @@ function resetForm() {
   calculado.value                = false
   calculando.value               = false
   itemsCargados.value            = []
+  cuotasCostoCero.value          = []
   reciboTransferenciaCreado.value = null
   mediosPago.value.forEach(mp => {
     if (mp.comprobante_preview_url) {
