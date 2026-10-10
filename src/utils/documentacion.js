@@ -17,6 +17,12 @@ export const DOCUMENTO_ORIGEN = Object.freeze({
 
 export const PREFIJO_BLOQUE = 'bloque.'
 
+/** Clase de la entidad Matrícula en el backend (`entidad_type` de la bitácora). */
+export const ENTIDAD_MATRICULA = 'App\\Models\\Academico\\Matricula'
+
+/** Descripción con que se sube el escaneado de la hoja de matrícula (DocDocumento::DESCRIPCION_HOJA_MATRICULA). */
+export const DESCRIPCION_HOJA_MATRICULA = 'Hoja de matrícula'
+
 // Mismo patrón que usa el backend (DocVariableResolverService::PATRON_VARIABLE).
 const PATRON_MARCADOR = /\{\{\s*([A-Za-z0-9_.]+)\s*\}\}/g
 
@@ -215,4 +221,54 @@ export function fechaHoraLocal(iso) {
     timeZone: 'America/Bogota',
     year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
   })
+}
+
+/**
+ * Lista de documentos que deben quedar firmados en una matrícula, con su escaneado
+ * si ya se cargó: primero la hoja de matrícula, luego los documentos generados
+ * (por tipo) y al final los escaneados sueltos con descripción libre ("otros").
+ *
+ * @param {Array<{ tipo_documento_id: number, tipo_documento: string }>} documentos - Generados para la matrícula
+ * @param {Array<Object>} subidos - Escaneados vigentes de la matrícula (bitácora, origen = SUBIDO)
+ * @returns {Array<{ clave: string, nombre: string, tipo_documento_id: number|null,
+ *   descripcion: string|null, otro: boolean, escaneado: Object|null }>}
+ */
+export function checklistEscaneados(documentos = [], subidos = []) {
+  const porTipo = (tipoId) => subidos.find(s => s.tipo_documento_id === tipoId) ?? null
+  const sinTipo = subidos.filter(s => !s.tipo_documento_id)
+
+  const filas = [
+    {
+      clave: 'hoja',
+      nombre: DESCRIPCION_HOJA_MATRICULA,
+      tipo_documento_id: null,
+      descripcion: DESCRIPCION_HOJA_MATRICULA,
+      otro: false,
+      escaneado: sinTipo.find(s => s.descripcion === DESCRIPCION_HOJA_MATRICULA) ?? null,
+    },
+    ...documentos.map(d => ({
+      clave: `tipo-${d.tipo_documento_id}`,
+      nombre: d.tipo_documento,
+      tipo_documento_id: d.tipo_documento_id,
+      descripcion: null,
+      otro: false,
+      escaneado: porTipo(d.tipo_documento_id),
+    })),
+  ]
+
+  // Escaneados de tipos que hoy no se generaron (p. ej. sin versión vigente) y
+  // soportes con descripción libre: se muestran para no ocultar lo ya cargado.
+  const tiposListados = new Set(documentos.map(d => d.tipo_documento_id))
+  const otros = subidos
+    .filter(s => s.tipo_documento_id ? !tiposListados.has(s.tipo_documento_id) : s.descripcion !== DESCRIPCION_HOJA_MATRICULA)
+    .map(s => ({
+      clave: `otro-${s.id}`,
+      nombre: s.nombre_documento ?? s.descripcion ?? 'Documento',
+      tipo_documento_id: s.tipo_documento_id ?? null,
+      descripcion: s.tipo_documento_id ? null : s.descripcion,
+      otro: true,
+      escaneado: s,
+    }))
+
+  return [...filas, ...otros]
 }

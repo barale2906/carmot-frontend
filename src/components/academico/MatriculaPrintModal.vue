@@ -52,33 +52,33 @@
                     texto blanco sea legible.
                   -->
                   <div class="flex shrink-0 items-center rounded-lg bg-[#213360] px-3 py-2">
-                    <img :src="logoSrc" alt="CARMOT" class="h-12 w-auto" />
+                    <img :src="logoSrc" alt="CARMOT" class="h-12 w-auto print:h-10" />
                   </div>
                   <div>
-                    <h1 class="text-xl font-bold text-slate-900">Centro de Capacitaciones CARMOT</h1>
-                    <p class="text-xs text-slate-500">NIT: 1.048.849.874-0</p>
-                    <p v-if="data.curso" class="mt-1 text-sm text-slate-600">
+                    <h1 class="text-xl font-bold text-slate-900 print:text-[15pt]">Centro de Capacitaciones CARMOT</h1>
+                    <p class="text-xs text-slate-500 print:text-[8.5pt]">NIT: 1.048.849.874-0</p>
+                    <p v-if="data.curso" class="mt-1 text-sm text-slate-600 print:mt-0.5 print:text-[10pt]">
                       Formación Técnica en {{ data.curso }}
                     </p>
                   </div>
                 </div>
                 <div class="shrink-0 text-right">
-                  <span class="inline-block rounded-lg bg-[#213360] px-3 py-1.5 text-sm font-semibold text-white">
+                  <span class="inline-block rounded-lg bg-[#213360] px-3 py-1.5 text-sm font-semibold text-white print:text-[10pt]">
                     {{ data.codigo || '—' }}
                   </span>
-                  <p class="mt-1.5 text-xs text-slate-500">Fecha: {{ formatDate(data.fecha) }}</p>
+                  <p class="mt-1.5 text-xs text-slate-500 print:text-[8.5pt]">Fecha: {{ formatDate(data.fecha) }}</p>
                 </div>
               </div>
 
-              <div class="mt-4 h-1 rounded-full bg-[#213360]" />
+              <div class="mt-4 h-1 rounded-full bg-[#213360] print:mt-2" />
 
-              <div class="my-5 rounded-lg bg-[#213360] py-3 text-center text-white">
-                <p class="text-sm font-semibold uppercase tracking-wide">Hoja de matrícula</p>
-                <p class="text-xs text-blue-100">Sede: {{ data.sede || '—' }}</p>
+              <div class="my-5 rounded-lg bg-[#213360] py-3 text-center text-white print:my-2.5 print:py-1.5">
+                <p class="text-sm font-semibold uppercase tracking-wide print:text-[11pt]">Hoja de matrícula</p>
+                <p class="text-xs text-blue-100 print:text-[8.5pt]">Sede: {{ data.sede || '—' }}</p>
               </div>
 
               <!-- Información personal -->
-              <PrintSection title="Información personal">
+              <PrintSection title="Información personal" :print-cols="5">
                 <PrintField label="Nombres"               :value="data.personal.nombres" />
                 <PrintField label="Apellidos"              :value="data.personal.apellidos" />
                 <PrintField label="Tipo de identificación" :value="data.personal.tipoIdentificacion" />
@@ -92,15 +92,15 @@
               </PrintSection>
 
               <!-- Información de contacto -->
-              <PrintSection title="Información de contacto">
+              <PrintSection title="Información de contacto" :print-cols="6">
                 <PrintField label="Dirección"            :value="data.contacto.direccion" span="full" />
                 <PrintField label="Teléfono fijo"        :value="data.contacto.telefono" />
                 <PrintField label="Celular"              :value="data.contacto.celular" />
-                <PrintField label="Correo electrónico"   :value="data.contacto.email" span="full" />
+                <PrintField label="Correo electrónico"   :value="data.contacto.email" span="full" class="break-words" />
               </PrintSection>
 
               <!-- Información académica y laboral -->
-              <PrintSection title="Información académica y laboral">
+              <PrintSection title="Información académica y laboral" :print-cols="6">
                 <PrintField label="Nivel de estudios" :value="data.academico.nivelEducacion" />
                 <PrintField label="Ocupación"         :value="data.academico.ocupacion" />
                 <PrintField label="Régimen de salud"  :value="data.academico.regimenSalud" />
@@ -109,88 +109,103 @@
                 <PrintField label="Estrato"           :value="data.academico.estrato" />
               </PrintSection>
 
-              <!-- Información médica -->
-              <PrintSection title="Información médica">
-                <PrintField
-                  label="Enfermedades de atención prioritaria"
-                  :value="data.medica.enfermedadPrioritaria ? (data.medica.enfermedadDetalle || 'Sí, requiere atención') : 'Ninguna'"
-                />
-                <PrintField
-                  label="Discapacidad"
-                  :value="data.medica.discapacidad ? (data.medica.tipoDiscapacidad || 'Sí') : 'Ninguna'"
-                />
-              </PrintSection>
+              <!--
+                Al imprimir, las secciones cortas comparten fila (grillas de 4 columnas)
+                para que la hoja quepa en una sola página.
+              -->
+              <div class="print:grid print:grid-cols-4 print:gap-x-3">
+                <!-- Información médica -->
+                <PrintSection title="Información médica" :print-cols="2" class="print:col-span-2">
+                  <PrintField
+                    label="Enfermedades de atención prioritaria"
+                    :value="data.medica.enfermedadPrioritaria ? (data.medica.enfermedadDetalle || 'Sí, requiere atención') : 'Ninguna'"
+                  />
+                  <PrintField
+                    label="Discapacidad"
+                    :value="data.medica.discapacidad ? (data.medica.tipoDiscapacidad || 'Sí') : 'Ninguna'"
+                  />
+                </PrintSection>
+
+                <!-- Aprueba uso de imagen -->
+                <PrintSection title="Aprueba uso de imagen" :print-cols="1">
+                  <p class="text-sm text-slate-700 print:text-[10pt]">{{ data.apruebaUsoImagen ? 'Sí' : 'No' }}</p>
+                </PrintSection>
+
+                <!-- Multiculturalidad -->
+                <PrintSection title="Multiculturalidad" :print-cols="1">
+                  <p class="text-sm text-slate-700 print:text-[10pt]">{{ data.multiculturalidad || 'Ninguna' }}</p>
+                </PrintSection>
+              </div>
 
               <!-- Información del curso -->
               <PrintSection title="Información del curso" highlight>
-                <PrintField label="Técnico" :value="data.curso" span="full" />
+                <PrintField label="Técnico" :value="data.curso" span="full" class="print:col-span-1" />
                 <PrintField label="Ciclo"        :value="data.ciclo" />
                 <PrintField label="Fecha de inicio" :value="formatDate(data.detalleCurso.fechaInicio)" />
-                <div class="col-span-2 mt-1">
-                  <dt class="text-xs text-slate-400">Valor matrícula</dt>
-                  <dd class="text-xl font-bold text-[#213360]">{{ formatCOP(data.detalleCurso.monto) }}</dd>
+                <div class="col-span-2 mt-1 print:col-span-1 print:mt-0">
+                  <dt class="text-xs text-slate-400 print:text-[7.5pt] print:leading-tight print:text-slate-500">Valor matrícula</dt>
+                  <dd class="text-xl font-bold text-[#213360] print:text-[13pt] print:leading-tight">{{ formatCOP(data.detalleCurso.monto) }}</dd>
                 </div>
               </PrintSection>
 
-              <!-- Overol / botas -->
-              <PrintSection title="Overol / botas">
-                <PrintField label="Talla overol" :value="data.detalleCurso.tallaOverol" />
-                <PrintField label="Talla botas"  :value="data.detalleCurso.tallaBotas" />
-              </PrintSection>
+              <div class="print:grid print:grid-cols-4 print:gap-x-3">
+                <!-- Overol / botas -->
+                <PrintSection title="Overol / botas" :print-cols="2">
+                  <PrintField label="Talla overol" :value="data.detalleCurso.tallaOverol" />
+                  <PrintField label="Talla botas"  :value="data.detalleCurso.tallaBotas" />
+                </PrintSection>
 
-              <!-- Contacto de emergencia -->
-              <PrintSection title="Contacto de emergencia">
-                <PrintField label="Nombre"   :value="data.emergencia.nombre" />
-                <PrintField label="Teléfono" :value="data.emergencia.telefono" />
-                <PrintField label="Correo"   :value="data.emergencia.correo" />
-              </PrintSection>
-
-              <!-- Aprueba uso de imagen -->
-              <PrintSection title="Aprueba uso de imagen">
-                <p class="text-sm text-slate-700">{{ data.apruebaUsoImagen ? 'Sí' : 'No' }}</p>
-              </PrintSection>
+                <!-- Contacto de emergencia -->
+                <PrintSection title="Contacto de emergencia" :print-cols="3" class="print:col-span-3">
+                  <PrintField label="Nombre"   :value="data.emergencia.nombre" />
+                  <PrintField label="Teléfono" :value="data.emergencia.telefono" />
+                  <PrintField label="Correo"   :value="data.emergencia.correo" class="break-words" />
+                </PrintSection>
+              </div>
 
               <!-- Observaciones -->
               <PrintSection v-if="data.observaciones" title="Observaciones">
-                <p class="text-sm text-slate-700">{{ data.observaciones }}</p>
+                <p class="text-sm text-slate-700 print:col-span-4 print:text-[9.5pt] print:leading-snug">{{ data.observaciones }}</p>
               </PrintSection>
 
-              <!-- Multiculturalidad -->
-              <PrintSection title="Multiculturalidad">
-                <p class="text-sm text-slate-700">{{ data.multiculturalidad || 'Ninguna' }}</p>
-              </PrintSection>
-
-              <!-- Foto / huella -->
-              <div class="mt-5 grid grid-cols-2 gap-6 break-inside-avoid">
-                <div>
-                  <p class="mb-2 text-sm font-medium text-slate-800">Foto del estudiante</p>
-                  <div class="flex aspect-[3/4] w-full max-w-[180px] items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-                    <img v-if="data.fotoUrl" :src="data.fotoUrl" alt="Foto del estudiante" class="size-full object-cover" />
+              <!--
+                Foto / huella / firmas. Al imprimir, los dos bloques se "disuelven"
+                (print:contents) en una sola fila de 4 columnas con las firmas
+                alineadas abajo, para ahorrar alto de página.
+              -->
+              <div class="print:mt-3 print:grid print:grid-cols-[auto_auto_1fr_1fr] print:items-end print:gap-x-6 print:break-inside-avoid">
+                <!-- Foto / huella -->
+                <div class="mt-5 grid grid-cols-2 gap-6 break-inside-avoid print:contents">
+                  <div>
+                    <p class="mb-2 text-sm font-medium text-slate-800 print:mb-1 print:text-[9pt]">Foto del estudiante</p>
+                    <div class="flex aspect-[3/4] w-full max-w-[180px] items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 print:w-[22mm]">
+                      <img v-if="data.fotoUrl" :src="data.fotoUrl" alt="Foto del estudiante" class="size-full object-cover" />
+                    </div>
+                  </div>
+                  <div>
+                    <p class="mb-2 text-sm font-medium text-slate-800 print:mb-1 print:text-[9pt]">Huella del estudiante</p>
+                    <div class="aspect-[3/4] w-full max-w-[180px] rounded-lg border border-slate-200 bg-slate-50 print:w-[22mm]" />
                   </div>
                 </div>
-                <div>
-                  <p class="mb-2 text-sm font-medium text-slate-800">Huella del estudiante</p>
-                  <div class="aspect-[3/4] w-full max-w-[180px] rounded-lg border border-slate-200 bg-slate-50" />
+
+                <!-- Firmas -->
+                <div class="mt-10 grid grid-cols-2 gap-6 break-inside-avoid print:contents">
+                  <div class="border-t border-slate-300 pt-2">
+                    <p class="text-sm font-medium text-slate-800 print:text-[9pt]">Firma del estudiante</p>
+                    <p class="text-xs text-slate-400 print:text-[8pt]">C.C. {{ data.personal.documento || '—' }}</p>
+                  </div>
+                  <div class="border-t border-slate-300 pt-2">
+                    <p class="text-sm font-medium text-slate-800 print:text-[9pt]">Firma asistente Carmot</p>
+                    <p class="text-xs text-slate-400 print:text-[8pt]">{{ data.registradoPor || 'Autorizado' }}</p>
+                  </div>
                 </div>
               </div>
 
-              <!-- Firmas -->
-              <div class="mt-10 grid grid-cols-2 gap-6 break-inside-avoid">
-                <div class="border-t border-slate-300 pt-2">
-                  <p class="text-sm font-medium text-slate-800">Firma del estudiante</p>
-                  <p class="text-xs text-slate-400">C.C. {{ data.personal.documento || '—' }}</p>
-                </div>
-                <div class="border-t border-slate-300 pt-2">
-                  <p class="text-sm font-medium text-slate-800">Firma asistente Carmot</p>
-                  <p class="text-xs text-slate-400">{{ data.registradoPor || 'Autorizado' }}</p>
-                </div>
-              </div>
-
-              <p class="mt-8 border-t border-black/5 pt-3 text-center text-xs text-slate-400">
+              <p class="mt-8 border-t border-black/5 pt-3 text-center text-xs text-slate-400 print:mt-2 print:pt-1 print:text-[7.5pt]">
                 Centro de Capacitaciones CARMOT
                 <template v-if="sedesTexto"> - Sedes: {{ sedesTexto }}</template>
-                <br>
-                Generado el: {{ generadoEl }}
+                <br class="print:hidden">
+                <span class="hidden print:inline"> · </span>Generado el: {{ generadoEl }}
               </p>
             </template>
           </div>
@@ -280,16 +295,27 @@ watch(() => props.open, (val, prevVal) => {
   }
 })
 
-/** Sección con título y grilla de campos, estilo consistente con la hoja impresa. */
+/** Columnas de la grilla de campos al imprimir (clases literales para que Tailwind las genere). */
+const PRINT_GRID_COLS = { 1: 'print:grid-cols-1', 2: 'print:grid-cols-2', 3: 'print:grid-cols-3', 4: 'print:grid-cols-4', 5: 'print:grid-cols-5', 6: 'print:grid-cols-6' }
+
+/**
+ * Sección con título y grilla de campos, estilo consistente con la hoja impresa.
+ * En pantalla la grilla es de 2 columnas; al imprimir usa `printCols` (4 por defecto,
+ * menos para secciones que comparten fila) para que la hoja quepa en una página.
+ */
 const PrintSection = {
-  props: { title: String, highlight: { type: Boolean, default: false } },
+  props: {
+    title:     String,
+    highlight: { type: Boolean, default: false },
+    printCols: { type: Number,  default: 4 }
+  },
   setup(props, { slots }) {
     return () => h(
       'div',
-      { class: `mt-4 break-inside-avoid rounded-xl border p-4 ${props.highlight ? 'border-blue-100 bg-blue-50' : 'border-slate-200'}` },
+      { class: `mt-4 break-inside-avoid rounded-xl border p-4 print:mt-2 print:rounded-lg print:px-3 print:py-2 ${props.highlight ? 'border-blue-100 bg-blue-50' : 'border-slate-200'}` },
       [
-        h('h3', { class: 'mb-2 text-xs font-semibold uppercase tracking-wide text-[#213360] border-b border-black/5 pb-1.5' }, props.title),
-        h('dl', { class: 'grid grid-cols-2 gap-x-6 gap-y-2' }, slots.default?.())
+        h('h3', { class: 'mb-2 text-xs font-semibold uppercase tracking-wide text-[#213360] border-b border-black/5 pb-1.5 print:mb-1 print:pb-0.5 print:text-[8.5pt]' }, props.title),
+        h('dl', { class: `grid grid-cols-2 gap-x-6 gap-y-2 print:gap-x-4 print:gap-y-1 ${PRINT_GRID_COLS[props.printCols]}` }, slots.default?.())
       ]
     )
   }
@@ -300,8 +326,8 @@ const PrintField = {
   props: { label: String, value: [String, Number], span: { type: String, default: '' } },
   setup(props) {
     return () => h('div', { class: props.span === 'full' ? 'col-span-2' : '' }, [
-      h('dt', { class: 'text-xs text-slate-400' },     props.label),
-      h('dd', { class: 'text-sm text-slate-800' },     props.value || '—')
+      h('dt', { class: 'text-xs text-slate-400 print:text-[7.5pt] print:leading-tight print:text-slate-500' }, props.label),
+      h('dd', { class: 'text-sm text-slate-800 print:text-[10pt] print:leading-snug' },                  props.value || '—')
     ])
   }
 }
@@ -344,23 +370,20 @@ const PrintField = {
   }
 
   /*
-   * zoom: 0.62 reduce el contenido al 62 % para que quepa en una sola hoja
-   * carta. width: 162% (≈ 100/0.62) compensa el encogimiento del zoom para
-   * que el bloque siga llenando el ancho de la página imprimible.
-   * El selector de ID gana en especificidad sobre la clase .print-reset
-   * aunque ambos usen !important, así que el width aquí prevalece.
+   * La hoja se imprime a tamaño real (sin `zoom`): reducirla con zoom hacía que
+   * desbordara a la derecha y el navegador la encogía de nuevo para ajustarla
+   * al ancho, dejando letra de ~4 pt ilegible. Para que quepa en una sola carta
+   * el template usa variantes `print:` (tipografía en pt, grillas de 4 columnas
+   * y secciones cortas en pares). El margen va como padding de la hoja con
+   * `@page { margin: 0 }`, lo que además omite el encabezado/pie del navegador
+   * (fecha y URL).
    */
-  #matricula-print-overlay {
-    zoom: 0.62;
-    width: 162% !important;
-  }
-
   #matricula-print-sheet {
     position: static !important;
     max-height: none !important;
     overflow: visible !important;
     width: 100% !important;
-    padding: 0 !important;
+    padding: 7mm 11mm !important;
   }
 
   /*
@@ -379,13 +402,9 @@ const PrintField = {
 
   .no-print { display: none !important; }
 
-  /* Reduce espaciado de firmas y footer para que entren en la misma hoja */
-  #matricula-print-sheet .mt-10 { margin-top: 1rem !important; }
-  #matricula-print-sheet .mt-8  { margin-top: 0.5rem !important; }
-
   @page {
     size: letter portrait;
-    margin: 4mm;
+    margin: 0;
   }
 }
 </style>

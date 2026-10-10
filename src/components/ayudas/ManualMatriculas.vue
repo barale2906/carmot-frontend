@@ -69,6 +69,7 @@
         :items="[
           { icono: 'eye', nombre: 'Ver detalle', texto: 'Muestra toda la información y sus recibos de pago.' },
           { icono: 'print', nombre: 'Imprimir hoja de matrícula', texto: 'Abre la hoja lista para imprimir o firmar.' },
+          { icono: 'description', nombre: 'Imprimir documentos de matrícula', texto: 'Genera los documentos vigentes de la matrícula (contrato, pagaré, etc.) para verlos, descargarlos todos en un solo PDF junto con la hoja de matrícula y cargar los escaneados firmados.' },
           { icono: 'pencil', nombre: 'Editar', texto: 'Corrige fechas, monto, asesor u observaciones.' },
           { icono: 'close', nombre: 'Eliminar', texto: 'Anula la matrícula y la manda a la papelera.', clase: 'text-red-600' }
         ]"
@@ -107,8 +108,13 @@
       </div>
 
       <AyudaNota tipo="info">
-        Al pulsar <strong>Registrar matrícula</strong>, se abre automáticamente la <strong>hoja de matrícula</strong>
-        para imprimirla y hacerla firmar.
+        Al pulsar <strong>Registrar matrícula</strong>, el sistema genera los <strong>documentos vigentes de la matrícula</strong>
+        (contrato, pagaré y demás configurados en Documentación) y los muestra para revisarlos o descargarlos en PDF.
+        Con <strong>Descargar todos</strong> obtiene un solo PDF con la hoja de matrícula y todos los documentos, listo
+        para imprimir y firmar. Una vez firmados, cárguelos escaneados (PDF, JPG o PNG) en la sección
+        <strong>Documentos firmados</strong>: allí verá cuáles están cargados y cuáles siguen pendientes.
+        Desde ahí puede abrir la <strong>hoja de matrícula</strong> para imprimirla y, por último, pulsar
+        <strong>Continuar al recibo de pago</strong>.
       </AyudaNota>
       <AyudaNota tipo="atencion" titulo="Matrícula duplicada">
         Si el estudiante ya tiene una matrícula activa en ese mismo curso (en cualquier ciclo), el sistema le avisa y no permite registrar otra. Solo podrá matricularse de nuevo cuando la anterior esté finalizada, cancelada o anulada.

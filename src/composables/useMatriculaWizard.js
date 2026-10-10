@@ -916,7 +916,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
       // Solo se usa FormData (multipart) cuando hay una foto nueva que subir;
       // el resto de los casos conserva el envío como JSON plano.
       const fotoFile = datosPersonales.foto instanceof File ? datosPersonales.foto : null
-      const payload  = fotoFile ? _toFormData(fields, fotoFile) : fields
+      const payload  = fotoFile ? toFormData(fields, fotoFile) : fields
 
       const matricula = await matriculaService.create(payload)
       // Se pasa estudianteId explícito porque en la ruta de nuevo estudiante
@@ -1288,11 +1288,19 @@ function _defaultDetallesPrecarga() {
   }
 }
 
-/** Convierte el payload de la matrícula (objeto plano) a FormData para incluir un archivo. */
-function _toFormData(fields, fotoFile) {
+/**
+ * Convierte el payload de la matrícula (objeto plano) a FormData para incluir un archivo.
+ *
+ * Los `null` (p. ej. `tipo_discapacidad` o `enfermedad_detalle` cuando la condición
+ * no está marcada) se envían como cadena vacía, que Laravel convierte de nuevo en
+ * null: `String(null)` mandaba el texto "null" y el backend lo rechazaba como tipo
+ * de discapacidad inválido solo cuando la matrícula llevaba foto.
+ */
+export function toFormData(fields, fotoFile) {
   const fd = new FormData()
   Object.entries(fields).forEach(([key, value]) => {
-    fd.append(key, typeof value === 'boolean' ? (value ? '1' : '0') : String(value))
+    if (value === null) fd.append(key, '')
+    else fd.append(key, typeof value === 'boolean' ? (value ? '1' : '0') : String(value))
   })
   fd.append('foto', fotoFile)
   return fd

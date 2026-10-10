@@ -228,6 +228,66 @@ describe('docDocumentoService', () => {
     expect(res).toBe(respuesta)
   })
 
+  it('generarMatricula genera por POST los documentos que conforman la matrícula', async () => {
+    const cuerpo = {
+      data: {
+        documentos:    [{ emision_id: 9, tipo_documento_id: 1, tipo_documento: 'Contrato', contenido: '<p>Contrato</p>' }],
+        sin_plantilla: [{ tipo_documento_id: 2, codigo: 'PAGARE', nombre: 'Pagaré' }],
+      },
+      message: 'Documentos de la matrícula generados exitosamente.',
+    }
+    api.post.mockReturnValue(ok(cuerpo))
+    const res = await docDocumentoService.generarMatricula(345, { _silent: true })
+    expect(api.post).toHaveBeenCalledWith(`${BASE}/matricula/345`, null, { _silent: true })
+    expect(res.data.documentos[0].contenido).toBe('<p>Contrato</p>')
+    expect(res.data.sin_plantilla).toHaveLength(1)
+  })
+
+  it('generarMatricula sin config envía objeto vacío', async () => {
+    api.post.mockReturnValue(ok({ data: { documentos: [], sin_plantilla: [] } }))
+    await docDocumentoService.generarMatricula(7)
+    expect(api.post).toHaveBeenCalledWith(`${BASE}/matricula/7`, null, {})
+  })
+
+  it('pdfMatricula pide el PDF combinado de la matrícula como blob', async () => {
+    const respuesta = { data: new Blob(['%PDF']), headers: {} }
+    api.get.mockReturnValue(Promise.resolve(respuesta))
+    const res = await docDocumentoService.pdfMatricula(345)
+    expect(api.get).toHaveBeenCalledWith(`${BASE}/matricula/345/pdf`, { responseType: 'blob' })
+    expect(res).toBe(respuesta)
+  })
+
+  it('subirEscaneado envía multipart con el tipo de documento', async () => {
+    api.post.mockReturnValue(ok({ data: { id: 5 } }))
+    const archivo = new File(['x'], 'contrato.pdf', { type: 'application/pdf' })
+    await docDocumentoService.subirEscaneado(345, { archivo, tipo_documento_id: 1, descripcion: null })
+
+    const [url, fd, config] = api.post.mock.calls[0]
+    expect(url).toBe(`${BASE}/matricula/345/escaneados`)
+    expect(config).toEqual({ _silent: true })
+    expect(fd.get('archivo')).toBeInstanceOf(File)
+    expect(fd.get('tipo_documento_id')).toBe('1')
+    expect(fd.has('descripcion')).toBe(false)
+  })
+
+  it('subirEscaneado sin tipo envía la descripción', async () => {
+    api.post.mockReturnValue(ok({ data: { id: 6 } }))
+    const archivo = new File(['x'], 'hoja.jpg', { type: 'image/jpeg' })
+    await docDocumentoService.subirEscaneado(345, { archivo, descripcion: 'Hoja de matrícula' })
+
+    const fd = api.post.mock.calls[0][1]
+    expect(fd.get('descripcion')).toBe('Hoja de matrícula')
+    expect(fd.has('tipo_documento_id')).toBe(false)
+  })
+
+  it('descargarArchivo pide el archivo escaneado como blob', async () => {
+    const respuesta = { data: new Blob(['x']), headers: {} }
+    api.get.mockReturnValue(Promise.resolve(respuesta))
+    const res = await docDocumentoService.descargarArchivo(12)
+    expect(api.get).toHaveBeenCalledWith(`${BASE}/12/archivo`, { responseType: 'blob' })
+    expect(res).toBe(respuesta)
+  })
+
   it('ya no expone generar ni anular (los documentos no se almacenan)', () => {
     expect(docDocumentoService.generar).toBeUndefined()
     expect(docDocumentoService.anular).toBeUndefined()

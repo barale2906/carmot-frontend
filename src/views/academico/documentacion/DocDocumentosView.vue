@@ -76,12 +76,12 @@
       >
         <template #cell="{ column, row }">
           <template v-if="column.key === 'tipo'">
-            <p class="font-medium text-slate-900">{{ row.tipo_documento?.nombre ?? '—' }}</p>
+            <p class="font-medium text-slate-900">{{ row.nombre_documento ?? row.tipo_documento?.nombre ?? '—' }}</p>
             <p v-if="row.nombre_original" class="text-xs text-slate-400">{{ row.nombre_original }}</p>
           </template>
           <template v-else-if="column.key === 'entidad'">
             <span v-if="row.entidad_id" class="text-slate-700">
-              {{ row.tipo_documento?.entidad_nombre ?? 'Registro' }} #{{ row.entidad_id }}
+              {{ row.tipo_documento?.entidad_nombre ?? entidadClaseCorta(row.entidad_type) ?? 'Registro' }} #{{ row.entidad_id }}
             </span>
             <span v-else class="text-slate-400">—</span>
           </template>
@@ -121,6 +121,16 @@
               <NavIcon name="download" class="size-4" />
             </button>
           </template>
+          <button
+            v-else-if="row.tiene_archivo"
+            type="button"
+            title="Descargar archivo"
+            :disabled="descargando === row.id"
+            class="rounded p-1.5 text-slate-500 transition-colors hover:bg-blue-100 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-40"
+            @click="descargarArchivo(row)"
+          >
+            <NavIcon name="download" class="size-4" />
+          </button>
           <a
             v-else-if="row.google_drive_url"
             :href="row.google_drive_url"
@@ -182,6 +192,7 @@ import { useConfirm }           from '@/composables/useConfirm.js'
 import {
   DOCUMENTO_ORIGEN,
   documentoOrigenClass,
+  entidadClaseCorta,
   fechaHoraLocal,
   nombreArchivoDocumento,
 } from '@/utils/documentacion.js'
@@ -206,7 +217,7 @@ const mensajeError = (e, fallback) => e?.response?.data?.message ?? fallback
 
 /** Texto corto de una entrada para confirmaciones y papelera. */
 function describirEntrada(item) {
-  const tipo = item.tipo_documento?.nombre ?? item.nombre_original ?? 'Documento'
+  const tipo = item.nombre_documento ?? item.tipo_documento?.nombre ?? item.nombre_original ?? 'Documento'
   return item.entidad_id ? `${tipo} · registro #${item.entidad_id}` : tipo
 }
 
@@ -312,6 +323,19 @@ async function descargarPdf(entrada) {
     loadDocumentos(1)
   } catch (e) {
     notifyError(await mensajeErrorBlob(e, 'No se pudo descargar el PDF.'))
+  } finally {
+    descargando.value = null
+  }
+}
+
+/** Descarga el archivo de un documento escaneado (origen = archivo subido). */
+async function descargarArchivo(entrada) {
+  descargando.value = entrada.id
+  try {
+    const res = await docDocumentoService.descargarArchivo(entrada.id)
+    descargarBlob(res.data, entrada.nombre_original || `documento-${entrada.id}`, entrada.mime_type || 'application/octet-stream')
+  } catch (e) {
+    notifyError(await mensajeErrorBlob(e, 'No se pudo descargar el archivo.'))
   } finally {
     descargando.value = null
   }

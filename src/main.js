@@ -316,6 +316,21 @@ const routes = [
             path: 'roles',
             name: 'Roles',
             component: RolesView
+          },
+          {
+            path: 'eps',
+            name: 'Eps',
+            component: EpsView
+          },
+          {
+            path: 'bancos',
+            name: 'Bancos',
+            component: BancosView
+          },
+          {
+            path: 'dias-no-laborables',
+            name: 'DiasNoLaborables',
+            component: DiasNoLaborablesView
           }
         ]
       },
@@ -344,21 +359,6 @@ const routes = [
             component: HorariosView
           }
         ]
-      },
-      {
-        path: 'eps',
-        name: 'Eps',
-        component: EpsView
-      },
-      {
-        path: 'bancos',
-        name: 'Bancos',
-        component: BancosView
-      },
-      {
-        path: 'dias-no-laborables',
-        name: 'DiasNoLaborables',
-        component: DiasNoLaborablesView
       }
     ]
   },

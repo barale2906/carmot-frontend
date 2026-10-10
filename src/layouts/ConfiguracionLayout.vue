@@ -5,7 +5,7 @@
         Configuración
       </h1>
       <p class="mt-1 text-sm text-slate-500">
-        Administra los usuarios del sistema y sus roles de acceso.
+        Administra usuarios, roles y catálogos generales del sistema.
       </p>
       <FormulariosNav :items="navItems" class="mt-4" />
     </header>

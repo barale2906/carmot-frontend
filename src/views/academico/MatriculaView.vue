@@ -271,6 +271,15 @@
               <NavIcon v-else name="print" class="size-4" />
             </button>
             <button
+              v-if="can('aca_documentoGenerar')"
+              type="button"
+              class="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              title="Imprimir documentos de matrícula"
+              @click="openDocumentosRow(row)"
+            >
+              <NavIcon name="description" class="size-4" />
+            </button>
+            <button
               v-if="canEditar"
               type="button"
               class="rounded p-1.5 text-slate-500 transition-colors hover:bg-blue-100 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -331,12 +340,21 @@
       @saved="onWizardSaved"
     />
 
+    <!-- ── Modal: Documentos de la matrícula (tras el wizard, antes del recibo) ── -->
+    <MatriculaDocumentosModal
+      :open="documentosModalOpen"
+      :data="documentosData"
+      :reimpresion="documentosReimpresion"
+      @close="documentosModalOpen = false"
+      @hoja="onVerHojaMatricula"
+    />
+
     <!-- ── Modal: Hoja de matrícula imprimible ────────────────────────────── -->
     <MatriculaPrintModal
       :open="printModalOpen"
       :data="printData"
       :sedes="sedesRef"
-      @close="printModalOpen = false"
+      @close="onPrintModalClose"
     />
 
     <!-- ── Modal: Detalle ─────────────────────────────────────────────────── -->
@@ -735,6 +753,7 @@ import FormTextarea from '@/components/forms/FormTextarea.vue'
 import FormInputSearch from '@/components/forms/FormInputSearch.vue'
 import MatriculaWizardModal from '@/components/academico/MatriculaWizardModal.vue'
 import MatriculaPrintModal  from '@/components/academico/MatriculaPrintModal.vue'
+import MatriculaDocumentosModal from '@/components/academico/MatriculaDocumentosModal.vue'
 import { buildPrintDataFromRecord, fetchAllPoblaciones } from '@/composables/useMatriculaWizard.js'
 
 import matriculaService from '@/services/matriculaService.js'
@@ -742,6 +761,7 @@ import cicloService     from '@/services/cicloService.js'
 import sedeService      from '@/services/sedeService.js'
 import userService      from '@/services/userService.js'
 import { useNotification } from '@/composables/useNotification'
+import { usePermisos } from '@/composables/usePermisos.js'
 import { nombreCompleto } from '@/utils/formatters.js'
 
 const route = useRoute()
@@ -751,6 +771,7 @@ const { success: notifySuccess, error: notifyError } = useNotification()
 const canCrear    = ref(true)
 const canEditar   = ref(true)
 const canInactivar = ref(true)
+const { can, loadPermisos } = usePermisos()
 
 // ─── Estado general ───────────────────────────────────────────────────────────
 const loading   = ref(false)
@@ -806,6 +827,12 @@ const sedesRef       = ref([])
 // ─── Modales ──────────────────────────────────────────────────────────────────
 const wizardOpen = ref(false)
 const printModalOpen = ref(false)
+const documentosModalOpen = ref(false)
+/** Matrícula cuyos documentos se muestran y si se abrió desde el listado (reimpresión). */
+const documentosData = ref(null)
+const documentosReimpresion = ref(false)
+/** La hoja de matrícula se abrió desde los documentos: al cerrarla se regresa a ellos. */
+const volverADocumentos = ref(false)
 const printData = ref(null)
 const printing = ref(null)
 const modals = reactive({ edit: false, detail: false, delete: false, restore: false, forceDelete: false })
@@ -1000,11 +1027,40 @@ function openCreate() {
   wizardOpen.value = true
 }
 
+/**
+ * Tras guardar la matrícula se generan sus documentos vigentes (contrato,
+ * pagaré, etc.) y desde ahí se continúa al recibo de pago.
+ */
 function onWizardSaved(printSnapshot) {
-  wizardOpen.value     = false
-  printData.value      = printSnapshot
-  printModalOpen.value = true
+  wizardOpen.value            = false
+  printData.value             = printSnapshot
+  documentosData.value        = printSnapshot
+  documentosReimpresion.value = false
+  documentosModalOpen.value   = true
   Promise.all([loadData(1), loadStatistics()])
+}
+
+/** Abre la hoja de matrícula desde los documentos; al cerrarla se vuelve a ellos. */
+function onVerHojaMatricula() {
+  documentosModalOpen.value = false
+  volverADocumentos.value   = true
+  printModalOpen.value      = true
+}
+
+function onPrintModalClose() {
+  printModalOpen.value = false
+  if (volverADocumentos.value) {
+    volverADocumentos.value   = false
+    documentosModalOpen.value = true
+  }
+}
+
+// ─── Imprimir documentos de matrícula desde el listado ────────────────────────
+/** Reimprime los documentos vigentes que conforman la matrícula de la fila. */
+function openDocumentosRow(row) {
+  documentosData.value        = buildPrintDataFromRecord(row)
+  documentosReimpresion.value = true
+  documentosModalOpen.value   = true
 }
 
 // ─── Imprimir hoja de matrícula desde el listado ──────────────────────────────
@@ -1188,7 +1244,8 @@ onMounted(async () => {
     loadStatistics(),
     loadFilters(),
     loadSedes(),
-    loadComerciales()
+    loadComerciales(),
+    loadPermisos()
   ])
 
   if (route.query.action === 'create' && canCrear.value) {

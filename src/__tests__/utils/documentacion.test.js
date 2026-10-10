@@ -17,6 +17,8 @@ import {
   construirPayloadBloques,
   nombreArchivoDocumento,
   fechaHoraLocal,
+  checklistEscaneados,
+  DESCRIPCION_HOJA_MATRICULA,
 } from '@/utils/documentacion.js'
 import { descargarBlob, mensajeErrorBlob } from '@/utils/descargas.js'
 
@@ -203,5 +205,44 @@ describe('descargas', () => {
   it('mensajeErrorBlob usa el fallback si no hay mensaje legible', async () => {
     expect(await mensajeErrorBlob({ response: { data: new Blob(['no-json']) } }, 'fallback')).toBe('fallback')
     expect(await mensajeErrorBlob({}, 'fallback')).toBe('fallback')
+  })
+})
+
+describe('checklistEscaneados', () => {
+  const documentos = [
+    { tipo_documento_id: 1, tipo_documento: 'Contrato' },
+    { tipo_documento_id: 2, tipo_documento: 'Pagaré' },
+  ]
+
+  it('lista la hoja de matrícula y cada documento generado, todos pendientes', () => {
+    const filas = checklistEscaneados(documentos, [])
+
+    expect(filas.map(f => f.nombre)).toEqual(['Hoja de matrícula', 'Contrato', 'Pagaré'])
+    expect(filas.every(f => f.escaneado === null && !f.otro)).toBe(true)
+    expect(filas[0]).toMatchObject({ tipo_documento_id: null, descripcion: DESCRIPCION_HOJA_MATRICULA })
+    expect(filas[1]).toMatchObject({ tipo_documento_id: 1, descripcion: null })
+  })
+
+  it('asocia cada escaneado a su documento por tipo o, la hoja, por descripción', () => {
+    const contrato = { id: 10, tipo_documento_id: 1 }
+    const hoja     = { id: 11, tipo_documento_id: null, descripcion: 'Hoja de matrícula' }
+
+    const filas = checklistEscaneados(documentos, [contrato, hoja])
+
+    expect(filas[0].escaneado).toBe(hoja)
+    expect(filas[1].escaneado).toBe(contrato)
+    expect(filas[2].escaneado).toBeNull()
+  })
+
+  it('agrega al final los escaneados sueltos y los de tipos que no se generaron', () => {
+    const otro     = { id: 12, tipo_documento_id: null, descripcion: 'Autorización de datos', nombre_documento: 'Autorización de datos' }
+    const huerfano = { id: 13, tipo_documento_id: 9, nombre_documento: 'Carta antigua' }
+
+    const filas = checklistEscaneados(documentos, [otro, huerfano])
+
+    expect(filas).toHaveLength(5)
+    expect(filas.slice(3).map(f => [f.nombre, f.otro])).toEqual([['Autorización de datos', true], ['Carta antigua', true]])
+    expect(filas[3]).toMatchObject({ tipo_documento_id: null, descripcion: 'Autorización de datos' })
+    expect(filas[4]).toMatchObject({ tipo_documento_id: 9, descripcion: null })
   })
 })
