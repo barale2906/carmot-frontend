@@ -123,6 +123,11 @@
         Para hacer un cambio pequeño, use <strong>Clonar como nuevo borrador</strong> sobre la versión actual. Así no
         empieza desde cero.
       </AyudaNota>
+      <AyudaNota tipo="consejo" titulo="Día de pago de las cuotas">
+        Para contratos y pagarés use <strong>Día de pago de las cuotas</strong> (o su versión en letras): toma del cuadro
+        de cartera el día del mes en que vencen las mensualidades. Si el curso inicia el 10 de octubre, imprime
+        <strong>10</strong> / <strong>DIEZ</strong>. En matrículas de contado queda en blanco.
+      </AyudaNota>
       <AyudaNota tipo="atencion">
         Si el editor marca algún dato <span class="font-semibold text-red-700">en rojo</span>, es un dato que ese tipo
         de documento no tiene habilitado. Quítelo o pida que se habilite en «Tipos de documento».
