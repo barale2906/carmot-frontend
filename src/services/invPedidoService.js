@@ -13,9 +13,13 @@ const invPedidoService = {
     return data
   },
 
-  /** Detalle completo con ítems y entregas. */
-  async getById(id) {
-    const { data } = await api.get(`${BASE}/${id}`)
+  /**
+   * Detalle completo con ítems, entregas y recibos.
+   * @param {number} id
+   * @param {Object} [config] - Config de axios (p. ej. `{ _silent: true }` para no mostrar el toast de error)
+   */
+  async getById(id, config = {}) {
+    const { data } = await api.get(`${BASE}/${id}`, config)
     return data
   },
 
@@ -25,7 +29,7 @@ const invPedidoService = {
     return data
   },
 
-  /** Cancela un pedido en status 'activo' (sin reintegro de stock). */
+  /** Cancela un pedido 'activo' (sin entregas): anula sus recibos y guarda el motivo (obligatorio). */
   async cancelar(id, motivo) {
     const { data } = await api.post(`${BASE}/${id}/cancelar`, { motivo })
     return data
@@ -33,10 +37,13 @@ const invPedidoService = {
 
   /**
    * Anula un pedido en cualquier estado excepto 'cancelado'.
-   * Reintegra el stock de los ítems ya entregados y genera documento DEV-.
+   * Reintegra al almacén lo entregado (documento DEV-), anula todos sus recibos y
+   * guarda el motivo. 422 si algún recibo ya está cerrado en caja.
+   * @param {number} id
+   * @param {string} motivo - Obligatorio (5 a 500 caracteres)
    */
-  async anular(id) {
-    const { data } = await api.post(`${BASE}/${id}/anular`)
+  async anular(id, motivo) {
+    const { data } = await api.post(`${BASE}/${id}/anular`, { motivo })
     return data
   },
 

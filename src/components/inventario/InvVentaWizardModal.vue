@@ -137,7 +137,11 @@
               </div>
             </template>
 
-            <FormSelect v-model="form.almacen_id" label="Almacén" placeholder="Selecciona el almacén..." :options="almacenOptions" required />
+            <FormSelect v-model="form.almacen_id" label="Almacén" placeholder="Selecciona el almacén..." :options="almacenOptions" required @change="loadPreciosSede" />
+            <p v-if="cargandoPrecios" class="text-xs text-slate-400">Consultando lista de precios de la sede...</p>
+            <p v-else-if="form.almacen_id && !listaSedeVigente" class="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              La sede de este almacén no tiene una lista de precios de inventario activa y vigente. Activa una lista para poder vender.
+            </p>
           </div>
 
           <!-- ─── Paso 2: Selección de productos ──────────────────────────────── -->
@@ -153,6 +157,10 @@
               :clear-on-select="true"
               @select="addItem"
             />
+
+            <p v-if="productoSinPrecio" class="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              <strong>{{ productoSinPrecio }}</strong> no tiene precio en la lista vigente de la sede y no se puede vender.
+            </p>
 
             <!-- La falta de stock no impide facturar: solo define qué se entrega ahora -->
             <div v-if="items.length" class="flex items-center justify-between gap-3 text-xs text-slate-500">
@@ -183,10 +191,7 @@
                         class="w-16 rounded border border-slate-200 px-2 py-1 text-center text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                       />
                     </td>
-                    <td class="px-2 py-2 text-right font-mono text-slate-700">
-                      <span v-if="item._cargandoPrecio" class="text-xs text-slate-400">Cargando...</span>
-                      <span v-else>{{ formatCurrency(item.precio_unitario) }}</span>
-                    </td>
+                    <td class="px-2 py-2 text-right font-mono text-slate-700">{{ formatCurrency(item.precio_unitario) }}</td>
                     <td class="px-2 py-2 text-right">
                       <SearchableSelect
                         v-model="item.descuento_id"
@@ -243,15 +248,19 @@
             <!-- Entrega inmediata -->
             <div class="rounded-lg border border-slate-200 p-4">
               <label class="flex cursor-pointer items-start gap-3">
-                <input v-model="entregaInmediata" type="checkbox" class="mt-0.5 rounded" />
+                <input v-model="entregaInmediata" type="checkbox" class="mt-0.5 rounded disabled:opacity-50" :disabled="!pagoCompleto" />
                 <span>
                   <span class="block text-sm font-medium text-slate-800">Entregar ahora los productos disponibles</span>
                   <span class="block text-xs text-slate-500">Se descarga del inventario en el mismo recibo. Si lo desmarcas, todo queda pendiente en Entregas.</span>
                 </span>
               </label>
 
-              <p v-if="!pagoCompleto" class="mt-3 rounded bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                El abono no cubre el total: el pedido queda con saldo y la entrega se hará al completar el pago.
+              <p v-if="tieneTransferencia" class="mt-3 rounded bg-blue-50 px-3 py-2 text-xs text-blue-800">
+                Pago por transferencia: el pedido queda sin abono y sin entrega hasta que el validador apruebe la transferencia.
+                Una vez aprobada, los productos quedan pendientes en Entregas para cuando el estudiante regrese.
+              </p>
+              <p v-else-if="!pagoCompleto" class="mt-3 rounded bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                El abono no cubre el total: el pedido queda con saldo y no se entrega nada hasta completar el pago.
               </p>
               <ul v-else-if="entregaInmediata" class="mt-3 flex flex-wrap gap-2 text-xs">
                 <li v-if="resumenEntrega.ok" class="rounded-full bg-green-100 px-2 py-0.5 text-green-800">{{ resumenEntrega.ok }} se entrega(n) ahora</li>
@@ -383,10 +392,11 @@
               label="Monto a abonar"
               type="number"
               min="0"
-              :max="totalConSobrecargos"
+              :max="totalItems"
               step="100"
               placeholder="0"
-              :hint="`Total pedido: ${formatCurrency(totalConSobrecargos)} · Un abono parcial deja el pedido activo`"
+              :error="excedeTotal ? `El abono no puede superar el total del pedido (${formatCurrency(totalItems)}).` : ''"
+              :hint="`Total pedido: ${formatCurrency(totalItems)} · Un abono parcial deja el pedido activo sin entrega`"
             />
 
             <!-- Observaciones -->
@@ -452,7 +462,6 @@
 import { ref, reactive, computed, onMounted, toRef } from 'vue'
 import invVentaService        from '@/services/invVentaService.js'
 import invAlmacenService      from '@/services/invAlmacenService.js'
-import invPrecioService       from '@/services/invPrecioService.js'
 import bancoService           from '@/services/bancoService.js'
 import userService            from '@/services/userService.js'
 import { authService }        from '@/services/authService.js'
@@ -602,8 +611,30 @@ async function loadAlmacenes() {
   } catch { almacenOptions.value = [] }
 }
 
+// ─── Lista de precios vigente de la sede ──────────────────────────────────────
+// Solo se vende con precios de una lista activa y vigente para la sede del almacén:
+// el mismo precio que resolverá el backend al registrar la venta.
+const listaSedeVigente = ref(false)
+const preciosSede      = ref(new Map())
+const cargandoPrecios  = ref(false)
+
+async function loadPreciosSede() {
+  listaSedeVigente.value = false
+  preciosSede.value      = new Map()
+  items.value            = []
+  if (!almacenSedeId.value) return
+  cargandoPrecios.value = true
+  try {
+    const res = await invVentaService.preciosVigentes({ sede_id: almacenSedeId.value })
+    listaSedeVigente.value = !!res.data?.disponible
+    preciosSede.value = new Map((res.data?.precios ?? []).map(p => [p.producto.id, Number(p.precio)]))
+  } catch { /* sin lista: no se puede avanzar */ }
+  finally { cargandoPrecios.value = false }
+}
+
 // ─── Paso 2: Productos + descuentos ──────────────────────────────────────────
 const items             = ref([])
+const productoSinPrecio = ref('')
 const descuentosActivos = ref([])
 const descuentoOptions  = computed(() => [
   { value: null, label: 'Sin desc.' },
@@ -615,33 +646,26 @@ const descuentoOptions  = computed(() => [
 
 const totalItems = computed(() => items.value.reduce((s, i) => s + i.cantidad * i.precio_unitario, 0))
 
-async function addItem(p) {
+function addItem(p) {
   // Los grupos no son vendibles directamente (se usan como ancla de variantes)
   if (p.tipo === 'grupo') return
+
+  if (!preciosSede.value.has(p.id)) { productoSinPrecio.value = p.nombre; return }
+  productoSinPrecio.value = ''
 
   const existing = items.value.find(i => i.producto_id === p.id)
   if (existing) { existing.cantidad++; return }
 
-  const item = reactive({
+  items.value.push(reactive({
     producto_id:      p.id,
     nombre:           p.nombre,
-    precio_unitario:  p.precio_venta ?? p.precio ?? 0,
+    precio_unitario:  preciosSede.value.get(p.id),
     cantidad:         1,
     descuento_id:     null,
     entregar:         true,
     entrega_completa: false,
     variantes:        {},
-    _cargandoPrecio:  true,
-  })
-  items.value.push(item)
-
-  try {
-    const res    = await invPrecioService.getByProducto(p.id)
-    const lista  = res.data ?? res ?? []
-    const primer = Array.isArray(lista) ? lista[0] : lista
-    if (primer?.precio != null) item.precio_unitario = Number(primer.precio)
-  } catch { /* precio queda en 0; el backend validará */ }
-  finally { item._cargandoPrecio = false }
+  }))
 }
 
 function removeItem(productoId) {
@@ -699,9 +723,12 @@ const formError    = ref('')
 
 const totalMedios    = computed(() => mediosPago.value.reduce((s, m) => s + (Number(m.valor) || 0), 0))
 const totalSobrecargo = computed(() => sobrecargos.value.reduce((s, sc) => s + sc.valor_sobrecargo, 0))
-const totalConSobrecargos = computed(() => totalItems.value + (aplicarSobrecargos.value ? totalSobrecargo.value : 0))
-// El backend solo despacha cuando el pedido queda pagado en su totalidad
-const pagoCompleto = computed(() => Number(form.monto_abono) >= totalConSobrecargos.value)
+// El abono se mide contra el valor de los productos: los sobrecargos se suman al recibo, no al pedido.
+// El backend solo despacha cuando el pedido queda pagado en su totalidad, y una transferencia
+// no cuenta como pago hasta que el validador la aprueba (luego la entrega queda pendiente).
+const tieneTransferencia = computed(() => mediosPago.value.some(m => m.medio_pago === 'transferencia'))
+const pagoCompleto = computed(() => !tieneTransferencia.value && Number(form.monto_abono) >= totalItems.value)
+const excedeTotal  = computed(() => Number(form.monto_abono) > totalItems.value)
 
 function addMedioPago() {
   mediosPago.value.push({ medio_pago: 'efectivo', valor: 0, banco_id: null, referencia: '', numero_transaccion: '', tipo_tarjeta: '' })
@@ -758,7 +785,7 @@ async function loadBancos() {
 
 // ─── Navegación ───────────────────────────────────────────────────────────────
 const canAdvance = computed(() => {
-  if (step.value === 1) return !!estudianteSeleccionado.value && !!form.almacen_id
+  if (step.value === 1) return !!estudianteSeleccionado.value && !!form.almacen_id && listaSedeVigente.value && !cargandoPrecios.value
   if (step.value === 2) return items.value.length > 0
   return true
 })
@@ -766,6 +793,7 @@ const canAdvance = computed(() => {
 const canSubmit = computed(() => {
   if (mediosPago.value.length === 0) return false
   if (form.monto_abono <= 0) return false
+  if (excedeTotal.value) return false
   return Math.abs(totalMedios.value - form.monto_abono) < 1
 })
 
@@ -786,7 +814,9 @@ const MENSAJE_VENTA = {
 async function handleSubmit() {
   formError.value = ''
   if (!canSubmit.value) {
-    formError.value = 'La suma de medios de pago debe coincidir con el monto a abonar.'
+    formError.value = excedeTotal.value
+      ? 'El abono no puede superar el total del pedido.'
+      : 'La suma de medios de pago debe coincidir con el monto a abonar.'
     return
   }
 
@@ -820,8 +850,6 @@ async function handleSubmit() {
     }
   }
 
-  const tieneTransferencia = mediosPago.value.some(m => m.medio_pago === 'transferencia')
-
   const mediosPayload = mediosPago.value
     .filter(m => Number(m.valor) > 0)
     .map(m => {
@@ -852,7 +880,7 @@ async function handleSubmit() {
 
   let res
   try {
-    if (tieneTransferencia && comprobante.value) {
+    if (tieneTransferencia.value && comprobante.value) {
       const fd = new FormData()
       fd.append('estudiante_id', estudianteSeleccionado.value.id)
       fd.append('sede_id',       almacenSedeId.value ?? '')
@@ -900,7 +928,9 @@ async function handleSubmit() {
     }
 
     const pedido = res.data ?? res
-    notifySuccess(MENSAJE_VENTA[pedido?.status] ?? 'Venta registrada correctamente.')
+    notifySuccess(tieneTransferencia.value
+      ? 'Venta registrada. La transferencia queda por aprobar; la entrega se hará después de aprobarla.'
+      : (MENSAJE_VENTA[pedido?.status] ?? 'Venta registrada correctamente.'))
     emit('venta-creada', pedido, res.recibo ?? null)
     close()
   } catch (e) {
@@ -928,6 +958,9 @@ function resetWizard() {
   nuevoError.value             = ''
   Object.assign(nuevoForm, { primer_nombre: '', primer_apellido: '', documento: '', email: '' })
   items.value                  = []
+  productoSinPrecio.value      = ''
+  listaSedeVigente.value       = false
+  preciosSede.value            = new Map()
   mediosPago.value             = [{ medio_pago: 'efectivo', valor: 0, banco_id: null, referencia: '', numero_transaccion: '', tipo_tarjeta: '' }]
   comprobante.value            = null
   sobrecargos.value            = []

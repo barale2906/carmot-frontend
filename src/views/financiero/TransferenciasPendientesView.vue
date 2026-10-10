@@ -429,7 +429,8 @@ async function loadPendientes(page = 1) {
   loading.value = true
   error.value   = ''
   try {
-    const params = { page, per_page: 15 }
+    // Solo académicos (origen=1): los de inventario se aprueban en su módulo, donde se aplican al pedido
+    const params = { page, per_page: 15, origen: 1 }
     if (filters.sede_id) params.sede_id = filters.sede_id
     const res = await reciboPagoService.getPendientesTransferencia(params)
     pendientes.value = res.data ?? []

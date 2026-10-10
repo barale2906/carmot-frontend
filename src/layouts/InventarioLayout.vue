@@ -66,14 +66,14 @@ const groups = [
   {
     routes: [
       '/inventario/precios',
-      '/inventario/recibos',
+      '/inventario/recibos-pago',
       '/inventario/transferencias',
     ],
     title: 'Facturación de inventario',
     description: 'Gestiona los precios de venta, consulta los recibos de pago emitidos y aprueba transferencias pendientes.',
     items: [
       { label: 'Precios de venta',  to: '/inventario/precios' },
-      { label: 'Recibos de pago',   to: '/inventario/recibos' },
+      { label: 'Recibos de pago',   to: '/inventario/recibos-pago' },
       { label: 'Transferencias',    to: '/inventario/transferencias' },
     ],
   },

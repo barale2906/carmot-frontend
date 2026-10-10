@@ -18,6 +18,18 @@ const invVentaService = {
   },
 
   /**
+   * Indica si se puede vender: listas de inventario activas y vigentes y, si se
+   * envía la sede, el precio vigente de cada producto para esa sede.
+   * Sin lista vigente (`disponible: false`) el backend rechaza la venta.
+   * @param {Object} [params] - { sede_id? }
+   * @returns {Promise<{ data: { disponible: boolean, listas: Array, precios: Array<{ producto: { id }, precio }> } }>}
+   */
+  async preciosVigentes(params = {}) {
+    const { data } = await api.get(`${BASE}/precios-vigentes`, { params })
+    return data
+  },
+
+  /**
    * Consulta qué se puede entregar en el acto con el stock actual del almacén.
    * Solo informativo: no reserva stock ni bloquea la venta.
    * @param {Object} payload - { almacen_id, items: [{ producto_id, cantidad, entrega_completa?, variantes? }] }

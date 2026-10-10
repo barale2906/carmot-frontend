@@ -431,9 +431,14 @@ const routes = [
             component: InvTransferenciasPendientes
           },
           {
-            path: 'recibos',
+            path: 'recibos-pago',
             name: 'InvRecibos',
             component: InvRecibosPagoView
+          },
+          {
+            // Ruta anterior: se conserva para enlaces guardados
+            path: 'recibos',
+            redirect: { name: 'InvRecibos' }
           }
         ]
       }

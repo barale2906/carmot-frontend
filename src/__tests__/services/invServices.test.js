@@ -315,6 +315,19 @@ describe('invVentaService', () => {
     expect(res.status).toBe('entregado')
   })
 
+  it('preciosVigentes llama GET /precios-vigentes con la sede', async () => {
+    api.get.mockResolvedValue(ok({ data: { disponible: true, listas: [{ id: 1 }], precios: [{ producto: { id: 5 }, precio: 55000 }] } }))
+    const res = await invVentaService.preciosVigentes({ sede_id: 2 })
+    expect(api.get).toHaveBeenCalledWith(`${BASE}/precios-vigentes`, { params: { sede_id: 2 } })
+    expect(res.data.disponible).toBe(true)
+  })
+
+  it('preciosVigentes sin sede no envía parámetros', async () => {
+    api.get.mockResolvedValue(ok({ data: { disponible: false, listas: [], precios: [] } }))
+    await invVentaService.preciosVigentes()
+    expect(api.get).toHaveBeenCalledWith(`${BASE}/precios-vigentes`, { params: {} })
+  })
+
   it('verificarDisponibilidad llama POST /verificar-disponibilidad', async () => {
     api.post.mockResolvedValue(ok({ data: { entregable_completo: true, items: [] } }))
     const payload = { almacen_id: 1, items: [{ producto_id: 15, cantidad: 3, entrega_completa: true }] }
@@ -404,10 +417,10 @@ describe('invPedidoService', () => {
     expect(api.post).toHaveBeenCalledWith(`${BASE}/5/cancelar`, { motivo: 'Solicitud del cliente' })
   })
 
-  it('anular llama POST /{id}/anular sin body', async () => {
+  it('anular llama POST /{id}/anular con motivo', async () => {
     api.post.mockResolvedValue(ok({ status: 'cancelado' }))
-    await invPedidoService.anular(8)
-    expect(api.post).toHaveBeenCalledWith(`${BASE}/8/anular`)
+    await invPedidoService.anular(8, 'Producto defectuoso')
+    expect(api.post).toHaveBeenCalledWith(`${BASE}/8/anular`, { motivo: 'Producto defectuoso' })
   })
 
   it('descargarTicketPdf llama GET /{id}/ticket-pdf con responseType blob', async () => {

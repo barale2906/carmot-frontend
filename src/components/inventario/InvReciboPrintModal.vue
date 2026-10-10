@@ -20,7 +20,7 @@
           <!-- Cabecera del modal (no se imprime) -->
           <div class="flex items-start justify-between gap-4 border-b border-black/5 px-6 py-5">
             <div>
-              <h2 class="text-lg font-semibold text-slate-900">Recibo de venta — Inventario</h2>
+              <h2 class="text-lg font-semibold text-slate-900">{{ reciboActual ? 'Recibo de caja — Inventario' : 'Estado de cuenta del pedido' }}</h2>
               <p class="mt-0.5 text-sm text-slate-500">Revisa y presiona Imprimir para generar el PDF</p>
             </div>
             <button
@@ -62,8 +62,17 @@
             <div class="mt-4 h-px bg-[#213360]" />
 
             <div class="my-4 rounded-lg bg-[#213360] py-2.5 text-center text-white">
-              <p class="text-sm font-semibold uppercase tracking-wide">Comprobante de venta — Inventario</p>
+              <p class="text-sm font-semibold uppercase tracking-wide">
+                {{ reciboActual ? 'Recibo de caja — Inventario' : `Estado de cuenta — Pedido #${pedido.id}` }}
+              </p>
             </div>
+
+            <p v-if="reciboActual && Number(reciboActual.status) === 4" class="mb-4 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-800">
+              Transferencia pendiente de aprobación: este pago aún no se suma al pedido y no genera entrega.
+            </p>
+            <p v-else-if="reciboActual && Number(reciboActual.status) === 3" class="mb-4 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+              Recibo anulado.
+            </p>
 
             <!-- Datos del cliente -->
             <div class="grid grid-cols-2 gap-x-6 gap-y-2 rounded-xl border border-slate-200 p-4 text-sm">
@@ -108,10 +117,27 @@
               </table>
             </div>
 
+            <!-- Pago de este recibo -->
+            <div v-if="reciboActual" class="mt-4 rounded-xl border-2 border-[#213360] p-4 text-sm">
+              <div class="flex items-center justify-between gap-4">
+                <span class="font-semibold text-slate-900">Valor recibido en este recibo</span>
+                <span class="text-lg font-bold text-[#213360]">{{ formatCurrency(reciboActual.monto_abonado) }}</span>
+              </div>
+              <ul v-if="reciboActual.medios_pago?.length" class="mt-2 space-y-0.5 text-xs text-slate-600">
+                <li v-for="(mp, idx) in reciboActual.medios_pago" :key="idx" class="flex justify-between gap-4">
+                  <span>{{ medioLabel(mp.medio_pago) }}<template v-if="mp.referencia"> · Ref. {{ mp.referencia }}</template></span>
+                  <span class="font-mono">{{ formatCurrency(mp.valor) }}</span>
+                </li>
+              </ul>
+              <p v-if="Number(reciboActual.valor_total) > Number(reciboActual.monto_abonado)" class="mt-1 text-xs text-slate-500">
+                Total cobrado con sobrecargos: {{ formatCurrency(reciboActual.valor_total) }}
+              </p>
+            </div>
+
             <!-- Totales -->
             <div class="mt-4 flex flex-col items-end gap-1.5 border-t border-slate-200 pt-3 text-sm">
               <div class="flex w-full max-w-xs justify-between gap-4">
-                <span class="text-slate-500">Total abonado</span>
+                <span class="text-slate-500">Total abonado al pedido</span>
                 <span class="font-medium text-green-700">{{ formatCurrency(totalAbonado) }}</span>
               </div>
               <div v-if="saldoPendiente > 0" class="flex w-full max-w-xs justify-between gap-4">
@@ -128,9 +154,15 @@
             <div v-if="pedido.recibo_links?.length" class="mt-4">
               <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Recibos de inventario</p>
               <ul class="divide-y divide-slate-100 rounded-lg border border-slate-200">
-                <li v-for="link in pedido.recibo_links" :key="link.recibo_pago_id" class="flex items-center justify-between px-4 py-2 text-sm">
+                <li
+                  v-for="link in pedido.recibo_links"
+                  :key="link.recibo_pago_id"
+                  class="flex items-center justify-between px-4 py-2 text-sm"
+                  :class="{ 'bg-blue-50/60': link.recibo_pago_id === reciboActual?.recibo_pago_id }"
+                >
                   <div class="flex items-center gap-2">
-                    <span class="font-mono text-slate-700">{{ link.numero_recibo ?? `#${link.recibo_pago_id}` }}</span>
+                    <span class="font-mono text-slate-700" :class="{ 'line-through': Number(link.status) === 3 }">{{ link.numero_recibo ?? `#${link.recibo_pago_id}` }}</span>
+                    <span v-if="ESTADO_RECIBO[link.status]" class="rounded-full px-1.5 text-[10px] font-medium" :class="ESTADO_RECIBO[link.status].clase">{{ ESTADO_RECIBO[link.status].texto }}</span>
                     <span v-if="link.created_at" class="text-xs text-slate-400">· {{ new Date(link.created_at).toLocaleDateString('es-CO', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' }) }}</span>
                   </div>
                   <span class="font-mono font-medium text-slate-800">{{ formatCurrency(link.monto_abonado) }}</span>
@@ -176,7 +208,7 @@
               >Cerrar</button>
               <button
                 type="button"
-                :disabled="emailLoading || emailStatus === 'ok'"
+                :disabled="emailLoading || emailStatus === 'ok' || !reciboEmailId"
                 class="inline-flex items-center gap-2 rounded-lg border border-[#213360] px-4 py-2 text-sm font-medium text-[#213360] transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
                 @click="enviarEmail"
               >
@@ -210,7 +242,9 @@ import logoSrc           from '@/assets/images/logo.svg'
 import reciboPagoService from '@/services/reciboPagoService.js'
 
 const props = defineProps({
-  pedido: { type: Object, default: null },
+  pedido:   { type: Object, default: null },
+  /** Recibo (pago) a imprimir. Sin él, el modal muestra el estado de cuenta del pedido. */
+  reciboId: { type: Number, default: null },
 })
 const emit = defineEmits(['close'])
 
@@ -225,15 +259,31 @@ watch(() => props.pedido, () => {
   emailLoading.value = false
 })
 
-const primerReciboId = computed(() => props.pedido?.recibo_links?.[0]?.recibo_pago_id ?? null)
+const reciboActual = computed(() =>
+  props.reciboId ? (props.pedido?.recibo_links ?? []).find(l => l.recibo_pago_id === props.reciboId) ?? null : null
+)
+
+// El correo lleva el recibo impreso o, en el estado de cuenta, el último recibo vigente
+const reciboEmailId = computed(() => reciboActual.value?.recibo_pago_id
+  ?? [...(props.pedido?.recibo_links ?? [])].reverse().find(l => Number(l.status) === 1 || Number(l.status) === 2)?.recibo_pago_id
+  ?? null)
+
+const ESTADO_RECIBO = {
+  3: { texto: 'Anulado',              clase: 'bg-red-100 text-red-700' },
+  4: { texto: 'Por aprobar',          clase: 'bg-blue-100 text-blue-700' },
+  5: { texto: 'Rechazado',            clase: 'bg-amber-100 text-amber-800' },
+}
+
+const MEDIOS = { efectivo: 'Efectivo', transferencia: 'Transferencia', tarjeta_debito: 'Tarjeta débito', tarjeta_credito: 'Tarjeta crédito', cheque: 'Cheque' }
+const medioLabel = (m) => MEDIOS[m] ?? m
 
 async function enviarEmail() {
-  if (!primerReciboId.value || emailLoading.value) return
+  if (!reciboEmailId.value || emailLoading.value) return
   emailLoading.value = true
   emailStatus.value  = null
   emailMsg.value     = ''
   try {
-    const res = await reciboPagoService.enviarEmail(primerReciboId.value)
+    const res = await reciboPagoService.enviarEmail(reciboEmailId.value)
     emailStatus.value = 'ok'
     emailMsg.value    = `Enviado a ${res.estudiante_email ?? res.email ?? 'correo registrado'}`
   } catch (err) {
@@ -267,22 +317,19 @@ const nombreEstudiante = computed(() => {
 })
 
 const numeroRecibo = computed(() => {
-  const link = props.pedido?.recibo_links?.[0]
-  return link?.numero_recibo ?? (link ? `#${link.recibo_pago_id}` : `INV-${String(props.pedido?.id ?? '').padStart(6, '0')}`)
+  const r = reciboActual.value
+  if (r) return r.numero_recibo ?? 'Por aprobar'
+  return `Pedido #${props.pedido?.id ?? ''}`
 })
 
 const fechaFormateada = computed(() => {
-  const f = props.pedido?.created_at
+  const f = reciboActual.value?.fecha_recibo ?? reciboActual.value?.created_at ?? props.pedido?.created_at
   if (!f) return '—'
   return new Date(f).toLocaleDateString('es-CO', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' })
 })
 
-const totalAbonado = computed(() => {
-  const p = props.pedido
-  if (!p) return 0
-  if (p.recibo_links?.length) return p.recibo_links.reduce((s, l) => s + Number(l.monto_abonado ?? 0), 0)
-  return Number(p.abono_acumulado ?? 0) || (Number(p.valor_total ?? 0) - Number(p.saldo ?? 0))
-})
+// abono_acumulado ya excluye transferencias por aprobar y recibos anulados
+const totalAbonado = computed(() => Number(props.pedido?.abono_acumulado ?? 0))
 
 const saldoPendiente = computed(() => Number(props.pedido?.saldo ?? 0))
 

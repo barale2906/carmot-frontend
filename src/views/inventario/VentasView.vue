@@ -10,12 +10,16 @@
         </div>
         <button
           type="button"
-          class="flex h-9 items-center gap-2 rounded-lg bg-[#213360] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          :disabled="!listaVigente"
+          class="flex h-9 items-center gap-2 rounded-lg bg-[#213360] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           @click="openNuevaVenta"
         >
           <NavIcon name="plus" class="size-4" /> Nueva venta
         </button>
       </div>
+      <p v-if="!listaVigente" class="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+        No hay una lista de precios de inventario activa y vigente. Activa una lista en Inventario → Precios de venta para poder vender.
+      </p>
     </section>
 
     <!-- Filtros de pedidos -->
@@ -59,6 +63,9 @@
           </template>
           <template v-else-if="column.key === 'saldo'">
             <span class="font-mono" :class="value > 0 ? 'text-amber-700 font-medium' : 'text-slate-400'">{{ formatCurrency(value) }}</span>
+            <span v-if="row.abono_pendiente_aprobacion > 0" class="block text-xs text-blue-700">
+              {{ formatCurrency(row.abono_pendiente_aprobacion) }} en transferencia por aprobar
+            </span>
           </template>
           <template v-else-if="column.key === 'status'">
             <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
@@ -93,9 +100,8 @@
             v-if="canCancelar && row.status === 'activo'"
             type="button"
             class="rounded p-1.5 text-slate-500 transition-colors hover:bg-red-100 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:cursor-not-allowed disabled:opacity-40"
-            title="Cancelar pedido (sin reintegro de stock)"
-            :disabled="!!cancelando[row.id]"
-            @click="handleCancelar(row)"
+            title="Cancelar pedido (anula sus recibos)"
+            @click="openAnulacion(row, 'cancelar')"
           >
             <NavIcon name="trash" class="size-4" />
           </button>
@@ -103,9 +109,8 @@
             v-if="canAnular && row.status !== 'cancelado'"
             type="button"
             class="rounded p-1.5 text-slate-500 transition-colors hover:bg-orange-100 hover:text-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:cursor-not-allowed disabled:opacity-40"
-            title="Anular pedido (con reintegro de stock)"
-            :disabled="!!anulando[row.id]"
-            @click="handleAnular(row)"
+            title="Anular pedido (reintegra inventario y anula recibos)"
+            @click="openAnulacion(row, 'anular')"
           >
             <NavIcon name="track_changes" class="size-4" />
           </button>
@@ -160,15 +165,22 @@
           <p class="font-medium text-slate-900">{{ abonoTarget.estudiante?.nombre ?? '—' }}</p>
           <p class="mt-2 text-xs text-slate-400">Saldo pendiente</p>
           <p class="text-lg font-bold text-amber-700">{{ formatCurrency(abonoTarget.saldo) }}</p>
+          <p v-if="abonoPendienteAprobacion > 0" class="mt-1 text-xs text-blue-700">
+            {{ formatCurrency(abonoPendienteAprobacion) }} en transferencias por aprobar · disponible para abonar: {{ formatCurrency(abonoDisponible) }}
+          </p>
         </div>
-        <FormInput v-model="abonoForm.monto" label="Monto del abono" type="number" min="1" :max="abonoTarget.saldo" required :error="abonoErrors.monto_abono?.[0]" />
+        <FormInput v-model="abonoForm.monto" label="Monto del abono" type="number" min="1" :max="abonoDisponible" required :error="abonoErrors.monto_abono?.[0]" />
         <FormSelect v-model="abonoForm.medio_pago" label="Medio de pago" :options="mediosPagoOptions" :error="abonoErrors['medios_pago.0.medio_pago']?.[0]" />
         <template v-if="abonoForm.medio_pago === 'transferencia'">
           <FormSelect v-model="abonoForm.banco_id" label="Banco" placeholder="Selecciona..." :options="bancoOptions" :error="abonoErrors['medios_pago.0.banco_id']?.[0]" />
           <FormInput v-model="abonoForm.referencia" label="Referencia de la transferencia" placeholder="Ej: REF-2024-001" :error="abonoErrors['medios_pago.0.referencia']?.[0]" />
         </template>
+        <p v-if="abonoForm.medio_pago === 'transferencia'" class="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-800">
+          La transferencia queda por aprobar: no se suma al pedido ni se entrega nada hasta que el validador la apruebe.
+          Al aprobarla, si el pedido queda pagado, los productos quedan pendientes en Entregas.
+        </p>
         <!-- Al saldar el pedido el backend despacha el inventario, salvo que el cajero lo difiera -->
-        <label v-if="Number(abonoForm.monto) >= Number(abonoTarget.saldo)" class="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3">
+        <label v-else-if="Number(abonoForm.monto) >= Number(abonoTarget.saldo)" class="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3">
           <input v-model="abonoForm.entrega_inmediata" type="checkbox" class="mt-0.5 rounded" />
           <span>
             <span class="block text-sm font-medium text-slate-800">Entregar ahora los productos disponibles</span>
@@ -187,10 +199,59 @@
       </template>
     </ModalBase>
 
-    <!-- Modal: Detalle / Recibo -->
+    <!-- Modal: Cancelar / anular pedido (motivo obligatorio) -->
+    <ModalBase
+      v-model="showAnulacion"
+      :title="anulacionAccion === 'anular' ? `Anular pedido #${anulacionTarget?.id ?? ''}` : `Cancelar pedido #${anulacionTarget?.id ?? ''}`"
+      description="Esta acción no se puede deshacer."
+    >
+      <div v-if="anulacionTarget" class="space-y-4 pb-2">
+        <p class="text-sm text-slate-700">
+          Pedido de <strong>{{ anulacionTarget.estudiante?.nombre ?? '—' }}</strong>
+          por <strong>{{ formatCurrency(anulacionTarget.valor_total) }}</strong>. Al confirmar:
+        </p>
+        <ul class="list-disc space-y-1 pl-5 text-sm text-slate-600">
+          <li v-if="anulacionAccion === 'anular' && anulacionTarget.status !== 'activo'">
+            Todo lo ya entregado vuelve al almacén (documento de devolución) y se cancelan sus necesidades de compra.
+          </li>
+          <li v-else>No se mueve inventario: el pedido aún no tiene entregas.</li>
+          <li v-if="Number(anulacionTarget.abono_acumulado) > 0 || Number(anulacionTarget.abono_pendiente_aprobacion) > 0">
+            Se anulan todos sus recibos
+            (abonado {{ formatCurrency(anulacionTarget.abono_acumulado) }}<template v-if="Number(anulacionTarget.abono_pendiente_aprobacion) > 0">
+            + {{ formatCurrency(anulacionTarget.abono_pendiente_aprobacion) }} en transferencias por aprobar</template>):
+            <strong>debes devolver ese dinero al estudiante</strong>.
+          </li>
+          <li v-else>El pedido no tiene dinero recibido.</li>
+        </ul>
+        <div>
+          <label for="motivo-anulacion-pedido" class="mb-1 block text-sm font-medium text-slate-700">
+            Motivo <span class="text-red-500">*</span>
+          </label>
+          <textarea
+            id="motivo-anulacion-pedido"
+            v-model="motivoAnulacion"
+            rows="3"
+            maxlength="500"
+            placeholder="Describe por qué se cancela el pedido..."
+            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <p class="mt-1 text-right text-xs text-slate-400">{{ motivoAnulacion.length }}/500</p>
+        </div>
+        <div v-if="anulacionError" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">{{ anulacionError }}</div>
+      </div>
+      <template #footer>
+        <button type="button" class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showAnulacion = false">Volver</button>
+        <button type="button" :disabled="anulandoPedido || motivoAnulacion.trim().length < 5" class="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-red-500" @click="confirmarAnulacion">
+          {{ anulandoPedido ? 'Procesando...' : (anulacionAccion === 'anular' ? 'Confirmar anulación' : 'Confirmar cancelación') }}
+        </button>
+      </template>
+    </ModalBase>
+
+    <!-- Modal: Recibo de caja de un pago, o estado de cuenta del pedido -->
     <InvReciboPrintModal
       v-if="showDetallePedido"
       :pedido="detallePedido"
+      :recibo-id="detalleReciboId"
       @close="showDetallePedido = false"
     />
   </div>
@@ -227,12 +288,19 @@ async function loadPermissions() {
   catch { /* permisos vacíos */ }
 }
 
+// Sin lista de precios de inventario activa y vigente no se puede vender (el backend lo rechaza)
+const listaVigente = ref(true)
+
+async function loadListaVigente() {
+  try { const res = await invVentaService.preciosVigentes(); listaVigente.value = !!res.data?.disponible }
+  catch { listaVigente.value = true /* si falla la consulta, el backend sigue validando al vender */ }
+}
+
 const formatCurrency = (v) => v != null ? new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(v) : '—'
 const statusLabel = (s) => ({ activo: 'Activo', pagado: 'Pagado', entregando: 'Entregando', entregado: 'Entregado', cancelado: 'Cancelado' }[s] ?? s)
 
 const pedidos    = ref([])
 const loading    = ref(false); const error = ref(''); const actionError = ref('')
-const cancelando = ref({}); const anulando = ref({})
 const pagination = reactive({ currentPage: 1, lastPage: 1, total: 0, from: 0, to: 0 })
 const filters    = reactive({ status: '', almacen_id: '' })
 const almacenOptions    = ref([{ value: '', label: 'Todos los almacenes' }])
@@ -289,32 +357,48 @@ function onFilterChange() { loadPedidos(1) }
 function clearFilters() { filters.status = ''; filters.almacen_id = ''; loadPedidos(1) }
 function goToPage(p) { if (p >= 1 && p <= pagination.lastPage) loadPedidos(p) }
 
-async function handleCancelar(row) {
-  const motivo = prompt('Motivo de cancelación del pedido:')
-  if (motivo === null) return
-  cancelando.value = { ...cancelando.value, [row.id]: true }; actionError.value = ''
-  try { await invPedidoService.cancelar(row.id, motivo); notifySuccess('Pedido cancelado.'); loadPedidos(pagination.currentPage) }
-  catch (e) { actionError.value = e?.response?.data?.message ?? 'No se pudo cancelar el pedido.' }
-  finally { const n = { ...cancelando.value }; delete n[row.id]; cancelando.value = n }
+// ─── Cancelar / anular ────────────────────────────────────────────────────────
+const showAnulacion   = ref(false)
+const anulacionTarget = ref(null)
+const anulacionAccion = ref('anular')
+const motivoAnulacion = ref('')
+const anulacionError  = ref('')
+const anulandoPedido  = ref(false)
+
+function openAnulacion(row, accion) {
+  anulacionTarget.value = row
+  anulacionAccion.value = accion
+  motivoAnulacion.value = ''
+  anulacionError.value  = ''
+  showAnulacion.value   = true
 }
 
-async function handleAnular(row) {
-  if (!confirm(`¿Anular el pedido #${row.id}? Esta acción reintegra el stock de los ítems ya entregados.`)) return
-  anulando.value = { ...anulando.value, [row.id]: true }; actionError.value = ''
-  try { await invPedidoService.anular(row.id); notifySuccess('Pedido anulado y stock reintegrado.'); loadPedidos(pagination.currentPage) }
-  catch (e) { actionError.value = e?.response?.data?.message ?? 'No se pudo anular el pedido.' }
-  finally { const n = { ...anulando.value }; delete n[row.id]; anulando.value = n }
+async function confirmarAnulacion() {
+  anulandoPedido.value = true; anulacionError.value = ''
+  try {
+    const servicio = anulacionAccion.value === 'anular' ? invPedidoService.anular : invPedidoService.cancelar
+    const res = await servicio(anulacionTarget.value.id, motivoAnulacion.value.trim())
+    notifySuccess(res?.message ?? 'Pedido cancelado.')
+    showAnulacion.value = false
+    loadPedidos(pagination.currentPage)
+  } catch (e) {
+    const errs = e?.response?.data?.errors ?? {}
+    anulacionError.value = Object.values(errs).flat().join(' ') || e?.response?.data?.message || 'No se pudo cancelar el pedido.'
+  } finally { anulandoPedido.value = false }
 }
 
 // ─── Detalle / Recibo ─────────────────────────────────────────────────────────
 const showDetallePedido = ref(false)
 const detallePedido     = ref(null)
+// Con un recibo, el modal imprime el recibo de caja de ese pago; sin él, el estado de cuenta del pedido
+const detalleReciboId   = ref(null)
 
-async function openDetalle(row) {
+async function openDetalle(row, reciboId = null) {
   try {
     const res = await invPedidoService.getById(row.id)
     detallePedido.value = res.data ?? row
   } catch { detallePedido.value = row }
+  detalleReciboId.value   = reciboId
   showDetallePedido.value = true
 }
 
@@ -332,8 +416,7 @@ function onVentaCreada(pedido, recibo) {
   if (recibo && recibo.status === 4) {
     pendingNotifyRecibo.value = recibo
   }
-  detallePedido.value   = pedido
-  showDetallePedido.value = true
+  openDetalle(pedido, recibo?.id ?? null)
 }
 
 async function handleNotificarTransferencia() {
@@ -358,9 +441,13 @@ const abonoError  = ref('')
 const abonoErrors = ref({})
 const abonoForm   = reactive({ monto: '', medio_pago: 'efectivo', banco_id: '', referencia: '', entrega_inmediata: true })
 
+// Las transferencias por aprobar no descuentan el saldo, pero sí reservan ese monto
+const abonoPendienteAprobacion = computed(() => Number(abonoTarget.value?.abono_pendiente_aprobacion ?? 0))
+const abonoDisponible = computed(() => Math.max(0, Number(abonoTarget.value?.saldo ?? 0) - abonoPendienteAprobacion.value))
+
 function openAbono(row) {
   abonoTarget.value = row
-  Object.assign(abonoForm, { monto: row.saldo ?? '', medio_pago: 'efectivo', banco_id: '', referencia: '', entrega_inmediata: true })
+  Object.assign(abonoForm, { monto: Math.max(0, Number(row.saldo ?? 0) - Number(row.abono_pendiente_aprobacion ?? 0)), medio_pago: 'efectivo', banco_id: '', referencia: '', entrega_inmediata: true })
   abonoError.value = ''; abonoErrors.value = {}; showAbono.value = true
 }
 
@@ -369,18 +456,20 @@ async function handleAbono() {
   const medio = { medio_pago: abonoForm.medio_pago, valor: Number(abonoForm.monto) }
   if (abonoForm.medio_pago === 'transferencia') { medio.banco_id = abonoForm.banco_id; medio.referencia = abonoForm.referencia }
   try {
-    await invVentaService.abonar(abonoTarget.value.id, {
+    const res = await invVentaService.abonar(abonoTarget.value.id, {
       monto_abono:       Number(abonoForm.monto),
       medios_pago:       [medio],
       entrega_inmediata: abonoForm.entrega_inmediata,
     })
-    notifySuccess('Abono registrado correctamente.')
+    notifySuccess(res?.message ?? 'Abono registrado correctamente.')
     showAbono.value = false; loadPedidos(pagination.currentPage)
+    // Cada abono genera su propio recibo de caja: se abre para imprimirlo o enviarlo
+    openDetalle(abonoTarget.value, res?.recibo?.id ?? null)
   } catch (e) {
     if (e?.response?.status === 422) { abonoErrors.value = e.response.data?.errors ?? {}; abonoError.value = e.response.data?.message ?? 'Verifica los datos.' }
     else { abonoError.value = e?.response?.data?.message ?? 'Error al registrar el abono.' }
   } finally { savingAbono.value = false }
 }
 
-onMounted(() => { loadPermissions(); loadPedidos(1); loadSelectores() })
+onMounted(() => { loadPermissions(); loadPedidos(1); loadSelectores(); loadListaVigente() })
 </script>
