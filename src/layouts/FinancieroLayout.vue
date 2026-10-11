@@ -52,6 +52,22 @@ const groups = [
     ],
   },
   {
+    routes: [
+      '/financiero/caja',
+      '/financiero/libro-diario',
+      '/financiero/turnos-caja',
+      '/financiero/libro-diario-catalogos',
+    ],
+    title: 'Libro diario',
+    description: 'Turnos de caja, egresos, otros ingresos, consignaciones y el libro diario por sede.',
+    items: [
+      { label: 'Mi caja',        to: '/financiero/caja' },
+      { label: 'Libro diario',   to: '/financiero/libro-diario' },
+      { label: 'Turnos de caja', to: '/financiero/turnos-caja' },
+      { label: 'Catálogos',      to: '/financiero/libro-diario-catalogos' },
+    ],
+  },
+  {
     routes: ['/financiero/cartera'],
     title: 'Cartera',
     description: 'Consulta y gestiona la cartera de estudiantes.',

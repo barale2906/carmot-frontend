@@ -659,7 +659,7 @@
           class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 file:mr-3 file:rounded file:border-0 file:bg-slate-100 file:px-2 file:py-1 file:text-sm file:font-medium file:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
           @change="onReenviarFileChange"
         />
-        <p class="mt-1 text-xs text-slate-400">Reemplaza el comprobante anterior. JPG, PNG, PDF o WebP · máx. 5 MB.</p>
+        <p class="mt-1 text-xs text-slate-400">Reemplaza el comprobante anterior. JPG, PNG, PDF o WebP · máx. 10 MB.</p>
       </div>
     </div>
     <template #footer>

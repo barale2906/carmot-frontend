@@ -10,6 +10,8 @@
       </div>
     </div>
 
+    <TurnoCajaAviso />
+
     <!-- ── Paso 1: Buscar estudiante ─────────────────────────────────────────── -->
     <section v-if="!estudiantePrecargado" class="rounded-[10px] border border-black/10 bg-white px-6 py-5">
       <h3 class="mb-4 text-sm font-semibold text-[#213360]">Buscar estudiante</h3>
@@ -553,7 +555,7 @@
                     class="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 file:mr-2 file:rounded file:border-0 file:bg-white file:px-2 file:py-1 file:text-xs file:font-medium file:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     @change="onComprobanteTransferenciaChange(mp, $event)"
                   />
-                  <p class="mt-1 text-[11px] text-slate-400">JPG, PNG, PDF o WebP · máx. 5 MB.</p>
+                  <p class="mt-1 text-[11px] text-slate-400">JPG, PNG, PDF o WebP · máx. 10 MB.</p>
 
                   <!-- Miniatura del comprobante -->
                   <div v-if="mp.comprobante_preview_url" class="mt-2">
@@ -711,6 +713,7 @@
 import { ref, reactive, computed, watch, onMounted, toRaw, nextTick } from 'vue'
 import { useRoute, useRouter }    from 'vue-router'
 import Logo                       from '@/components/Logo.vue'
+import TurnoCajaAviso             from '@/components/financiero/libroDiario/TurnoCajaAviso.vue'
 import FormInputSearch             from '@/components/forms/FormInputSearch.vue'
 import FormInput                   from '@/components/forms/FormInput.vue'
 import FormSelect                  from '@/components/forms/FormSelect.vue'

@@ -1,6 +1,8 @@
 <template>
   <div class="flex flex-col gap-6">
 
+    <TurnoCajaAviso v-if="canCreate" />
+
     <!-- Acción principal: Nueva venta -->
     <section v-if="canCreate" aria-labelledby="nueva-venta-heading" class="rounded-[14px] border border-black/10 bg-white p-6">
       <div class="flex items-center justify-between">
@@ -261,6 +263,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import invPedidoService  from '@/services/invPedidoService.js'
 import invVentaService   from '@/services/invVentaService.js'
+import TurnoCajaAviso   from '@/components/financiero/libroDiario/TurnoCajaAviso.vue'
 import invAlmacenService from '@/services/invAlmacenService.js'
 import bancoService      from '@/services/bancoService.js'
 import { authService }   from '@/services/authService.js'

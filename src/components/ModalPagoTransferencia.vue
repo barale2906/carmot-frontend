@@ -65,7 +65,7 @@
           class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 file:mr-3 file:rounded file:border-0 file:bg-slate-100 file:px-2 file:py-1 file:text-sm file:font-medium file:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
           @change="onFileChange"
         />
-        <p class="mt-1 text-xs text-slate-400">JPG, PNG, PDF o WebP · máx. 5 MB. Se puede adjuntar después.</p>
+        <p class="mt-1 text-xs text-slate-400">JPG, PNG, PDF o WebP · máx. 10 MB. Se puede adjuntar después.</p>
         <p v-if="nombreArchivo" class="mt-1 text-xs text-green-700">Archivo seleccionado: {{ nombreArchivo }}</p>
       </div>
 

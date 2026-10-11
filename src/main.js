@@ -38,6 +38,10 @@ import RecibosPagoView from './views/financiero/RecibosPagoView.vue'
 import CarteraView from './views/financiero/CarteraView.vue'
 import DescuentosView from './views/financiero/DescuentosView.vue'
 import TransferenciasPendientesView from './views/financiero/TransferenciasPendientesView.vue'
+import CajaView from './views/financiero/CajaView.vue'
+import LibroDiarioView from './views/financiero/LibroDiarioView.vue'
+import TurnosCajaView from './views/financiero/TurnosCajaView.vue'
+import LdCatalogosView from './views/financiero/LdCatalogosView.vue'
 import BancosView from './views/configuracion/BancosView.vue'
 import MatriculaView from './views/academico/MatriculaView.vue'
 import DocumentacionLayout    from './layouts/DocumentacionLayout.vue'
@@ -289,6 +293,26 @@ const routes = [
             path: 'transferencias-pendientes',
             name: 'TransferenciasPendientes',
             component: TransferenciasPendientesView
+          },
+          {
+            path: 'caja',
+            name: 'MiCaja',
+            component: CajaView
+          },
+          {
+            path: 'libro-diario',
+            name: 'LibroDiario',
+            component: LibroDiarioView
+          },
+          {
+            path: 'turnos-caja',
+            name: 'TurnosCaja',
+            component: TurnosCajaView
+          },
+          {
+            path: 'libro-diario-catalogos',
+            name: 'LibroDiarioCatalogos',
+            component: LdCatalogosView
           }
         ]
       },
