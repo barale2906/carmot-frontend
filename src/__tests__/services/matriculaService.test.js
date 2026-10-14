@@ -152,3 +152,21 @@ describe('matriculaService', () => {
     })
   })
 })
+
+describe('matriculaService — estado académico', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('cambia el estado académico con fecha y motivo', async () => {
+    api.post.mockResolvedValue({ data: { data: { id: 3, estado_academico: 3 } } })
+    const payload = { estado_academico: 3, fecha: '2026-10-13', motivo: 'No volvió' }
+    const res = await matriculaService.cambiarEstadoAcademico(3, payload)
+    expect(api.post).toHaveBeenCalledWith('/academico/matriculas/3/estado-academico', payload)
+    expect(res.data.estado_academico).toBe(3)
+  })
+
+  it('consulta el historial de estados', async () => {
+    api.get.mockResolvedValue({ data: { data: [] } })
+    await matriculaService.historialEstados(3)
+    expect(api.get).toHaveBeenCalledWith('/academico/matriculas/3/historial-estados')
+  })
+})

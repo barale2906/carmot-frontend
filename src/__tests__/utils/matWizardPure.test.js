@@ -3,7 +3,7 @@
  * Estas funciones no dependen de estado reactivo ni de servicios.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { today, formatDate, formatCOP, objectToOptions } from '@/composables/useMatriculaWizard.js'
+import { today, formatDate, formatCOP, objectToOptions, separarNombreCompleto } from '@/composables/useMatriculaWizard.js'
 
 describe('today', () => {
   it('retorna la fecha actual en formato YYYY-MM-DD', () => {
@@ -87,5 +87,20 @@ describe('objectToOptions', () => {
     const result = objectToOptions({ 1: 42 })
     expect(result[0].label).toBe('42')
     expect(typeof result[0].label).toBe('string')
+  })
+})
+
+describe('separarNombreCompleto', () => {
+  it('reparte el nombre del lead según el número de palabras', () => {
+    expect(separarNombreCompleto('Ana')).toEqual({ primer_nombre: 'Ana', segundo_nombre: '', primer_apellido: '', segundo_apellido: '' })
+    expect(separarNombreCompleto('Ana Pérez')).toMatchObject({ primer_nombre: 'Ana', primer_apellido: 'Pérez' })
+    expect(separarNombreCompleto('Ana Pérez Gómez')).toMatchObject({ primer_nombre: 'Ana', primer_apellido: 'Pérez', segundo_apellido: 'Gómez' })
+    expect(separarNombreCompleto(' Ana  María Pérez de la Rosa ')).toEqual({
+      primer_nombre: 'Ana', segundo_nombre: 'María', primer_apellido: 'Pérez', segundo_apellido: 'de la Rosa'
+    })
+  })
+
+  it('devuelve campos vacíos sin nombre', () => {
+    expect(separarNombreCompleto(null).primer_nombre).toBe('')
   })
 })

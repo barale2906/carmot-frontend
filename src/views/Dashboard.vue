@@ -1,26 +1,27 @@
 <template>
   <div class="space-y-8">
+    <div v-if="error" class="rounded-[14px] border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+      {{ error }}
+      <button type="button" class="ml-2 font-medium underline hover:no-underline" @click="cargar">Reintentar</button>
+    </div>
+
     <!-- Tarjetas de estadísticas -->
-    <section aria-labelledby="stats-heading">
+    <section v-if="tarjetas.length" aria-labelledby="stats-heading">
       <h2 id="stats-heading" class="sr-only">
         Resumen de estadísticas
       </h2>
       <ul class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" role="list">
-        <li v-for="stat in stats" :key="stat.title" role="listitem">
-          <StatCard
-            :title="stat.title"
-            :value="stat.value"
-            :description="stat.description"
-            :icon="stat.icon"
-            :icon-variant="stat.iconVariant"
-          />
+        <li v-for="tarjeta in tarjetas" :key="tarjeta.clave" role="listitem">
+          <RouterLink :to="tarjeta.ruta" class="block rounded-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <StatCard v-bind="propsTarjeta(tarjeta)" />
+          </RouterLink>
         </li>
       </ul>
     </section>
 
     <div class="grid gap-8 lg:grid-cols-2">
       <!-- Accesos rápidos -->
-      <section aria-labelledby="quick-access-heading">
+      <section v-if="accesos.length" aria-labelledby="quick-access-heading">
         <header class="mb-4">
           <h2 id="quick-access-heading" class="text-lg font-semibold text-slate-900">
             Accesos rápidos
@@ -30,7 +31,7 @@
           </p>
         </header>
         <ul class="grid gap-3 sm:grid-cols-2" role="list">
-          <li v-for="item in quickAccess" :key="item.title" role="listitem">
+          <li v-for="item in accesos" :key="item.title" role="listitem">
             <QuickAccessCard
               :title="item.title"
               :description="item.description"
@@ -43,24 +44,20 @@
       </section>
 
       <!-- Actividad reciente -->
-      <section aria-labelledby="activity-heading">
+      <section v-if="actividad.length" aria-labelledby="activity-heading">
         <header class="mb-4">
           <h2 id="activity-heading" class="text-lg font-semibold text-slate-900">
             Actividad reciente
           </h2>
           <p class="mt-1 text-sm text-slate-500">
-            Últimas acciones en el sistema
+            Últimas matrículas y pagos de tus sedes
           </p>
         </header>
         <ul class="space-y-3" role="list">
           <ActivityItem
-            v-for="(item, index) in recentActivity"
+            v-for="(item, index) in actividad"
             :key="index"
-            :title="item.title"
-            :description="item.description"
-            :time-ago="item.timeAgo"
-            :icon="item.icon"
-            :icon-variant="item.iconVariant"
+            v-bind="propsActividad(item)"
           />
         </ul>
       </section>
@@ -77,15 +74,15 @@
             Requieren tu atención
           </p>
         </header>
-        <ul class="space-y-3" role="list">
-          <li v-for="(alert, index) in alerts" :key="index" role="listitem">
-            <AlertItem
-              :title="alert.title"
-              :description="alert.description"
-              :badge-label="alert.badgeLabel"
-              :count="alert.count"
-              :variant="alert.variant"
-            />
+        <p v-if="cargando" class="text-sm text-slate-500">Cargando...</p>
+        <p v-else-if="!alertas.length" class="rounded-[14px] border border-black/10 bg-white p-4 text-sm text-slate-500">
+          No hay pendientes que requieran tu atención.
+        </p>
+        <ul v-else class="space-y-3" role="list">
+          <li v-for="alerta in alertas" :key="alerta.clave" role="listitem">
+            <RouterLink :to="alerta.ruta" class="block rounded-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <AlertItem v-bind="propsAlerta(alerta)" />
+            </RouterLink>
           </li>
         </ul>
       </section>
@@ -98,29 +95,27 @@
               Próximos eventos
             </h2>
             <p class="mt-1 text-sm text-slate-500">
-              Calendario académico
+              Inicios de ciclo y días no laborables de los próximos 30 días
             </p>
           </header>
-          <ul class="space-y-3" role="list">
-            <li v-for="(event, index) in upcomingEvents" :key="index" role="listitem">
-              <EventItem
-                :month="event.month"
-                :day="event.day"
-                :title="event.title"
-                :subtitle="event.subtitle"
-              />
+          <p v-if="!cargando && !eventos.length" class="rounded-[14px] border border-black/10 bg-white p-4 text-sm text-slate-500">
+            Sin eventos en los próximos 30 días.
+          </p>
+          <ul v-else class="space-y-3" role="list">
+            <li v-for="(evento, index) in eventos" :key="index" role="listitem">
+              <EventItem v-bind="propsEvento(evento)" />
             </li>
           </ul>
         </section>
 
-        <section aria-labelledby="retention-heading">
+        <section v-if="retencion" aria-labelledby="retention-heading">
           <h2 id="retention-heading" class="sr-only">
             Tasa de retención
           </h2>
           <RetentionCard
             title="Tasa de retención"
-            value="96.3%"
-            description="+2.1% vs mes anterior"
+            :value="retencion.value"
+            :description="retencion.description"
           />
         </section>
       </div>
@@ -129,142 +124,47 @@
 </template>
 
 <script setup>
-import StatCard from '@/components/dashboard/StatCard.vue'
-import QuickAccessCard from '@/components/dashboard/QuickAccessCard.vue'
-import ActivityItem from '@/components/dashboard/ActivityItem.vue'
-import AlertItem from '@/components/dashboard/AlertItem.vue'
-import EventItem from '@/components/dashboard/EventItem.vue'
-import RetentionCard from '@/components/dashboard/RetentionCard.vue'
+import { ref, computed, onMounted } from 'vue'
+import StatCard         from '@/components/dashboard/StatCard.vue'
+import QuickAccessCard  from '@/components/dashboard/QuickAccessCard.vue'
+import ActivityItem     from '@/components/dashboard/ActivityItem.vue'
+import AlertItem        from '@/components/dashboard/AlertItem.vue'
+import EventItem        from '@/components/dashboard/EventItem.vue'
+import RetentionCard    from '@/components/dashboard/RetentionCard.vue'
+import dashboardService from '@/services/dashboardService.js'
+import { usePermisos }  from '@/composables/usePermisos.js'
+import {
+  accesosVisibles, propsTarjeta, propsAlerta, propsActividad, propsEvento, textoRetencion
+} from '@/utils/dashboard.js'
 
-// Datos ficticios según diseño Figma — luego conectar con API/BD
-const stats = [
-  {
-    title: 'Total estudiantes',
-    value: '328',
-    description: '+12% desde el mes pasado',
-    icon: 'estudiantes',
-    iconVariant: 'slate'
-  },
-  {
-    title: 'Citas pendientes hoy',
-    value: '7',
-    description: 'Asesorías programadas para hoy',
-    icon: 'calendario',
-    iconVariant: 'blue'
-  },
-  {
-    title: 'Pendientes vencidos',
-    value: '8',
-    description: 'Requieren atención urgente',
-    icon: 'pendientes',
-    iconVariant: 'red'
-  },
-  {
-    title: 'Inventario bajo stock',
-    value: '5',
-    description: 'Elementos por reponer',
-    icon: 'inventario',
-    iconVariant: 'orange'
+const { can, loadPermisos } = usePermisos()
+
+const resumen  = ref(null)
+const cargando = ref(true)
+const error    = ref('')
+
+const tarjetas  = computed(() => resumen.value?.tarjetas ?? [])
+const alertas   = computed(() => resumen.value?.alertas ?? [])
+const actividad = computed(() => resumen.value?.actividad ?? [])
+const eventos   = computed(() => resumen.value?.eventos ?? [])
+const retencion = computed(() => textoRetencion(resumen.value?.retencion))
+const accesos   = computed(() => accesosVisibles(can))
+
+async function cargar() {
+  cargando.value = true
+  error.value    = ''
+  try {
+    const res = await dashboardService.getResumen()
+    resumen.value = res.data ?? null
+  } catch (e) {
+    error.value = e?.response?.data?.message ?? 'No se pudo cargar el resumen del dashboard.'
+  } finally {
+    cargando.value = false
   }
-]
+}
 
-const quickAccess = [
-  {
-    title: 'Nueva matrícula',
-    description: 'Registrar nuevo estudiante',
-    to: '/academico/matriculas?action=create',
-    icon: 'estudiantes',
-    iconVariant: 'blue'
-  },
-  {
-    title: 'Recibo de pago',
-    description: 'Registrar pago de estudiante',
-    to: '/cartera',
-    icon: 'formularios',
-    iconVariant: 'green'
-  },
-  {
-    title: 'Ver programas académicos',
-    description: 'Cursos y técnicos disponibles',
-    to: '/academico',
-    icon: 'academico',
-    iconVariant: 'purple'
-  },
-  {
-    title: 'Ver estudiantes',
-    description: 'Listado completo de estudiantes',
-    to: '/estudiantes',
-    icon: 'control-estudiantes',
-    iconVariant: 'orange'
-  }
-]
-
-const recentActivity = [
-  {
-    title: 'Nueva matrícula registrada',
-    description: 'Ana Martínez - Mecánica de Motos',
-    timeAgo: 'Hace 15 minutos',
-    icon: 'estudiantes',
-    iconVariant: 'green'
-  },
-  {
-    title: 'Pago procesado',
-    description: 'Carlos Rodríguez - Mensualidad Febrero',
-    timeAgo: 'Hace 1 hora',
-    icon: 'formularios',
-    iconVariant: 'blue'
-  },
-  {
-    title: 'Inventario actualizado',
-    description: 'Entrada de 20 overoles - Tunja',
-    timeAgo: 'Hace 2 horas',
-    icon: 'inventario',
-    iconVariant: 'orange'
-  },
-  {
-    title: 'Deserción reportada',
-    description: 'Pedro López - Soldadura Duitama',
-    timeAgo: 'Hace 3 horas',
-    icon: 'estudiantes',
-    iconVariant: 'purple'
-  }
-]
-
-const alerts = [
-  {
-    title: 'Cartera por cobrar vencida',
-    description: '8 estudiantes con pagos vencidos hace más de 7 días',
-    badgeLabel: 'Urgente',
-    count: null,
-    variant: 'red'
-  },
-  {
-    title: 'Matrículas virtuales incompletas',
-    description: '12 estudiantes con documentos pendientes de cargar',
-    badgeLabel: '',
-    count: 12,
-    variant: 'yellow'
-  },
-  {
-    title: 'Inventario bajo stock',
-    description: '5 elementos requieren reposición urgente',
-    badgeLabel: '',
-    count: 5,
-    variant: 'orange'
-  },
-  {
-    title: 'Acuerdos de pago pendientes',
-    description: '3 solicitudes de plan de pagos por gestionar',
-    badgeLabel: '',
-    count: 3,
-    variant: 'blue'
-  }
-]
-
-const upcomingEvents = [
-  { month: 'FEB', day: '25', title: 'Entrega de certificados', subtitle: 'Promoción Soldadura Industrial - Tunja' },
-  { month: 'FEB', day: '28', title: 'Cierre de matrículas', subtitle: 'Curso Mecánica Automotriz - Todas las sedes' },
-  { month: 'MAR', day: '03', title: 'Inicio de curso', subtitle: 'Técnico Mecánica Automotriz - Duitama' },
-  { month: 'MAR', day: '10', title: 'Evaluación final', subtitle: 'Todos los cursos - Periodo 1' }
-]
+onMounted(() => {
+  loadPermisos().catch(() => {})
+  cargar()
+})
 </script>

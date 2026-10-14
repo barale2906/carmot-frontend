@@ -38,6 +38,30 @@ export function formatCOP(val) {
 }
 
 /** Convierte { CC: 'Cédula de Ciudadanía', ... } → [{ value, label }, ...] */
+/**
+ * Separa el nombre libre de un lead del CRM en los cuatro campos del estudiante,
+ * según la convención colombiana (nombres primero, luego apellidos):
+ * 1 palabra → primer nombre; 2 → nombre + apellido; 3 → nombre + dos apellidos;
+ * 4 o más → dos nombres + apellidos. Es solo una sugerencia editable.
+ *
+ * @param {string|null} nombre
+ * @returns {{ primer_nombre: string, segundo_nombre: string, primer_apellido: string, segundo_apellido: string }}
+ */
+export function separarNombreCompleto(nombre) {
+  const partes = String(nombre ?? '').trim().split(/\s+/).filter(Boolean)
+  const vacio  = { primer_nombre: '', segundo_nombre: '', primer_apellido: '', segundo_apellido: '' }
+  if (partes.length === 0) return vacio
+  if (partes.length === 1) return { ...vacio, primer_nombre: partes[0] }
+  if (partes.length === 2) return { ...vacio, primer_nombre: partes[0], primer_apellido: partes[1] }
+  if (partes.length === 3) return { ...vacio, primer_nombre: partes[0], primer_apellido: partes[1], segundo_apellido: partes[2] }
+  return {
+    primer_nombre:    partes[0],
+    segundo_nombre:   partes[1],
+    primer_apellido:  partes[2],
+    segundo_apellido: partes.slice(3).join(' ')
+  }
+}
+
 export function objectToOptions(obj) {
   return Object.entries(obj ?? {}).map(([value, label]) => ({ value, label: String(label) }))
 }
@@ -203,6 +227,9 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
   const saving      = ref(false)
   const apiError    = ref('')
   const fieldErrors = ref({})
+
+  /** Lead del CRM que se está convirtiendo en matrícula (null en una matrícula normal). */
+  const referido = ref(null)
 
   // ── Paso 1: Programación — sede → curso → ciclo ─────────────────────────────
   const sedeId              = ref('')
@@ -528,6 +555,12 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
       cursosEnSede.value = [...map.values()].sort((a, b) =>
         a.nombre.localeCompare(b.nombre, 'es')
       )
+      // Al convertir un lead se preselecciona su curso de interés si se dicta en la sede.
+      const cursoLead = referido.value?.curso_id
+      if (cursoLead && !cursoId.value && map.has(cursoLead)) {
+        cursoId.value = String(cursoLead)
+        await loadCiclos()
+      }
     } catch {
       cursosEnSede.value = []
     } finally {
@@ -748,6 +781,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
         multiculturalidad:  d.multiculturalidad  ?? ''
       })
     } catch { /* 404 u otro error: el estudiante no tiene matrículas previas */ }
+    _aplicarDatosReferido()
   }
 
   const yaMatriculadoEnCurso = computed(() => matriculasExistentes.value.some(m => m.status === 1))
@@ -774,6 +808,27 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     Object.assign(detalles, _defaultDetallesPrecarga())
     matriculaReferenciaId.value = null
     fotoExistente.value         = null
+    _aplicarDatosReferido()
+  }
+
+  /**
+   * Completa con los datos del lead los campos que sigan vacíos. Se llama tras cada
+   * reinicio o precarga del estudiante, para que lo capturado en el CRM no se pierda
+   * pero tampoco pise lo que ya trae una matrícula anterior.
+   */
+  function _aplicarDatosReferido() {
+    const lead = referido.value
+    if (!lead) return
+    const completar = (obj, campo, valor) => {
+      if (!obj[campo] && valor) obj[campo] = valor
+    }
+    completar(datosPersonales, 'celular', lead.celular)
+    completar(detalles, 'talla_overol', lead.talla_overol)
+    completar(detalles, 'talla_botas', lead.talla_botas)
+    completar(detalles, 'comercial_id', lead.gestor_id ? String(lead.gestor_id) : '')
+    if (!estudianteForm.primer_nombre && estudianteEstado.value !== 'found') {
+      Object.assign(estudianteForm, separarNombreCompleto(lead.nombre))
+    }
   }
 
   // ── Paso 4: catálogos ─────────────────────────────────────────────────────────
@@ -1002,6 +1057,8 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
       fecha_inicio:       detalles.fecha_inicio,
       monto:              Number(detalles.monto),
       status:             Number(detalles.status),
+      // Vincula la matrícula con el lead del CRM: el backend lo marca como matriculado.
+      referido_id:        num(referido.value?.id),
 
       // ── Booleanos (siempre presentes; backend usa cast booleano) ──────────
       enfermedad_prioritaria: Boolean(datosPersonales.enfermedad_prioritaria),
@@ -1165,8 +1222,14 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
 
   // ── Inicialización y reset ─────────────────────────────────────────────────
 
-  async function init() {
+  /**
+   * Prepara el wizard para una matrícula nueva.
+   * @param {Object|null} lead Lead del CRM a convertir (ver ReferidoResource); null para una matrícula normal.
+   */
+  async function init(lead = null) {
     reset()
+    referido.value = lead
+    _aplicarDatosReferido()
     await Promise.allSettled([loadCurrentUser(), loadCatalogs()])
   }
 
@@ -1178,6 +1241,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
   }
 
   function reset() {
+    referido.value     = null
     currentStep.value  = 1
     saving.value       = false
     apiError.value     = ''
@@ -1215,6 +1279,9 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
 
     // Navegación
     currentStep, saving, apiError, fieldErrors,
+
+    // Conversión desde el CRM
+    referido,
     canProceed, canGoToStep, goToStep, nextStep,
     stepCircleClass, stepLabelClass,
 

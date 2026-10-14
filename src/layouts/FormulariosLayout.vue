@@ -5,7 +5,7 @@
         Formularios
       </h1>
       <p class="mt-1 text-sm text-slate-500">
-        Registra matrículas, pagos y asistencias de los estudiantes.
+        Registra matrículas, pagos, asistencias y calificaciones de los estudiantes.
       </p>
       <FormulariosNav class="mt-4" />
     </header>

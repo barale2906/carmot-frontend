@@ -8,7 +8,10 @@ import Profile from './views/Profile.vue'
 import FormularioMatricula from './views/FormularioMatricula.vue'
 import ReciboPagoView from './views/ReciboPagoView.vue'
 import AsistenciaView from './views/AsistenciaView.vue'
+import CalificacionesView from './views/academico/CalificacionesView.vue'
 import ActivosView from './views/ActivosView.vue'
+import ActivosLayout from './layouts/ActivosLayout.vue'
+import ActCategoriasView from './views/activos/ActCategoriasView.vue'
 import FormulariosLayout from './layouts/FormulariosLayout.vue'
 import ConfiguracionLayout from './layouts/ConfiguracionLayout.vue'
 import SedesLayout from './layouts/SedesLayout.vue'
@@ -49,6 +52,10 @@ import DocDocumentosView      from './views/academico/documentacion/DocDocumento
 import DocPlantillasView      from './views/academico/documentacion/DocPlantillasView.vue'
 import DocTiposDocumentoView  from './views/academico/documentacion/DocTiposDocumentoView.vue'
 import InventarioLayout from './layouts/InventarioLayout.vue'
+import CrmLayout        from './layouts/CrmLayout.vue'
+import ReferidosView    from './views/crm/ReferidosView.vue'
+import SeguimientosView from './views/crm/SeguimientosView.vue'
+import AgendasView      from './views/crm/AgendasView.vue'
 import CategoriasView      from './views/inventario/CategoriasView.vue'
 import UnidadesMedidaView  from './views/inventario/UnidadesMedidaView.vue'
 import ProductosInvView    from './views/inventario/ProductosView.vue'
@@ -111,8 +118,11 @@ const routes = [
     children: [
       {
         path: '',
-        name: 'Activos',
-        component: ActivosView
+        component: ActivosLayout,
+        children: [
+          { path: '',           name: 'Activos',             component: ActivosView },
+          { path: 'categorias', name: 'ActivosCategorias',   component: ActCategoriasView }
+        ]
       }
     ]
   },
@@ -138,6 +148,11 @@ const routes = [
             path: 'asistencia',
             name: 'Asistencia',
             component: AsistenciaView
+          },
+          {
+            path: 'calificaciones',
+            name: 'Calificaciones',
+            component: CalificacionesView
           }
         ]
       }
@@ -320,6 +335,22 @@ const routes = [
         path: 'recibos-pago/nuevo',
         name: 'NuevoReciboPago',
         component: ReciboPagoView
+      }
+    ]
+  },
+  {
+    path: '/crm',
+    component: MainLayout,
+    children: [
+      {
+        path: '',
+        component: CrmLayout,
+        children: [
+          { path: '',             redirect: '/crm/referidos' },
+          { path: 'referidos',    name: 'CrmReferidos',    component: ReferidosView },
+          { path: 'seguimientos', name: 'CrmSeguimientos', component: SeguimientosView },
+          { path: 'agendas',      name: 'CrmAgendas',      component: AgendasView }
+        ]
       }
     ]
   },

@@ -43,6 +43,12 @@ const grupoService = {
     return data
   },
 
+  /** Grupos con ciclo vigente (selector de asistencia y calificaciones); `{ mis_grupos: 1 }` limita a los del profesor. */
+  async getVigentes(params = {}) {
+    const { data } = await api.get(`${BASE}/vigentes`, { params })
+    return data
+  },
+
   async getFilters() {
     const { data } = await api.get(`${BASE}/filters`)
     return data

@@ -24,7 +24,8 @@ const props = defineProps({
     default: () => [
       { label: 'Matrícula', to: '/academico' },
       { label: 'Recibos de pago', to: '/academico/recibo-pago' },
-      { label: 'Asistencia', to: '/academico/asistencia' }
+      { label: 'Asistencia', to: '/academico/asistencia' },
+      { label: 'Calificaciones', to: '/academico/calificaciones' }
     ],
     validator: (v) => v.every((i) => i && typeof i.label !== 'undefined' && typeof i.to !== 'undefined')
   }

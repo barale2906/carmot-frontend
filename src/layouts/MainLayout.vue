@@ -50,6 +50,7 @@ const pageTitle = computed(() => {
     { prefix: '/configuracion/eps',       title: 'Configuración' },
     { prefix: '/configuracion/dias-no-laborables', title: 'Configuración' },
     { prefix: '/configuracion',           title: 'Configuración' },
+    { prefix: '/crm',                     title: 'CRM' },
     { prefix: '/dashboard',               title: 'Dashboard' },
     { prefix: '/estudiantes',             title: 'Estudiantes' },
     { prefix: '/perfil',                  title: 'Perfil' },

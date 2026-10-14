@@ -56,6 +56,17 @@ const matriculaService = {
   async precargaEstudiante(estudianteId) {
     const { data } = await api.get(`${BASE}/precarga-estudiante/${estudianteId}`)
     return data
+  },
+
+  /** Cambia el estado académico (aplazado, desertado, retirado, graduado…) con fecha y motivo. */
+  async cambiarEstadoAcademico(id, payload) {
+    const { data } = await api.post(`${BASE}/${id}/estado-academico`, payload)
+    return data
+  },
+
+  async historialEstados(id) {
+    const { data } = await api.get(`${BASE}/${id}/historial-estados`)
+    return data
   }
 }
 

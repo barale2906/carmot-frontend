@@ -83,6 +83,13 @@
             :options="statusFilterOptions"
           />
         </div>
+        <div class="w-full sm:w-[170px]">
+          <FormSelect
+            v-model="filters.estado_academico"
+            label="Estado académico:"
+            :options="[{ value: '', label: 'Todos' }, ...OPCIONES_ESTADO_ACADEMICO]"
+          />
+        </div>
         <div class="w-full sm:w-[180px]">
           <FormSelect
             v-model="filters.curso_id"
@@ -218,6 +225,13 @@
             </div>
           </template>
 
+          <!-- Estado académico -->
+          <template v-else-if="column.key === 'estado_academico'">
+            <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium" :class="claseEstadoAcademico(row.estado_academico)">
+              {{ row.estado_academico_texto ?? '—' }}
+            </span>
+          </template>
+
           <!-- Fallback -->
           <template v-else>
             {{ row[column.key] ?? '—' }}
@@ -280,6 +294,14 @@
               <NavIcon name="description" class="size-4" />
             </button>
             <button
+              type="button"
+              class="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              :title="can('aca_matriculaEstado') ? 'Cambiar estado académico' : 'Historial de estado académico'"
+              @click="openEstadoAcademico(row)"
+            >
+              <NavIcon name="school" class="size-4" />
+            </button>
+            <button
               v-if="canEditar"
               type="button"
               class="rounded p-1.5 text-slate-500 transition-colors hover:bg-blue-100 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -330,13 +352,22 @@
       </div>
     </section>
 
+    <!-- ── Modal: estado académico (cambio + historial) ───────────────────── -->
+    <MatriculaEstadoAcademicoModal
+      v-model="estadoAcademicoOpen"
+      :matricula="estadoAcademicoMatricula"
+      :can-cambiar="can('aca_matriculaEstado')"
+      @changed="onEstadoAcademicoChanged"
+    />
+
     <!-- ── Wizard: nueva matrícula ────────────────────────────────────────── -->
     <MatriculaWizardModal
       :open="wizardOpen"
       :cursos="cursosRef"
       :sedes="sedesRef"
       :comerciales="comercialesRef"
-      @close="wizardOpen = false"
+      :referido="referidoLead"
+      @close="closeWizard"
       @saved="onWizardSaved"
     />
 
@@ -752,6 +783,8 @@ import FormSelect   from '@/components/forms/FormSelect.vue'
 import FormTextarea from '@/components/forms/FormTextarea.vue'
 import FormInputSearch from '@/components/forms/FormInputSearch.vue'
 import MatriculaWizardModal from '@/components/academico/MatriculaWizardModal.vue'
+import MatriculaEstadoAcademicoModal from '@/components/academico/MatriculaEstadoAcademicoModal.vue'
+import { OPCIONES_ESTADO_ACADEMICO, claseEstadoAcademico } from '@/utils/estadoAcademico.js'
 import MatriculaPrintModal  from '@/components/academico/MatriculaPrintModal.vue'
 import MatriculaDocumentosModal from '@/components/academico/MatriculaDocumentosModal.vue'
 import { buildPrintDataFromRecord, fetchAllPoblaciones } from '@/composables/useMatriculaWizard.js'
@@ -760,6 +793,7 @@ import matriculaService from '@/services/matriculaService.js'
 import cicloService     from '@/services/cicloService.js'
 import sedeService      from '@/services/sedeService.js'
 import userService      from '@/services/userService.js'
+import referidoService  from '@/services/referidoService.js'
 import { useNotification } from '@/composables/useNotification'
 import { usePermisos } from '@/composables/usePermisos.js'
 import { nombreCompleto } from '@/utils/formatters.js'
@@ -792,13 +826,15 @@ const columns = [
   { key: 'curso',           label: 'Curso / Ciclo'   },
   { key: 'fecha_matricula', label: 'Fecha matrícula', format: 'date' },
   { key: 'monto',           label: 'Monto',           format: 'currency' },
-  { key: 'status',          label: 'Estado'          }
+  { key: 'status',          label: 'Estado'          },
+  { key: 'estado_academico', label: 'Estado académico' }
 ]
 
 // ─── Filtros ──────────────────────────────────────────────────────────────────
 const filters = reactive({
   search:      '',
   status:      '',
+  estado_academico: '',
   curso_id:    '',
   ciclo_id:    '',
   only_trashed: false
@@ -806,7 +842,7 @@ const filters = reactive({
 let searchTimer = null
 
 const hasActiveFilters = computed(() =>
-  !!filters.search || !!filters.status || !!filters.curso_id ||
+  !!filters.search || !!filters.status || !!filters.estado_academico || !!filters.curso_id ||
   !!filters.ciclo_id || filters.only_trashed
 )
 
@@ -932,6 +968,7 @@ async function loadData(page = pagination.value?.current_page ?? 1) {
     }
     if (filters.search)        params.search       = filters.search
     if (filters.status !== '') params.status        = filters.status
+    if (filters.estado_academico) params.estado_academico = filters.estado_academico
     if (filters.curso_id)      params.curso_id      = filters.curso_id
     if (filters.ciclo_id)      params.ciclo_id      = filters.ciclo_id
     if (filters.only_trashed)  params.only_trashed  = true
@@ -993,7 +1030,7 @@ async function loadComerciales() {
 
 // ─── Watchers de filtros ──────────────────────────────────────────────────────
 watch(
-  () => [filters.status, filters.curso_id, filters.ciclo_id, filters.only_trashed],
+  () => [filters.status, filters.estado_academico, filters.curso_id, filters.ciclo_id, filters.only_trashed],
   () => loadData(1)
 )
 
@@ -1008,6 +1045,7 @@ watch(
 function clearFilters() {
   filters.search      = ''
   filters.status      = ''
+  filters.estado_academico = ''
   filters.curso_id    = ''
   filters.ciclo_id    = ''
   filters.only_trashed = false
@@ -1022,9 +1060,42 @@ function onPageChange(page) {
   loadData(page)
 }
 
+// ─── Estado académico ─────────────────────────────────────────────────────────
+const estadoAcademicoOpen      = ref(false)
+const estadoAcademicoMatricula = ref(null)
+
+function openEstadoAcademico(row) {
+  estadoAcademicoMatricula.value = row
+  estadoAcademicoOpen.value      = true
+}
+
+function onEstadoAcademicoChanged() {
+  Promise.all([loadData(), loadStatistics()])
+}
+
 // ─── Wizard: crear ────────────────────────────────────────────────────────────
 function openCreate() {
+  referidoLead.value = null
+  wizardOpen.value   = true
+}
+
+/** Lead del CRM que se convierte en matrícula (llega desde CRM → Leads con ?referido=ID). */
+const referidoLead = ref(null)
+
+async function openFromReferido(referidoId) {
+  try {
+    const res = await referidoService.getById(referidoId, { with: 'curso,gestor' })
+    referidoLead.value = res.data ?? null
+  } catch {
+    notifyError('No se pudo cargar el lead a convertir.')
+    return
+  }
   wizardOpen.value = true
+}
+
+function closeWizard() {
+  wizardOpen.value   = false
+  referidoLead.value = null
 }
 
 /**
@@ -1248,7 +1319,9 @@ onMounted(async () => {
     loadPermisos()
   ])
 
-  if (route.query.action === 'create' && canCrear.value) {
+  if (route.query.referido && canCrear.value) {
+    openFromReferido(route.query.referido)
+  } else if (route.query.action === 'create' && canCrear.value) {
     openCreate()
   }
 })

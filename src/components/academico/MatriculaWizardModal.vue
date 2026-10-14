@@ -79,6 +79,16 @@
                Cuerpo (scrollable)
           ═══════════════════════════════════════ -->
           <div class="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+            <!-- Conversión de un lead del CRM -->
+            <div
+              v-if="referido"
+              class="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800"
+            >
+              Convirtiendo el lead <strong>{{ referido.nombre || 'sin nombre' }}</strong>
+              ({{ referido.celular }}). Su curso de interés, celular, tallas y asesor se precargan;
+              al guardar, el lead queda como <strong>Matriculado</strong>.
+            </div>
+
             <!-- Error global de API -->
             <div
               v-if="apiError"
@@ -927,7 +937,9 @@ const props = defineProps({
   open:        { type: Boolean, default: false },
   cursos:      { type: Array,   default: () => [] },
   sedes:       { type: Array,   default: () => [] },
-  comerciales: { type: Array,   default: () => [] }
+  comerciales: { type: Array,   default: () => [] },
+  /** Lead del CRM a convertir; null para una matrícula normal. */
+  referido:    { type: Object,  default: null }
 })
 const emit = defineEmits(['close', 'saved'])
 
@@ -935,7 +947,7 @@ const { success: notifySuccess } = useNotification()
 
 // ─── Lógica de negocio (composable) ───────────────────────────────────────────
 const {
-  currentStep, saving, apiError, fieldErrors,
+  currentStep, saving, apiError, fieldErrors, referido,
   canProceed, canGoToStep, goToStep, nextStep,
   stepCircleClass, stepLabelClass,
 
@@ -993,7 +1005,7 @@ function onBusquedaFocusOut(event) {
   if (!event.currentTarget.contains(event.relatedTarget)) ocultarResultados()
 }
 
-watch(() => props.open, (val) => { if (val) init() })
+watch(() => props.open, (val) => { if (val) init(props.referido) })
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Micro-componentes internos del wizard
