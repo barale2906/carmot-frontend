@@ -205,7 +205,7 @@
               </button>
             </div>
 
-            <div v-if="actionError" class="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{{ actionError }}</div>
+            <div v-if="actionError" class="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ actionError }}</div>
           </div>
         </div>
       </div>
@@ -266,7 +266,7 @@
           />
           <p class="mt-1 text-right text-xs text-slate-400">{{ motivoRechazo.length }}/500</p>
         </div>
-        <div v-if="modalError" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">{{ modalError }}</div>
+        <div v-if="modalError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ modalError }}</div>
       </div>
       <template #footer>
         <button type="button" class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showRechazarModal = false">Cancelar</button>
@@ -280,6 +280,7 @@
 </template>
 
 <script setup>
+import { formatMoney } from '@/utils/formatters.js'
 import { ref, reactive, computed, onMounted } from 'vue'
 import reciboPagoService   from '@/services/reciboPagoService.js'
 import invVentaService     from '@/services/invVentaService.js'
@@ -300,10 +301,6 @@ function isImageUrl(url) {
   return /\.(jpe?g|png|webp|gif)(\?.*)?$/i.test(url)
 }
 
-function formatMoney(val) {
-  if (val == null) return '0'
-  return Number(val).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-}
 
 function bancoNombre(mp) {
   return mp?.banco_nombre ?? mp?.banco?.nombre ?? null

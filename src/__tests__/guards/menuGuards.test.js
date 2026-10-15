@@ -1,11 +1,17 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { authGuard, permissionGuard, menuItemGuard, protectedGuard } from '@/guards/menuGuards.js'
+import { authGuard, permissionGuard, menuItemGuard, protectedGuard, routeAccessGuard, entrarAlModulo } from '@/guards/menuGuards.js'
 
 vi.mock('@/services/authService.js', () => ({
   authService: {
-    isAuthenticated: vi.fn(),
-    hasPermission:   vi.fn(),
+    isAuthenticated:  vi.fn(),
+    hasPermission:    vi.fn(),
+    esSoloEstudiante: vi.fn(),
+    getUser:          vi.fn(),
   },
+}))
+
+vi.mock('@/composables/useNotification', () => ({
+  notify: { error: vi.fn() },
 }))
 
 vi.mock('@/services/menuService.js', () => ({
@@ -13,11 +19,13 @@ vi.mock('@/services/menuService.js', () => ({
     isCached:       vi.fn(),
     getMenu:        vi.fn(),
     isRouteEnabled: vi.fn(),
+    primeraRutaBajo: vi.fn(),
   },
 }))
 
 import { authService } from '@/services/authService.js'
 import { menuService } from '@/services/menuService.js'
+import { notify } from '@/composables/useNotification'
 
 // Helper: crea un mock de `next` limpio en cada test
 const mkNext = () => vi.fn()
@@ -219,5 +227,80 @@ describe('protectedGuard', () => {
     await protectedGuard({ meta: { permission: 'ver-algo' }, path: '/algo' }, {}, next)
 
     expect(next).toHaveBeenCalledWith('/dashboard')
+  })
+})
+
+// ── routeAccessGuard (guard global del router) ─────────────────────────────
+
+describe('routeAccessGuard', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('deja pasar rutas sin permiso exigido sin consultar el perfil', async () => {
+    expect(await routeAccessGuard({ meta: {}, path: '/dashboard' })).toBe(true)
+    expect(authService.hasPermission).not.toHaveBeenCalled()
+  })
+
+  it('manda al login si la ruta exige permiso y no hay sesión', async () => {
+    authService.isAuthenticated.mockReturnValue(false)
+    expect(await routeAccessGuard({ meta: { permission: 'aca_matriculas' } })).toBe('/')
+  })
+
+  it('redirige a /dashboard cuando falta el permiso de la ruta', async () => {
+    authService.isAuthenticated.mockReturnValue(true)
+    authService.hasPermission.mockResolvedValue(false)
+
+    expect(await routeAccessGuard({ meta: { permission: 'fin_carteras' } })).toBe('/dashboard')
+  })
+
+  it('permite la ruta cuando tiene el permiso', async () => {
+    authService.isAuthenticated.mockReturnValue(true)
+    authService.hasPermission.mockResolvedValue(true)
+
+    expect(await routeAccessGuard({ meta: { permission: 'fin_carteras' } })).toBe(true)
+  })
+
+  it('niega una pantalla del personal al alumno aunque tenga el permiso de consulta', async () => {
+    authService.isAuthenticated.mockReturnValue(true)
+    authService.hasPermission.mockResolvedValue(true)
+    authService.esSoloEstudiante.mockResolvedValue(true)
+
+    expect(await routeAccessGuard({ meta: { permission: 'aca_notas', soloPersonal: true } })).toBe('/dashboard')
+  })
+
+  it('permite la pantalla del personal a quien no es solo alumno', async () => {
+    authService.isAuthenticated.mockReturnValue(true)
+    authService.hasPermission.mockResolvedValue(true)
+    authService.esSoloEstudiante.mockResolvedValue(false)
+
+    expect(await routeAccessGuard({ meta: { permission: 'aca_notas', soloPersonal: true } })).toBe(true)
+  })
+
+  it('redirige a /dashboard con aviso de conexión si falla la consulta del perfil', async () => {
+    authService.isAuthenticated.mockReturnValue(true)
+    authService.getUser.mockRejectedValue({ status: 429 })
+
+    expect(await routeAccessGuard({ meta: { permission: 'aca_notas' } })).toBe('/dashboard')
+    expect(notify.error).toHaveBeenCalledWith(expect.stringContaining('No se pudo verificar'), 'Error de conexión')
+  })
+})
+
+// ── entrarAlModulo (F01) ───────────────────────────────────────────────────
+
+describe('entrarAlModulo', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('lleva a la primera opción del módulo en el menú', async () => {
+    menuService.getMenu.mockResolvedValue([])
+    menuService.primeraRutaBajo.mockReturnValue('/financiero/recibos-pago')
+
+    expect(await entrarAlModulo({ path: '/financiero/' })).toBe('/financiero/recibos-pago')
+    expect(menuService.primeraRutaBajo).toHaveBeenCalledWith('/financiero')
+  })
+
+  it('vuelve al dashboard si el usuario no tiene opciones en el módulo', async () => {
+    menuService.getMenu.mockResolvedValue([])
+    menuService.primeraRutaBajo.mockReturnValue(null)
+
+    expect(await entrarAlModulo({ path: '/inventario' })).toBe('/dashboard')
   })
 })

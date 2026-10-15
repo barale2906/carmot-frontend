@@ -3,7 +3,7 @@
 
     <!-- ── Encabezado institucional ──────────────────────────────────────────── -->
     <div class="flex items-center gap-4 border-b border-black/10 pb-4">
-      <Logo size="small" class="size-14 shrink-0" />
+      <Logo fondo="claro" :width="140" height="auto" class="shrink-0" />
       <div>
         <h3 class="text-base font-semibold text-[#213360]">Centro de Capacitaciones CARMOT</h3>
         <p class="text-xs text-slate-500">NIT: 1.048.849.874-0</p>
@@ -250,7 +250,7 @@
                           :title="item.motivo"
                         >Costo cero</span>
                         <span
-                          v-else-if="item.pagado >= item.saldo"
+                          v-else-if="item.cierra ?? item.pagado >= item.saldo"
                           class="ml-1.5 inline-flex rounded px-1.5 py-0.5 text-[10px] font-semibold bg-[#213360] text-white"
                         >Pagada</span>
                         <span
@@ -403,7 +403,7 @@
         <div class="grid gap-4 sm:grid-cols-2">
           <FormInput
             v-model.number="form.monto_a_pagar"
-            label="Valor a pagar *"
+            label="Valor a pagar"
             type="number"
             min="0"
             step="1"
@@ -418,7 +418,7 @@
           </FormInput>
           <FormInput
             v-model="form.fecha_recibo"
-            label="Fecha de pago *"
+            label="Fecha de pago"
             type="date"
             help="Día en que se recibe el dinero."
             :error="fieldErrors.fecha_recibo?.[0]"
@@ -610,7 +610,7 @@
       </section>
 
       <!-- ── Error general ───────────────────────────────────────────────────── -->
-      <div v-if="formError" class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      <div v-if="formError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
         {{ formError }}
       </div>
 
@@ -710,6 +710,7 @@
 </template>
 
 <script setup>
+import { formatMoney } from '@/utils/formatters.js'
 import { ref, reactive, computed, watch, onMounted, toRaw, nextTick } from 'vue'
 import { useRoute, useRouter }    from 'vue-router'
 import Logo                       from '@/components/Logo.vue'
@@ -720,7 +721,7 @@ import FormSelect                  from '@/components/forms/FormSelect.vue'
 import SearchableSelect            from '@/components/forms/SearchableSelect.vue'
 import ModalPagoTarjeta            from '@/components/ModalPagoTarjeta.vue'
 import ModalPagoConsignacion       from '@/components/ModalPagoConsignacion.vue'
-import userService                 from '@/services/userService.js'
+import estudianteService           from '@/services/estudianteService.js'
 import carteraService              from '@/services/carteraService.js'
 import conceptoPagoService         from '@/services/conceptoPagoService.js'
 import reciboPagoService           from '@/services/reciboPagoService.js'
@@ -777,6 +778,8 @@ const itemsCargados    = ref([])   // [{ tipo, label, valor?, cantidad?, saldo?,
 const descuentoMotivo  = ref('')   // motivo cuando precalcular-descuento devuelve aplica:false
 // Cuotas con valor 0 o descuento del 100 %: se descargan sin pago (precalcular-descuento → cuotas_costo_cero)
 const cuotasCostoCero  = ref([])   // [{ cartera_id, numero_cuota, valor, saldo, descuento, motivo }]
+// Mínimo a pagar con descuentos que calcula el backend (null = aún no consultado, F09)
+const minimoBackend    = ref(null)
 
 // ─── Recibo de transferencia creado (pendiente aprobación) ────────────────────
 const reciboTransferenciaCreado = ref(null)
@@ -868,8 +871,12 @@ const esCostoCero = computed(() =>
   && conceptosAdicionales.value.length === 0
 )
 
-/** Suma del saldo de cuotas vencidas o con vencimiento hoy — es el mínimo a pagar. */
+/**
+ * Mínimo a pagar: el del backend (costo efectivo con descuentos de las cuotas vencidas);
+ * si no está disponible, la suma del saldo de las cuotas vencidas o que vencen hoy.
+ */
 const minimoAPagar = computed(() => {
+  if (minimoBackend.value !== null) return Number(minimoBackend.value)
   const hoy = today()
   return cuotasPendientes.value
     .filter(c => !c.fecha_vencimiento || c.fecha_vencimiento <= hoy)
@@ -944,10 +951,6 @@ watch(
 )
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-function formatMoney(val) {
-  if (val == null) return '0'
-  return Number(val).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-}
 
 function etiquetaCuota(numeroCuota) {
   return numeroCuota === 0 ? 'Matrícula' : `Cuota ${numeroCuota}`
@@ -988,7 +991,7 @@ async function buscarEstudiante() {
   sinResultados.value      = false
   resultadosBusqueda.value = []
   try {
-    const res = await userService.getAll({ search: busqueda.value, per_page: 10 })
+    const res = await estudianteService.buscar({ search: busqueda.value, per_page: 10 })
     resultadosBusqueda.value = res.data ?? []
     sinResultados.value = resultadosBusqueda.value.length === 0
   } catch {
@@ -1085,6 +1088,7 @@ async function cargarCuotasCostoCero() {
   const matriculaId = deudaSeleccionada.value?.matricula_id
   if (!matriculaId) {
     cuotasCostoCero.value = []
+    minimoBackend.value   = null
     return
   }
   try {
@@ -1094,8 +1098,10 @@ async function cargarCuotasCostoCero() {
       fecha_transaccion: form.fecha_recibo,
     })
     cuotasCostoCero.value = res.data?.cuotas_costo_cero ?? []
+    minimoBackend.value   = res.data?.minimo_a_pagar ?? null
   } catch {
     cuotasCostoCero.value = []
+    minimoBackend.value   = null
   }
 }
 
@@ -1206,6 +1212,31 @@ async function calcular() {
         fecha_transaccion: form.fecha_recibo,
       })
       const desc = descRes.data
+
+      // Reparto exacto del backend: el mismo que aplicará el recibo (abono y descuento por cuota, F09)
+      if (desc?.distribucion_error) {
+        formError.value = desc.distribucion_error
+      } else if (Array.isArray(desc?.distribucion)) {
+        const deCuotas = items.filter(i => i.tipo !== 'cuota')
+        const cuotas = desc.distribucion.map((linea) => {
+          const cuota = historialCuotas.value.find(c => c.id === linea.cartera_id)
+          const costoCero = idsCostoCero.value.has(linea.cartera_id)
+          return {
+            tipo:           'cuota',
+            label:          etiquetaCuota(linea.numero_cuota),
+            conceptoNombre: conceptoCuota(cuota ?? linea),
+            numero_cuota:   linea.numero_cuota,
+            saldo:          linea.saldo,
+            valorBruto:     Number(cuota?.valor) || linea.saldo,
+            esAbonada:      cuota?.status === 1,
+            costoCero,
+            motivo:         costoCero ? (cuotasCostoCero.value.find(c => c.cartera_id === linea.cartera_id)?.motivo ?? 'Valor $ 0') : '',
+            pagado:         linea.valor,
+            cierra:         linea.cierra,
+          }
+        })
+        items.splice(0, items.length, ...deCuotas, ...cuotas.sort((a, b) => a.numero_cuota - b.numero_cuota))
+      }
 
       // Descuento pronto pago (cuotas mensuales numero_cuota >= 1)
       if (desc?.aplica) {
@@ -1528,7 +1559,7 @@ onMounted(async () => {
   matriculaPrecargada.value  = Boolean(qMatricula)
 
   try {
-    const res = await userService.getById(qEstudiante)
+    const res = await estudianteService.getById(qEstudiante)
     const est = res.data ?? res
     estudiante.value = {
       id:        est.id,

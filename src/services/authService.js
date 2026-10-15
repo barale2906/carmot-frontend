@@ -5,6 +5,13 @@ import api from './api'
  */
 export const authService = {
   /**
+   * Promesa del perfil (/user) compartida durante la sesión, para no repetir la
+   * petición en cada navegación ni en cada componente. Se limpia al entrar o salir.
+   * @private
+   */
+  _userPromise: null,
+
+  /**
    * Iniciar sesión
    * @param {string} email - Email del usuario
    * @param {string} password - Contraseña del usuario
@@ -17,6 +24,8 @@ export const authService = {
         password
       })
       
+      this.clearUserCache()
+
       // Guardar token en localStorage
       if (response.data.access_token) {
         localStorage.setItem('access_token', response.data.access_token)
@@ -47,6 +56,7 @@ export const authService = {
    * @returns {Promise}
    */
   async logout() {
+    this.clearUserCache()
     try {
       await api.post('/logout')
       // Limpiar tokens
@@ -82,15 +92,58 @@ export const authService = {
    * @returns {Promise} Datos del usuario
    */
   async getUser() {
-    try {
-      const response = await api.get('/user')
-      return response.data
-    } catch (error) {
-      throw {
-        message: error.response?.data?.message || 'Error al obtener información del usuario',
-        status: error.response?.status
-      }
+    if (!this._userPromise) {
+      this._userPromise = api.get('/user')
+        .then((response) => response.data)
+        .catch((error) => {
+          // No dejar en caché un fallo: el siguiente llamado reintenta
+          this._userPromise = null
+          throw {
+            message: error.response?.data?.message || 'Error al obtener información del usuario',
+            status: error.response?.status
+          }
+        })
     }
+    return this._userPromise
+  },
+
+  /**
+   * Descartar el perfil en caché (al iniciar o cerrar sesión, o si cambian los permisos)
+   */
+  clearUserCache() {
+    this._userPromise = null
+  },
+
+  /**
+   * Indica si el usuario solo dicta clases (rol profesor, sin roles del personal):
+   * solo ve y registra en sus propios grupos.
+   * @returns {Promise<boolean>}
+   */
+  async esSoloProfesor() {
+    const userData = await this.getUser()
+    const roles = (userData.roles || []).map((r) => (typeof r === 'string' ? r : r?.name))
+    return roles.includes('profesor') && roles.every((rol) => ['profesor', 'alumno'].includes(rol))
+  },
+
+  /**
+   * Indica si el usuario tiene el rol superusuario: algunas acciones, como devolver un
+   * aplazamiento, son solo suyas sin importar los permisos de los demás roles (N25).
+   * @returns {Promise<boolean>}
+   */
+  async esSuperusuario() {
+    const userData = await this.getUser()
+    return (userData.roles || []).some((r) => (typeof r === 'string' ? r : r?.name) === 'superusuario')
+  },
+
+  /**
+   * Indica si el usuario solo tiene el rol de alumno: no accede a pantallas del personal
+   * aunque tenga permisos de consulta (el backend le limita los datos a los suyos).
+   * @returns {Promise<boolean>}
+   */
+  async esSoloEstudiante() {
+    const userData = await this.getUser()
+    const roles = (userData.roles || []).map((r) => (typeof r === 'string' ? r : r?.name))
+    return roles.length > 0 && roles.every((rol) => rol === 'alumno')
   },
 
   /**

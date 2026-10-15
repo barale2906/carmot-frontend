@@ -313,77 +313,16 @@
             <FormFieldHelp text="Módulos que conforman el curso y su duración agregada." />
           </div>
 
-          <div
-            class="relative"
-            @mousedown.prevent="moduloDropdownMousedown"
-          >
-            <div class="relative">
-              <span
-                class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-                aria-hidden="true"
-              >
-                <NavIcon name="search" class="size-4" />
-              </span>
-              <input
-                ref="moduloComboboxInputRef"
-                v-model="moduloSearch"
-                type="text"
-                placeholder="Escribe para buscar y agregar módulo..."
-                :disabled="modulosLoading"
-                autocomplete="off"
-                class="w-full rounded-lg border-0 bg-[#f3f3f5] py-2 pl-10 pr-9 text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                @focus="showModuloDropdown = true; moduloHighlightedIndex = -1"
-                @blur="handleModuloComboboxBlur"
-                @keydown="handleModuloComboboxKeydown"
-              />
-              <span
-                class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500"
-                aria-hidden="true"
-              >
-                <svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
-              </span>
-            </div>
-
-            <!-- Lista desplegable filtrada -->
-            <Transition
-              enter-active-class="transition duration-100 ease-out"
-              leave-active-class="transition duration-75 ease-in"
-              enter-from-class="opacity-0"
-              enter-to-class="opacity-100"
-              leave-from-class="opacity-100"
-              leave-to-class="opacity-0"
-            >
-              <ul
-                v-if="showModuloDropdown && !modulosLoading"
-                class="absolute left-0 right-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-lg border border-black/10 bg-white py-1 shadow-lg"
-                role="listbox"
-              >
-                <li
-                  v-if="modulosDisponiblesFiltrados.length === 0"
-                  class="px-3 py-2 text-sm text-slate-500"
-                >
-                  Sin módulos que coincidan
-                </li>
-                <li
-                  v-for="(mod, idx) in modulosDisponiblesFiltrados"
-                  v-else
-                  :key="mod.id"
-                  :id="`modulo-option-${idx}`"
-                  role="option"
-                  :aria-selected="moduloHighlightedIndex === idx"
-                  :class="[
-                    'cursor-pointer px-3 py-2 text-sm transition-colors',
-                    moduloHighlightedIndex === idx ? 'bg-blue-100 text-blue-900' : 'text-slate-900 hover:bg-blue-50 hover:text-blue-900'
-                  ]"
-                  @mousedown.prevent="selectModulo(mod)"
-                >
-                  {{ mod.duracion != null ? `${mod.duracion}h — ` : '' }}{{ mod.nombre }}
-                </li>
-              </ul>
-            </Transition>
-          </div>
+          <SearchableSelect
+            :options="modulosOpciones"
+            :disabled="modulosLoading"
+            keep-open
+            variant="outline"
+            placeholder="Buscar y agregar módulo..."
+            search-placeholder="Escribe para buscar módulo..."
+            empty-text="Sin módulos que coincidan"
+            @select="selectModulo($event.raw)"
+          />
 
           <!-- Badges de módulos seleccionados -->
           <div v-if="form.moduloIds.length" class="flex flex-wrap gap-1.5 rounded-lg border border-black/10 bg-slate-50 p-2">
@@ -469,10 +408,10 @@
           </div>
         </div>
 
-        <div v-if="formError" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div v-if="formError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {{ formError }}
         </div>
-        <div v-if="fieldErrors && Object.keys(fieldErrors).length" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div v-if="fieldErrors && Object.keys(fieldErrors).length" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           <ul class="list-inside list-disc space-y-1">
             <li v-for="(msgs, field) in fieldErrors" :key="field">
               <strong>{{ field }}:</strong> {{ Array.isArray(msgs) ? msgs.join(', ') : msgs }}
@@ -515,7 +454,7 @@
         <p class="mt-2 text-xs text-slate-500">
           No se puede eliminar si el curso tiene referidos o estudiantes asociados.
         </p>
-        <div v-if="actionError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div v-if="actionError" class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {{ actionError }}
         </div>
       </div>
@@ -548,7 +487,7 @@
         <p class="text-sm text-slate-700">
           ¿Deseas restaurar <strong>{{ targetCurso?.nombre }}</strong>?
         </p>
-        <div v-if="actionError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div v-if="actionError" class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {{ actionError }}
         </div>
       </div>
@@ -585,7 +524,7 @@
         <p class="mt-2 text-xs text-amber-600">
           Esta acción no se puede deshacer. No se puede eliminar si el curso tiene referidos o estudiantes asociados.
         </p>
-        <div v-if="actionError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div v-if="actionError" class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {{ actionError }}
         </div>
       </div>
@@ -872,7 +811,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import StatCard from '@/components/dashboard/StatCard.vue'
 import DataTable from '@/components/activos/DataTable.vue'
 import SectionHeader from '@/components/activos/SectionHeader.vue'
@@ -880,6 +819,7 @@ import StatusBadge from '@/components/activos/StatusBadge.vue'
 import FormInput from '@/components/forms/FormInput.vue'
 import FormInputSearch from '@/components/forms/FormInputSearch.vue'
 import FormSelect from '@/components/forms/FormSelect.vue'
+import SearchableSelect from '@/components/forms/SearchableSelect.vue'
 import FormFieldHelp from '@/components/forms/FormFieldHelp.vue'
 import NavIcon from '@/components/icons/NavIcon.vue'
 import ModalBase from '@/components/ModalBase.vue'
@@ -1058,16 +998,11 @@ const form = reactive({
 // ─── Catálogo de módulos ───────────────────────────────────────────────────────
 const todosLosModulos = ref([])
 const modulosLoading = ref(false)
-const moduloSearch = ref('')
-const showModuloDropdown = ref(false)
-const moduloComboboxInputRef = ref(null)
-const moduloHighlightedIndex = ref(-1)
 /** Módulos del curso al editar (desde API) para mostrar nombres aunque no estén en catálogo */
 const modulosDelCurso = ref([])
 
 async function loadModulosCatalogo() {
   modulosLoading.value = true
-  moduloSearch.value = ''
   try {
     const all = []
     let page = 1
@@ -1098,14 +1033,15 @@ const modulosDisponibles = computed(() =>
   todosLosModulos.value.filter((m) => !form.moduloIds.includes(m.id))
 )
 
-/** Módulos disponibles filtrados por búsqueda */
-const modulosDisponiblesFiltrados = computed(() => {
-  const term = (moduloSearch.value ?? '').trim().toLowerCase()
-  if (!term) return modulosDisponibles.value
-  return modulosDisponibles.value.filter((m) =>
-    (m.nombre ?? '').toLowerCase().includes(term)
-  )
-})
+/** Opciones del selector: módulos aún no agregados, con su duración como detalle */
+const modulosOpciones = computed(() =>
+  modulosDisponibles.value.map((m) => ({
+    value: m.id,
+    label: m.nombre,
+    description: m.duracion != null ? `${m.duracion} h` : undefined,
+    raw: m
+  }))
+)
 
 function getModuloNombre(id) {
   const fromCatalog = todosLosModulos.value.find((m) => m.id === id)
@@ -1134,10 +1070,6 @@ watch(
   }
 )
 
-watch(moduloSearch, () => {
-  moduloHighlightedIndex.value = -1
-})
-
 function addModulo(rawId) {
   const id = Number(rawId)
   if (id && !form.moduloIds.includes(id)) {
@@ -1150,64 +1082,6 @@ function selectModulo(mod) {
   // Agregar al final de la lista de orden
   if (!moduloOrdenEdicion.value.find((m) => m.id === mod.id)) {
     moduloOrdenEdicion.value.push({ id: mod.id, nombre: mod.nombre, duracion: mod.duracion ?? null })
-  }
-  moduloSearch.value = ''
-  moduloHighlightedIndex.value = -1
-  showModuloDropdown.value = true
-  nextTick(() => moduloComboboxInputRef.value?.focus())
-}
-
-function moduloDropdownMousedown() {
-  moduloComboboxInputRef.value?.focus()
-}
-
-function handleModuloComboboxBlur() {
-  setTimeout(() => {
-    if (document.activeElement !== moduloComboboxInputRef.value) {
-      showModuloDropdown.value = false
-      moduloHighlightedIndex.value = -1
-    }
-  }, 150)
-}
-
-function handleModuloComboboxKeydown(e) {
-  const list = modulosDisponiblesFiltrados.value
-  const len = list.length
-
-  if (e.key === 'Escape') {
-    showModuloDropdown.value = false
-    moduloSearch.value = ''
-    moduloHighlightedIndex.value = -1
-    e.preventDefault()
-    return
-  }
-
-  if (!showModuloDropdown.value || len === 0) {
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      showModuloDropdown.value = true
-      moduloHighlightedIndex.value = len > 0 ? (e.key === 'ArrowDown' ? 0 : len - 1) : -1
-      e.preventDefault()
-    }
-    return
-  }
-
-  if (e.key === 'ArrowDown') {
-    moduloHighlightedIndex.value = moduloHighlightedIndex.value < len - 1 ? moduloHighlightedIndex.value + 1 : 0
-    nextTick(() => document.getElementById(`modulo-option-${moduloHighlightedIndex.value}`)?.scrollIntoView({ block: 'nearest' }))
-    e.preventDefault()
-    return
-  }
-
-  if (e.key === 'ArrowUp') {
-    moduloHighlightedIndex.value = moduloHighlightedIndex.value > 0 ? moduloHighlightedIndex.value - 1 : len - 1
-    nextTick(() => document.getElementById(`modulo-option-${moduloHighlightedIndex.value}`)?.scrollIntoView({ block: 'nearest' }))
-    e.preventDefault()
-    return
-  }
-
-  if (e.key === 'Enter' && moduloHighlightedIndex.value >= 0 && list[moduloHighlightedIndex.value]) {
-    selectModulo(list[moduloHighlightedIndex.value])
-    e.preventDefault()
   }
 }
 
@@ -1237,7 +1111,6 @@ function resetForm() {
   form.tipo = 0
   form.status = 1
   form.moduloIds.splice(0)
-  moduloSearch.value = ''
   modulosDelCurso.value = []
   moduloOrdenEdicion.value = []
   formError.value = ''

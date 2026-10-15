@@ -33,3 +33,16 @@ export function opcionesBanco(bancos) {
     label: b.codigo ? `${b.nombre} (${b.codigo})` : b.nombre
   }))
 }
+
+/**
+ * Valor en pesos con el formato colombiano, sin decimales: 720000 → "720.000".
+ * Única fuente para todas las pantallas (antes había listados con "720,000.00", F07).
+ *
+ * @param {number|string|null} valor
+ * @returns {string}
+ */
+export function formatMoney(valor) {
+  const numero = Math.round(Number(valor) || 0)
+  const signo = numero < 0 ? '-' : ''
+  return signo + String(Math.abs(numero)).replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+}

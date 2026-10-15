@@ -14,7 +14,7 @@
         class="fixed inset-0 z-[1100] flex items-start justify-center overflow-y-auto bg-black/50 px-4 py-8"
       >
         <div
-          class="relative my-auto w-full max-w-2xl rounded-xl border border-black/10 bg-white shadow-xl"
+          class="relative my-auto w-full max-w-2xl rounded-[10px] border border-black/10 bg-white shadow-xl"
           @click.stop
         >
           <!-- Cabecera del modal (no se imprime) -->
@@ -240,6 +240,7 @@
 </template>
 
 <script setup>
+import { formatMoney } from '@/utils/formatters.js'
 import { computed, ref, watch } from 'vue'
 import NavIcon          from '@/components/icons/NavIcon.vue'
 import logoSrc          from '@/assets/images/logo.svg'
@@ -310,10 +311,6 @@ const nombreCurso = computed(() => {
   return curso.nombre ?? '—'
 })
 
-function formatMoney(val) {
-  if (val == null) return '0'
-  return Number(val).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-}
 
 /** Nombre legible del concepto de cartera en el recibo. */
 function cpNombre(cp) {

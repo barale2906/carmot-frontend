@@ -258,7 +258,7 @@
               </button>
             </div>
 
-            <div v-if="actionError" class="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+            <div v-if="actionError" class="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
               {{ actionError }}
             </div>
           </div>
@@ -333,7 +333,7 @@
           />
           <p class="mt-1 text-right text-xs text-slate-400">{{ motivoRechazo.length }}/500</p>
         </div>
-        <div v-if="modalError" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div v-if="modalError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {{ modalError }}
         </div>
       </div>
@@ -358,6 +358,7 @@
 </template>
 
 <script setup>
+import { formatMoney } from '@/utils/formatters.js'
 import { ref, reactive, computed, onMounted } from 'vue'
 import reciboPagoService   from '@/services/reciboPagoService.js'
 import ModalBase           from '@/components/ModalBase.vue'
@@ -419,10 +420,6 @@ function isImageUrl(url) {
 }
 
 // ─── Formateo ─────────────────────────────────────────────────────────────────
-function formatMoney(val) {
-  if (val == null) return '0'
-  return Number(val).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-}
 
 // ─── Carga de datos ───────────────────────────────────────────────────────────
 async function loadPendientes(page = 1) {

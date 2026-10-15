@@ -273,6 +273,11 @@
                   <p class="text-xs text-slate-500">Abonado</p>
                   <p class="font-mono text-sm font-medium text-green-700">$ {{ formatMoney(grupo.total_abono) }}</p>
                 </div>
+                <!-- Valor total = abonado + descuento + saldo (F16) -->
+                <div class="text-right">
+                  <p class="text-xs text-slate-500">Descuento</p>
+                  <p class="font-mono text-sm font-medium text-emerald-700">$ {{ formatMoney(grupo.total_descuento ?? 0) }}</p>
+                </div>
                 <div class="text-right">
                   <p class="text-xs text-slate-500">Saldo</p>
                   <p
@@ -298,6 +303,7 @@
                       <th class="px-4 py-2.5 text-xs font-medium text-slate-600">Vencimiento</th>
                       <th class="px-4 py-2.5 text-xs font-medium text-slate-600">Valor</th>
                       <th class="px-4 py-2.5 text-xs font-medium text-slate-600">Abonado</th>
+                      <th class="px-4 py-2.5 text-xs font-medium text-slate-600">Descuento</th>
                       <th class="px-4 py-2.5 text-xs font-medium text-slate-600">Saldo</th>
                       <th class="px-4 py-2.5 text-xs font-medium text-slate-600">Estado</th>
                       <th class="px-4 py-2.5 text-xs font-medium text-slate-600 text-right">Acciones</th>
@@ -322,6 +328,7 @@
                       </td>
                       <td class="px-4 py-3 font-mono text-sm text-slate-900">$ {{ formatMoney(cuota.valor) }}</td>
                       <td class="px-4 py-3 font-mono text-sm text-green-700">$ {{ formatMoney(cuota.abono) }}</td>
+                      <td class="px-4 py-3 font-mono text-sm text-emerald-700">$ {{ formatMoney(cuota.descuento ?? 0) }}</td>
                       <td class="px-4 py-3">
                         <span
                           class="font-mono text-sm"
@@ -459,6 +466,7 @@
 </template>
 
 <script setup>
+import { formatMoney } from '@/utils/formatters.js'
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import StatCard      from '@/components/dashboard/StatCard.vue'
 import SectionHeader from '@/components/activos/SectionHeader.vue'
@@ -469,7 +477,7 @@ import FormFieldHelp from '@/components/forms/FormFieldHelp.vue'
 import NavIcon       from '@/components/icons/NavIcon.vue'
 import ModalBase     from '@/components/ModalBase.vue'
 import carteraService from '@/services/carteraService.js'
-import userService    from '@/services/userService.js'
+import estudianteService from '@/services/estudianteService.js'
 import cursoService   from '@/services/cursoService.js'
 import cicloService   from '@/services/cicloService.js'
 
@@ -552,10 +560,6 @@ function statusBadgeVariant(status) {
   return map[status] ?? 'inactivo'
 }
 
-function formatMoney(val) {
-  if (val == null) return '0.00'
-  return Number(val).toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
 
 function esVencida(cuota) {
   if (!cuota.fecha_vencimiento) return false
@@ -654,7 +658,7 @@ async function ejecutarBusquedaEst() {
   resultadosEst.value    = []
   sinResultadosEst.value = false
   try {
-    const res = await userService.getAll({ search: busquedaEst.value, per_page: 10 })
+    const res = await estudianteService.buscar({ search: busquedaEst.value, per_page: 10 })
     resultadosEst.value    = res.data ?? []
     sinResultadosEst.value = resultadosEst.value.length === 0
   } catch {

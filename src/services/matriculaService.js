@@ -64,6 +64,12 @@ const matriculaService = {
     return data
   },
 
+  /** Evaluación de cierre: ciclo terminado, notas por módulo, asistencia y saldo (requisitos para graduar). */
+  async evaluacionCierre(id) {
+    const { data } = await api.get(`${BASE}/${id}/evaluacion-cierre`)
+    return data
+  },
+
   async historialEstados(id) {
     const { data } = await api.get(`${BASE}/${id}/historial-estados`)
     return data

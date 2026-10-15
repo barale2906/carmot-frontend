@@ -14,6 +14,71 @@ describe('authService', () => {
   beforeEach(() => {
     localStorage.clear()
     vi.clearAllMocks()
+    authService.clearUserCache()
+  })
+
+  // ── getUser (caché) ────────────────────────────────────────────────────────
+
+  describe('getUser', () => {
+    it('pide /user una sola vez aunque se llame varias veces a la par', async () => {
+      api.get.mockResolvedValue({ data: { id: 1, roles: [] } })
+
+      await Promise.all([authService.getUser(), authService.getUser(), authService.getUserPermissions()])
+
+      expect(api.get).toHaveBeenCalledTimes(1)
+    })
+
+    it('no deja en caché un fallo: el siguiente llamado reintenta', async () => {
+      api.get.mockRejectedValueOnce({ response: { status: 429 } })
+      api.get.mockResolvedValueOnce({ data: { id: 1 } })
+
+      await expect(authService.getUser()).rejects.toMatchObject({ status: 429 })
+      expect(await authService.getUser()).toEqual({ id: 1 })
+    })
+
+    it('vuelve a pedir el perfil después de iniciar sesión', async () => {
+      api.get.mockResolvedValue({ data: { id: 1 } })
+      api.post.mockResolvedValue({ data: { access_token: 't' } })
+
+      await authService.getUser()
+      await authService.login('a@b.co', 'x')
+      await authService.getUser()
+
+      expect(api.get).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  // ── esSoloProfesor ─────────────────────────────────────────────────────────
+
+  describe('esSoloProfesor', () => {
+    it('es verdadero con solo el rol profesor', async () => {
+      api.get.mockResolvedValue({ data: { roles: ['profesor'] } })
+      expect(await authService.esSoloProfesor()).toBe(true)
+    })
+
+    it('es falso si además tiene un rol del personal', async () => {
+      api.get.mockResolvedValue({ data: { roles: ['profesor', 'coordinador'] } })
+      expect(await authService.esSoloProfesor()).toBe(false)
+    })
+  })
+
+  // ── esSoloEstudiante ───────────────────────────────────────────────────────
+
+  describe('esSoloEstudiante', () => {
+    it('es verdadero cuando el único rol es alumno', async () => {
+      api.get.mockResolvedValue({ data: { roles: ['alumno'] } })
+      expect(await authService.esSoloEstudiante()).toBe(true)
+    })
+
+    it('es falso si además tiene un rol del personal', async () => {
+      api.get.mockResolvedValue({ data: { roles: ['alumno', 'profesor'] } })
+      expect(await authService.esSoloEstudiante()).toBe(false)
+    })
+
+    it('es falso si no tiene roles', async () => {
+      api.get.mockResolvedValue({ data: { roles: [] } })
+      expect(await authService.esSoloEstudiante()).toBe(false)
+    })
   })
 
   // ── login ──────────────────────────────────────────────────────────────────

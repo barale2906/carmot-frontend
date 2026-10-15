@@ -147,12 +147,12 @@
           <button type="button" class="text-xs font-medium text-blue-600 hover:underline focus:outline-none" @click="addOcItem">+ Agregar producto</button>
         </div>
 
-        <div v-if="ocError" class="rounded-lg border border-red-200 bg-red-50 p-3">
+        <div v-if="ocError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           <p class="text-sm text-red-700">{{ ocError }}</p>
         </div>
       </form>
       <template #footer>
-        <button type="button" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showForm = false">Cancelar</button>
+        <button type="button" class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showForm = false">Cancelar</button>
         <button type="button" :disabled="saving" class="rounded-lg bg-[#213360] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50" @click="handleSubmit">
           {{ saving ? 'Creando...' : 'Crear orden de compra' }}
         </button>
@@ -200,12 +200,12 @@
             <FormInput v-model="item.precio_costo_unitario" label="Precio costo" type="number" min="0" step="0.01" />
           </div>
         </div>
-        <div v-if="recepcionError" class="rounded-lg border border-red-200 bg-red-50 p-3">
+        <div v-if="recepcionError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           <p class="text-sm text-red-700">{{ recepcionError }}</p>
         </div>
       </div>
       <template #footer>
-        <button type="button" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showRecepcion = false">Cancelar</button>
+        <button type="button" class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showRecepcion = false">Cancelar</button>
         <button type="button" :disabled="savingRecepcion" class="rounded-lg bg-green-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50" @click="handleRecibir">
           {{ savingRecepcion ? 'Procesando...' : 'Confirmar recepción' }}
         </button>
@@ -229,6 +229,9 @@ import FormTextarea    from '@/components/forms/FormTextarea.vue'
 import FormSelect           from '@/components/forms/FormSelect.vue'
 import InvProductoBuscador from '@/components/inventario/InvProductoBuscador.vue'
 import ModalBase           from '@/components/ModalBase.vue'
+import { useConfirm } from '@/composables/useConfirm.js'
+
+const { confirm } = useConfirm()
 
 const { success: notifySuccess } = useNotification()
 
@@ -300,7 +303,7 @@ function clearFilters() { Object.assign(filters, { status: '', proveedor_id: '',
 function goToPage(p) { if (p >= 1 && p <= pagination.lastPage) loadOC(p) }
 
 async function handleEnviar(row) {
-  if (!confirm(`¿Enviar la OC #${row.id} al proveedor?`)) return
+  if (!await confirm(`¿Enviar la OC #${row.id} al proveedor?`, { title: 'Enviar orden de compra', confirmLabel: 'Enviar', danger: false })) return
   enviando.value = { ...enviando.value, [row.id]: true }; actionError.value = ''
   try { await invOrdenCompraService.enviar(row.id); notifySuccess('Orden de compra enviada al proveedor.'); loadOC(pagination.currentPage) }
   catch (e) { actionError.value = e?.response?.data?.message ?? 'No se pudo enviar la OC.' }

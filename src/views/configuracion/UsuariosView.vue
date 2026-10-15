@@ -375,14 +375,14 @@
           </template>
         </div>
 
-        <div v-if="formError" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div v-if="formError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {{ formError }}
         </div>
 
         <!-- Errores de campos sin input propio (ej: roles, sedes globales) -->
         <div
           v-if="fieldErrors && Object.keys(fieldErrors).filter(k => !['primer_nombre','segundo_nombre','primer_apellido','segundo_apellido','email','documento','password','password_confirmation','sedes','sedes.0'].includes(k)).length > 0"
-          class="rounded-lg bg-red-50 p-3 text-sm text-red-700"
+          class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
         >
           <ul class="list-inside list-disc space-y-1">
             <li
@@ -427,7 +427,7 @@
           ¿Estás seguro de que deseas inactivar a
           <strong>{{ targetUser?.name }}</strong>?
         </p>
-        <div v-if="actionError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div v-if="actionError" class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {{ actionError }}
         </div>
       </div>
@@ -461,7 +461,7 @@
           ¿Deseas restaurar el acceso de
           <strong>{{ targetUser?.name }}</strong>?
         </p>
-        <div v-if="actionError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div v-if="actionError" class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {{ actionError }}
         </div>
       </div>

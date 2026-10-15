@@ -40,6 +40,15 @@ const props = defineProps({
   alt: {
     type: String,
     default: 'CARMOT Logo'
+  },
+  /**
+   * Fondo sobre el que va el logo: 'oscuro' (letras blancas, por defecto) o 'claro'
+   * (versión de letras azules; la blanca no se ve sobre fondo blanco, F06).
+   */
+  fondo: {
+    type: String,
+    default: 'oscuro',
+    validator: (value) => ['oscuro', 'claro'].includes(value)
   }
 })
 
@@ -47,7 +56,8 @@ const imageError = ref(false)
 
 // Import estático: Vite resuelve la URL del asset en build y en dev
 import logoSrc from '@/assets/images/logo.svg'
-const logoPath = logoSrc
+import logoOscuroSrc from '@/assets/images/logo-oscuro.png'
+const logoPath = computed(() => (props.fondo === 'claro' ? logoOscuroSrc : logoSrc))
 
 const handleImageError = () => {
   imageError.value = true

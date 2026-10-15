@@ -1,6 +1,11 @@
 <template>
   <div class="flex flex-col gap-4">
-    <dl class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+    <p v-if="sinEfectivo" class="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-800">
+      Conteo ciego: la base, el efectivo, los egresos y las consignaciones se muestran cuando se aprueba el cierre.
+      Aquí solo ves los pagos por otros medios.
+    </p>
+
+    <dl v-if="filas.length" class="grid grid-cols-2 gap-3 sm:grid-cols-3">
       <div
         v-for="fila in filas"
         :key="fila.clave"
@@ -74,13 +79,14 @@
 
 <script setup>
 import { computed } from 'vue'
-import { filasResumenTurno, filasMediosPago, formatCOP } from '@/utils/libroDiario.js'
+import { filasResumenTurno, filasMediosPago, formatCOP, resumenSinEfectivo } from '@/utils/libroDiario.js'
 
 /**
  * Resumen (arqueo) de un turno de caja: totales por origen, desglose de todos los
  * medios de pago con los ingresos separados en académico, inventario y otros, y,
  * solo para quien supervisa cajas, el efectivo esperado (el backend no lo envía
- * al cajero, que cierra con conteo ciego).
+ * al cajero, que cierra con conteo ciego). Mientras su cierre no esté aprobado, el
+ * cajero solo recibe los medios distintos al efectivo (N26).
  */
 const props = defineProps({
   resumen: { type: Object, default: null },
@@ -88,6 +94,7 @@ const props = defineProps({
   medios: { type: Object, default: () => ({}) },
 })
 
+const sinEfectivo = computed(() => resumenSinEfectivo(props.resumen))
 const filas = computed(() => filasResumenTurno(props.resumen))
 const desglose = computed(() => filasMediosPago(props.resumen, props.medios))
 const medios = computed(() => desglose.value.filas)

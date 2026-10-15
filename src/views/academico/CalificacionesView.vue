@@ -16,7 +16,7 @@
           />
         </div>
         <label class="flex h-9 items-center gap-2 text-sm text-slate-700">
-          <input v-model="soloMisGrupos" type="checkbox" class="size-4 rounded border-slate-300" @change="loadGrupos">
+          <input v-model="soloMisGrupos" type="checkbox" class="size-4 rounded border-slate-300" :disabled="esSoloProfesor" @change="loadGrupos">
           Solo mis grupos
         </label>
       </div>
@@ -66,6 +66,14 @@
             </button>
           </div>
 
+          <div v-if="notasInvalidas.length" role="alert" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            <p class="font-medium">Corrige {{ notasInvalidas.length === 1 ? 'la nota fuera de rango' : `las ${notasInvalidas.length} notas fuera de rango` }} para poder guardar:</p>
+            <ul class="mt-1 list-disc pl-5 text-xs">
+              <li v-for="(texto, i) in notasInvalidas.slice(0, 5)" :key="i">{{ texto }}</li>
+              <li v-if="notasInvalidas.length > 5">y {{ notasInvalidas.length - 5 }} más (celdas en rojo).</li>
+            </ul>
+          </div>
+
           <div v-if="!sabana.estudiantes.length" class="rounded-[14px] border border-black/10 bg-white py-12 text-center text-sm text-slate-400">
             El grupo no tiene estudiantes con matrícula activa.
           </div>
@@ -97,6 +105,8 @@
                       :aria-label="`${tipo.nombre_tipo} de ${fila.estudiante.name}`"
                       class="h-8 w-16 rounded-lg border px-2 text-center text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       :class="notaValida(valores[fila.estudiante.id][tipo.id], tipo) ? 'border-slate-200' : 'border-red-400 bg-red-50 text-red-700'"
+                      :aria-invalid="!notaValida(valores[fila.estudiante.id][tipo.id], tipo)"
+                      :title="notaValida(valores[fila.estudiante.id][tipo.id], tipo) ? '' : `Nota fuera de rango (${tipo.nota_minima}–${tipo.nota_maxima})`"
                     >
                   </td>
                   <td class="px-4 py-2 text-center">
@@ -157,7 +167,7 @@
           </template>
           <template #actions="{ row }">
             <button
-              v-if="can('aca_esquemaEditar')"
+              v-if="can('aca_esquemaEditar') && puedeGestionarEsquema(row)"
               type="button"
               class="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
               title="Editar esquema"
@@ -166,7 +176,7 @@
               <NavIcon name="pencil" class="size-4" />
             </button>
             <button
-              v-if="can('aca_esquemaInactivar')"
+              v-if="can('aca_esquemaInactivar') && puedeGestionarEsquema(row)"
               type="button"
               class="rounded p-1.5 text-slate-500 transition-colors hover:bg-red-100 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
               title="Eliminar esquema"
@@ -189,7 +199,13 @@
       <form class="flex flex-col gap-4 pb-2" @submit.prevent="guardarEsquema">
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
           <FormInput v-model="formEsquema.nombre_esquema" label="Nombre" required :error="erroresEsquema.nombre_esquema?.[0]" />
-          <FormSelect v-model="formEsquema.grupo_id" label="Aplica a" :options="opcionesAlcance" />
+          <FormSelect
+            v-model="formEsquema.grupo_id"
+            label="Aplica a"
+            :options="opcionesAlcance"
+            :error="erroresEsquema.grupo_id?.[0]"
+            :hint="esSoloProfesor ? 'El esquema de todo el módulo lo define la coordinación.' : ''"
+          />
         </div>
 
         <div class="flex flex-col gap-2">
@@ -223,7 +239,7 @@
           </button>
         </div>
 
-        <div v-if="errorEsquema" class="rounded-lg border border-red-200 bg-red-50 p-3">
+        <div v-if="errorEsquema" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           <p class="text-sm text-red-700">{{ errorEsquema }}</p>
           <ul v-if="erroresEsquema.tipos_nota" class="mt-1 list-disc pl-5 text-sm text-red-700">
             <li v-for="msg in erroresEsquema.tipos_nota" :key="msg">{{ msg }}</li>
@@ -234,7 +250,7 @@
       <template #footer>
         <button
           type="button"
-          class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
           @click="showEsquema = false"
         >
           Cancelar
@@ -254,6 +270,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
+import { authService } from '@/services/authService.js'
 import grupoService        from '@/services/grupoService.js'
 import calificacionService from '@/services/calificacionService.js'
 import FormSelect          from '@/components/forms/FormSelect.vue'
@@ -286,6 +303,8 @@ const tab = ref('notas')
 const grupos         = ref([])
 const grupoId        = ref('')
 const soloMisGrupos  = ref(false)
+// Quien solo es profesor solo ve sus grupos (el backend también lo limita, F11)
+const esSoloProfesor = ref(false)
 const cargandoGrupos = ref(false)
 
 const grupoSeleccionado = computed(() => grupos.value.find(g => String(g.id) === String(grupoId.value)) ?? null)
@@ -327,6 +346,13 @@ const cambios     = computed(() => cambiosPorTipo(originales, valores.value))
 const hayCambios  = computed(() => cambios.value.length > 0)
 const hayInvalidas = computed(() => Object.values(valores.value).some(notas =>
   tiposNota.value.some(t => !notaValida(notas[t.id], t))
+))
+
+/** Notas fuera de rango, para explicar por qué no se puede guardar (F12). */
+const notasInvalidas = computed(() => (sabana.value?.estudiantes ?? []).flatMap(fila =>
+  tiposNota.value
+    .filter(t => !notaValida(valores.value[fila.estudiante.id]?.[t.id], t))
+    .map(t => `${fila.estudiante.name} · ${t.nombre_tipo}: "${valores.value[fila.estudiante.id][t.id]}" (debe estar entre ${t.nota_minima} y ${t.nota_maxima})`)
 ))
 
 async function loadSabana() {
@@ -385,10 +411,14 @@ const columnasEsquema = [
   { key: 'status',         label: 'Estado' }
 ]
 
+// El esquema general del módulo lo define la coordinación; el profesor, los de sus grupos (N16)
 const opcionesAlcance = computed(() => [
-  { value: '', label: 'Todo el módulo' },
+  ...(esSoloProfesor.value ? [] : [{ value: '', label: 'Todo el módulo' }]),
   ...(grupoSeleccionado.value ? [{ value: grupoSeleccionado.value.id, label: `Solo el grupo ${grupoSeleccionado.value.nombre}` }] : [])
 ])
+
+/** El profesor solo edita o elimina esquemas de sus grupos, no el general del módulo (N16). */
+const puedeGestionarEsquema = (esquema) => !esSoloProfesor.value || !!esquema.grupo_id
 
 async function loadEsquemas() {
   cargandoEsquemas.value = true
@@ -465,8 +495,10 @@ async function eliminarEsquema(esquema) {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   loadPermisos().catch(() => {})
+  esSoloProfesor.value = await authService.esSoloProfesor().catch(() => false)
+  if (esSoloProfesor.value) soloMisGrupos.value = true
   loadGrupos()
 })
 </script>

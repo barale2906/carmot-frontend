@@ -99,7 +99,7 @@
     <template #footer>
       <button
         type="button"
-        class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
         @click="emit('update:modelValue', false)"
       >
         Cancelar
@@ -120,6 +120,7 @@
 </template>
 
 <script setup>
+import { formatMoney } from '@/utils/formatters.js'
 import { ref, computed, watch } from 'vue'
 import ModalBase          from '@/components/ModalBase.vue'
 import descuentoService   from '@/services/descuentoService.js'
@@ -196,10 +197,6 @@ watch(valorNumerico, () => {
   }
 })
 
-function formatMoney(val) {
-  if (val == null) return '0'
-  return Number(val).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-}
 
 function onConfirmar() {
   emit('confirm', {

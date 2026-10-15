@@ -54,7 +54,7 @@
       <!-- Error de carga -->
       <div
         v-if="apiError"
-        class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+        class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
       >
         {{ apiError }}
         <button
@@ -648,7 +648,7 @@
         </p>
         <div
           v-if="actionError"
-          class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700"
+          class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
         >
           {{ actionError }}
         </div>
@@ -691,7 +691,7 @@
         </p>
         <div
           v-if="actionError"
-          class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700"
+          class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
         >
           {{ actionError }}
         </div>
@@ -727,7 +727,7 @@
       size="sm"
     >
       <div class="pb-2">
-        <div class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           ⚠ Esta operación es <strong>irreversible</strong>.
         </div>
         <p class="mt-3 text-sm text-slate-700">
@@ -737,7 +737,7 @@
         </p>
         <div
           v-if="actionError"
-          class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700"
+          class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
         >
           {{ actionError }}
         </div>
@@ -792,7 +792,7 @@ import { buildPrintDataFromRecord, fetchAllPoblaciones } from '@/composables/use
 import matriculaService from '@/services/matriculaService.js'
 import cicloService     from '@/services/cicloService.js'
 import sedeService      from '@/services/sedeService.js'
-import userService      from '@/services/userService.js'
+import estudianteService from '@/services/estudianteService.js'
 import referidoService  from '@/services/referidoService.js'
 import { useNotification } from '@/composables/useNotification'
 import { usePermisos } from '@/composables/usePermisos.js'
@@ -1015,16 +1015,9 @@ async function loadSedes() {
 
 async function loadComerciales() {
   try {
-    const res = await userService.getAll({
-      with:           'roles',
-      per_page:       200,
-      sort_by:        'name',
-      sort_direction: 'asc'
-    })
-    // Excluir usuarios cuyo único rol sea alumno
-    comercialesRef.value = (res.data ?? []).filter(
-      u => !u.roles?.length || !u.roles.every(r => r === 'alumno' || r?.name === 'alumno')
-    )
+    // Personal (no solo alumno); /configuracion/users es solo del superusuario (B49)
+    const res = await estudianteService.buscar({ solo_personal: 1, per_page: 200 })
+    comercialesRef.value = res.data ?? []
   } catch { /* silencioso */ }
 }
 

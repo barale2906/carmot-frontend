@@ -11,7 +11,7 @@
     <div v-else-if="cargando" class="py-4 text-center text-sm text-slate-500">Cargando documentos firmados...</div>
 
     <template v-else>
-      <p v-if="error" class="mb-3 rounded-lg border border-red-200 bg-red-50 p-2 text-sm text-red-700">{{ error }}</p>
+      <p v-if="error" class="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ error }}</p>
 
       <ul class="divide-y divide-slate-100">
         <li v-for="fila in filas" :key="fila.clave" class="flex flex-wrap items-center justify-between gap-3 py-2.5">

@@ -95,12 +95,12 @@
         <FormInput v-model="form.abreviatura" label="Abreviatura" placeholder="Ej: kg" required :error="formErrors.abreviatura?.[0]" />
         <FormTextarea v-model="form.descripcion" label="Descripción" placeholder="Descripción opcional..." :rows="2" :error="formErrors.descripcion?.[0]" />
         <FormSelect v-model="form.status" label="Estado" :options="statusFormOptions" :error="formErrors.status?.[0]" />
-        <div v-if="formError" class="rounded-lg border border-red-200 bg-red-50 p-3">
+        <div v-if="formError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           <p class="text-sm text-red-700">{{ formError }}</p>
         </div>
       </form>
       <template #footer>
-        <button type="button" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showForm = false">Cancelar</button>
+        <button type="button" class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showForm = false">Cancelar</button>
         <button type="button" :disabled="saving" class="rounded-lg bg-[#213360] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50" @click="handleSubmit">
           {{ saving ? 'Guardando...' : (editingItem ? 'Guardar cambios' : 'Crear unidad') }}
         </button>
@@ -146,6 +146,9 @@ import FormInput       from '@/components/forms/FormInput.vue'
 import FormTextarea    from '@/components/forms/FormTextarea.vue'
 import FormSelect      from '@/components/forms/FormSelect.vue'
 import ModalBase       from '@/components/ModalBase.vue'
+import { useConfirm } from '@/composables/useConfirm.js'
+
+const { confirm } = useConfirm()
 
 const { success: notifySuccess } = useNotification()
 
@@ -208,7 +211,7 @@ function clearFilters() { filters.search = ''; filters.status = ''; loadUnidades
 function goToPage(p) { if (p >= 1 && p <= pagination.lastPage) loadUnidades(p) }
 
 async function handleDelete(row) {
-  if (!confirm(`¿Eliminar la unidad "${row.nombre}"?`)) return
+  if (!await confirm(`¿Eliminar la unidad "${row.nombre}"?`)) return
   deleting.value = { ...deleting.value, [row.id]: true }; actionError.value = ''
   try {
     await invUnidadMedidaService.delete(row.id)
@@ -242,7 +245,7 @@ async function handleRestore(item) {
 }
 
 async function handleForceDelete(item) {
-  if (!confirm(`¿Eliminar permanentemente "${item.nombre}"?`)) return
+  if (!await confirm(`¿Eliminar permanentemente "${item.nombre}"? Esta acción no se puede deshacer.`)) return
   forceDeleting.value = item.id
   try {
     await invUnidadMedidaService.forceDelete(item.id)

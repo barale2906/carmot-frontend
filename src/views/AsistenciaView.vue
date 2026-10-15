@@ -16,7 +16,7 @@
           />
         </div>
         <label class="flex h-9 items-center gap-2 text-sm text-slate-700">
-          <input v-model="soloMisGrupos" type="checkbox" class="size-4 rounded border-slate-300" @change="loadGrupos">
+          <input v-model="soloMisGrupos" type="checkbox" class="size-4 rounded border-slate-300" :disabled="esSoloProfesor" @change="loadGrupos">
           Solo mis grupos
         </label>
         <div v-if="lista?.clases_programadas?.length" class="w-full sm:w-[340px]">
@@ -158,7 +158,7 @@
         <template #reporte>
           <SectionHeader
             title="Asistencia acumulada del grupo"
-            :description="`Porcentaje por horas asistidas (presente, tardanza y justificado cuentan). Mínimo de referencia: ${PORCENTAJE_MINIMO_DEFECTO} %.`"
+            :description="`Porcentaje por horas asistidas (presente y tardanza cuentan; justificado según la regla del curso). Se compara con el mínimo de la regla de asistencia del curso o, si no hay regla, con ${PORCENTAJE_MINIMO_DEFECTO} %.`"
             class="mb-4"
           />
           <div v-if="cargandoReporte" class="py-8 text-center text-sm text-slate-500">Cargando reporte...</div>
@@ -170,9 +170,13 @@
               <template v-if="column.key === 'porcentaje_asistencia'">
                 <span
                   class="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold"
-                  :class="value < PORCENTAJE_MINIMO_DEFECTO ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-800'"
+                  :class="cumpleMinimo(row) ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700'"
+                  :title="row.porcentaje_minimo !== null ? `Mínimo ${row.porcentaje_minimo} %` : undefined"
                 >
                   {{ value }} %
+                </span>
+                <span v-if="row.pierde_por_fallas" class="ml-1 inline-flex rounded-full bg-red-600 px-2 py-0.5 text-xs font-semibold text-white">
+                  Pierde por fallas
                 </span>
               </template>
               <template v-else-if="column.key === 'horas'">
@@ -193,6 +197,7 @@
 import { ref, computed, onMounted } from 'vue'
 import asistenciaService from '@/services/asistenciaService.js'
 import cicloService      from '@/services/cicloService.js'
+import { authService } from '@/services/authService.js'
 import grupoService      from '@/services/grupoService.js'
 import FormSelect        from '@/components/forms/FormSelect.vue'
 import FormTabs          from '@/components/forms/FormTabs.vue'
@@ -221,6 +226,8 @@ const tab = ref('toma')
 const grupos         = ref([])
 const grupoId        = ref('')
 const soloMisGrupos  = ref(false)
+// Quien solo es profesor solo ve sus grupos (el backend también lo limita, F11)
+const esSoloProfesor = ref(false)
 const cargandoGrupos = ref(false)
 const errorGrupos    = ref('')
 
@@ -340,6 +347,13 @@ const columnasReporte = [
   { key: 'porcentaje_asistencia', label: 'Asistencia' }
 ]
 
+/** Usa el resultado de la regla del curso; sin regla, el mínimo de referencia. */
+function cumpleMinimo(row) {
+  return row.porcentaje_minimo !== null && row.porcentaje_minimo !== undefined
+    ? row.cumple_minimo
+    : row.porcentaje_asistencia >= PORCENTAJE_MINIMO_DEFECTO
+}
+
 async function loadReporte() {
   if (!grupoId.value) return
   cargandoReporte.value = true
@@ -353,8 +367,10 @@ async function loadReporte() {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   loadPermisos().catch(() => {})
+  esSoloProfesor.value = await authService.esSoloProfesor().catch(() => false)
+  if (esSoloProfesor.value) soloMisGrupos.value = true
   loadGrupos()
 })
 </script>

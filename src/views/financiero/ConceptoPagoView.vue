@@ -232,7 +232,7 @@
     <form class="flex flex-col gap-5 pb-2" @submit.prevent="submitForm">
       <FormInput
         v-model="form.nombre"
-        label="Nombre *"
+        label="Nombre"
         placeholder="Ej: Matrícula Semestral"
         hint="Máximo 255 caracteres."
         help="Nombre del concepto tal como aparece al armar cobros y recibos."
@@ -243,7 +243,7 @@
 
       <FormSelect
         v-model="form.tipo"
-        label="Tipo *"
+        label="Tipo"
         :options="tiposOptions"
         :required="true"
         hint="Categoría contable del concepto de cobro."
@@ -253,7 +253,7 @@
 
       <FormInput
         v-model="form.valor"
-        label="Valor base *"
+        label="Valor base"
         type="number"
         placeholder="Ej: 1500000"
         hint="Valor en pesos. Máximo 2 decimales. Se usa como sugerencia al crear recibos."
@@ -264,10 +264,10 @@
         :error="fieldErrors.valor?.[0]"
       />
 
-      <div v-if="formError && !Object.keys(fieldErrors).length" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+      <div v-if="formError && !Object.keys(fieldErrors).length" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
         {{ formError }}
       </div>
-      <div v-if="Object.keys(fieldErrors).length" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+      <div v-if="Object.keys(fieldErrors).length" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
         <p class="font-medium">{{ formError }}</p>
         <ul class="mt-1 list-inside list-disc space-y-0.5">
           <li v-for="(msgs, field) in fieldErrors" :key="field">
@@ -308,7 +308,7 @@
       <p class="mt-2 text-xs text-slate-500">
         Si este concepto está siendo utilizado en recibos de pago, la eliminación no será posible.
       </p>
-      <div v-if="actionError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+      <div v-if="actionError" class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
         {{ actionError }}
       </div>
     </div>

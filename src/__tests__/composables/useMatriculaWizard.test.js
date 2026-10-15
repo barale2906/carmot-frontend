@@ -4,7 +4,7 @@ vi.mock('@/services/api.js', () => ({
   default: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
 }))
 
-import { toFormData } from '@/composables/useMatriculaWizard.js'
+import { toFormData, documentoDesdeBusqueda } from '@/composables/useMatriculaWizard.js'
 
 // ─── toFormData (envío multipart cuando la matrícula lleva foto) ──────────────
 
@@ -32,5 +32,20 @@ describe('toFormData', () => {
 
     expect(fd.get('foto')).toBeInstanceOf(File)
     expect(fd.get('foto').name).toBe('foto.png')
+  })
+})
+
+// ─── documentoDesdeBusqueda (estudiante nuevo desde el buscador, F18) ─────────
+
+describe('documentoDesdeBusqueda', () => {
+  it('usa el texto como documento si es numérico, sin separadores', () => {
+    expect(documentoDesdeBusqueda(' 1.077.665.544 ')).toBe('1077665544')
+    expect(documentoDesdeBusqueda('80 123 456')).toBe('80123456')
+  })
+
+  it('no usa un nombre como documento', () => {
+    expect(documentoDesdeBusqueda('Héctor Cuervo')).toBe('')
+    expect(documentoDesdeBusqueda('CC 123')).toBe('')
+    expect(documentoDesdeBusqueda('')).toBe('')
   })
 })

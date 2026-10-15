@@ -13,7 +13,7 @@
         class="fixed inset-0 z-[1100] flex items-center justify-center bg-black/50 p-4"
       >
         <div
-          class="relative flex h-full w-full max-w-3xl flex-col rounded-xl border border-black/10 bg-white shadow-xl"
+          class="relative flex h-full w-full max-w-3xl flex-col rounded-[10px] border border-black/10 bg-white shadow-xl"
           @click.stop
         >
           <!-- Botón cerrar -->
@@ -93,7 +93,7 @@
             <div
               v-if="apiError"
               role="alert"
-              class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+              class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
             >
               {{ apiError }}
             </div>
@@ -185,7 +185,7 @@
               </div>
 
               <!-- Sin precio configurado — bloquea el avance -->
-              <div v-else-if="sinPrecioConfigurado" class="rounded-lg border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700">
+              <div v-else-if="sinPrecioConfigurado" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                 <p class="font-semibold">Sin lista de precios vigente</p>
                 <p class="mt-1 text-xs text-red-600">
                   No se encontró una lista de precios activa para este curso y sede.
@@ -492,7 +492,7 @@
               </div>
               <div
                 v-else-if="catalogsError"
-                class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+                class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
               >
                 No se pudieron cargar algunas opciones del formulario. Los campos de selección pueden aparecer vacíos.
                 <button type="button" class="ml-2 font-medium underline hover:no-underline" @click="loadCatalogs">

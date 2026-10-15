@@ -275,7 +275,7 @@
       <template #footer>
         <button
           type="button"
-          class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
           @click="showForm = false"
         >
           Cancelar
@@ -449,6 +449,9 @@ import FormInputSearch from '@/components/forms/FormInputSearch.vue'
 import FormInput      from '@/components/forms/FormInput.vue'
 import FormSelect     from '@/components/forms/FormSelect.vue'
 import ModalBase      from '@/components/ModalBase.vue'
+import { useConfirm } from '@/composables/useConfirm.js'
+
+const { confirm } = useConfirm()
 
 // ─── Permisos ────────────────────────────────────────────────────────────────
 const userPermissions = ref([])
@@ -632,7 +635,7 @@ async function handleSubmit() {
 
 // ─── Eliminar ─────────────────────────────────────────────────────────────────
 async function handleDelete(row) {
-  if (!confirm(`¿Eliminar la EPS "${row.nombre}"?`)) return
+  if (!await confirm(`¿Eliminar la EPS "${row.nombre}"?`)) return
   deleting.value[row.id] = true
   actionError.value = ''
   try {
@@ -678,7 +681,7 @@ async function handleRestore(item) {
 }
 
 async function handleForceDelete(item) {
-  if (!confirm(`¿Eliminar permanentemente la EPS "${item.nombre}"? Esta acción no se puede deshacer.`)) return
+  if (!await confirm(`¿Eliminar permanentemente la EPS "${item.nombre}"? Esta acción no se puede deshacer.`)) return
   forceDeleting.value = item.id
   try {
     await epsService.forceDelete(item.id)

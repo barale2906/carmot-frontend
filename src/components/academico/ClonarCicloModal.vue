@@ -15,7 +15,7 @@
       <span class="text-sm text-slate-500">Cargando sugerencia...</span>
     </div>
 
-    <div v-else-if="loadError" class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+    <div v-else-if="loadError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
       {{ loadError }}
     </div>
 
@@ -56,13 +56,13 @@
       />
 
       <!-- Errores de la fecha de inicio: puede haber varios solapamientos -->
-      <div v-if="erroresFecha.length > 1" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+      <div v-if="erroresFecha.length > 1" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
         <ul class="list-inside list-disc space-y-0.5">
           <li v-for="msg in erroresFecha" :key="msg">{{ msg }}</li>
         </ul>
         <p class="mt-2 text-xs">Elige una fecha posterior a la última mostrada o revisa el ciclo con el que se cruza.</p>
       </div>
-      <p v-if="formError" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">{{ formError }}</p>
+      <p v-if="formError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ formError }}</p>
     </form>
 
     <template #footer>

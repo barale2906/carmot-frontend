@@ -264,7 +264,7 @@
           <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FormInput
               v-model="form.nombre"
-              label="Nombre *"
+              label="Nombre"
               placeholder="Ej: Lista 2026 - Primer Semestre"
               :required="true"
               maxlength="255"
@@ -282,7 +282,7 @@
             />
             <FormInput
               v-model="form.fecha_inicio"
-              label="Fecha inicio *"
+              label="Fecha inicio"
               type="date"
               :required="true"
               help="Desde qué fecha el sistema puede considerar vigente esta lista."
@@ -290,7 +290,7 @@
             />
             <FormInput
               v-model="form.fecha_fin"
-              label="Fecha fin *"
+              label="Fecha fin"
               type="date"
               :required="true"
               hint="Debe ser igual o posterior a la fecha inicio."
@@ -630,7 +630,7 @@
           <div v-show="quickProductOpen" class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <FormSelect
               v-model="quickTipoProductoId"
-              label="Tipo de producto *"
+              label="Tipo de producto" :required="quickProductOpen"
               placeholder="Tipo"
               :options="tiposProductoOptions"
               span="full"
@@ -638,14 +638,14 @@
             />
             <FormSelect
               v-model="quickRefTipo"
-              label="Referencia *"
+              label="Referencia" :required="quickProductOpen"
               :options="referenciaTipoOptions"
               help="Indica si el producto se enlaza a un curso o a un módulo del plan."
             />
             <FormSelect
               v-if="quickRefTipo === 'curso'"
               v-model="quickRefId"
-              label="Curso *"
+              label="Curso" :required="quickProductOpen"
               placeholder="Seleccione curso"
               :options="cursosOptions"
               span="full"
@@ -654,7 +654,7 @@
             <FormSelect
               v-else
               v-model="quickRefId"
-              label="Módulo *"
+              label="Módulo" :required="quickProductOpen"
               placeholder="Seleccione módulo"
               :options="modulosOptions"
               span="full"
@@ -663,7 +663,7 @@
             <FormInput
               v-model="quickNombre"
               span="full"
-              label="Nombre del producto *"
+              label="Nombre del producto" :required="quickProductOpen"
               placeholder="Ej: Inglés Avanzado - Matrícula"
               maxlength="255"
               help="Nombre que verán usuarios y reportes para este producto en el catálogo."
@@ -684,7 +684,7 @@
         </section>
 
         <!-- Error general -->
-        <div v-if="formError" class="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div v-if="formError" class="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           <p class="font-medium">{{ formError }}</p>
           <ul v-if="Object.keys(fieldErrors).length" class="mt-1 list-inside list-disc space-y-0.5">
             <li v-for="(msgs, field) in fieldErrors" :key="field">
@@ -1030,7 +1030,7 @@
       <div v-if="!editingPrecio">
         <FormSelect
           v-model="precioForm.producto_id"
-          label="Producto *"
+          label="Producto"
           placeholder="Seleccione producto"
           :options="productosDisponiblesOptions"
           :required="true"
@@ -1061,7 +1061,7 @@
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <FormInput
           v-model="precioForm.precio_contado"
-          label="Valor total *"
+          label="Valor total"
           type="number"
           min="0"
           placeholder="0"
@@ -1073,7 +1073,7 @@
         />
         <FormInput
           v-model="precioForm.matricula"
-          label="Matrícula *"
+          label="Matrícula"
           type="number"
           min="0"
           placeholder="0"
@@ -1088,7 +1088,7 @@
         <template v-if="precioEsFinanciable">
           <FormInput
             v-model="precioForm.precio_total"
-            label="Precio total financiado *"
+            label="Precio total financiado"
             type="number"
             min="0"
             placeholder="0"
@@ -1100,7 +1100,7 @@
           />
           <FormInput
             v-model="precioForm.numero_cuotas"
-            label="Número de cuotas *"
+            label="Número de cuotas"
             type="number"
             min="1"
             step="1"
@@ -1158,7 +1158,7 @@
       />
 
       <!-- Error general -->
-      <div v-if="precioFormError" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+      <div v-if="precioFormError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
         <p class="font-medium">{{ precioFormError }}</p>
         <ul v-if="Object.keys(precioFieldErrors).length" class="mt-1 list-inside list-disc space-y-0.5">
           <li v-for="(msgs, field) in precioFieldErrors" :key="field">
@@ -1195,7 +1195,7 @@
       <p class="mt-2 text-xs text-slate-500">
         Una vez aprobada, la lista puede ser activada manual o automáticamente al llegar su <code>fecha_inicio</code>.
       </p>
-      <div v-if="actionError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{{ actionError }}</div>
+      <div v-if="actionError" class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ actionError }}</div>
     </div>
     <template #footer>
       <button type="button" class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showAprobarModal = false">Cancelar</button>
@@ -1214,7 +1214,7 @@
       <p class="mt-2 text-xs text-slate-500">
         Solo puede haber una lista activa por población y período. El sistema detectará solapamientos.
       </p>
-      <div v-if="actionError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{{ actionError }}</div>
+      <div v-if="actionError" class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ actionError }}</div>
     </div>
     <template #footer>
       <button type="button" class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showActivarModal = false">Cancelar</button>
@@ -1233,7 +1233,7 @@
       <p class="mt-2 text-xs text-slate-500">
         La lista dejará de aplicar para nuevos cobros inmediatamente.
       </p>
-      <div v-if="actionError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{{ actionError }}</div>
+      <div v-if="actionError" class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ actionError }}</div>
     </div>
     <template #footer>
       <button type="button" class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showInactivarModal = false">Cancelar</button>
@@ -1252,7 +1252,7 @@
       <p class="mt-2 text-xs text-slate-500">
         Si la lista tiene precios o recibos vinculados, la eliminación puede fallar.
       </p>
-      <div v-if="actionError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{{ actionError }}</div>
+      <div v-if="actionError" class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ actionError }}</div>
     </div>
     <template #footer>
       <button type="button" class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showEliminarModal = false">Cancelar</button>
@@ -1268,7 +1268,7 @@
       <p class="text-sm text-slate-700">
         ¿Quitar <strong>{{ targetPrecio?.producto?.nombre }}</strong> de esta lista?
       </p>
-      <div v-if="precioActionError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{{ precioActionError }}</div>
+      <div v-if="precioActionError" class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ precioActionError }}</div>
     </div>
     <template #footer>
       <button type="button" class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showEliminarPrecioModal = false">Cancelar</button>
@@ -1307,7 +1307,7 @@
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <FormInput
           v-model="clonarForm.nombre"
-          label="Nombre de la nueva lista *"
+          label="Nombre de la nueva lista"
           placeholder="Ej: Lista 2026-II"
           :required="true"
           maxlength="255"
@@ -1316,8 +1316,18 @@
           :error="clonarFieldErrors.nombre?.[0]"
         />
         <FormInput
+          v-model="clonarForm.codigo"
+          label="Código"
+          placeholder="Ej: LP-2026-S2"
+          hint="Opcional. Único, máximo 100 caracteres."
+          maxlength="100"
+          span="full"
+          help="No se copia de la lista origen porque no puede repetirse entre listas."
+          :error="clonarFieldErrors.codigo?.[0]"
+        />
+        <FormInput
           v-model="clonarForm.fecha_inicio"
-          label="Fecha inicio *"
+          label="Fecha inicio"
           type="date"
           :required="true"
           help="Inicio de vigencia de la nueva lista."
@@ -1325,7 +1335,7 @@
         />
         <FormInput
           v-model="clonarForm.fecha_fin"
-          label="Fecha fin *"
+          label="Fecha fin"
           type="date"
           :required="true"
           hint="Igual o posterior a la fecha inicio."
@@ -1404,7 +1414,7 @@
       </div>
 
       <!-- Error general -->
-      <div v-if="clonarError" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+      <div v-if="clonarError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
         <p class="font-medium">{{ clonarError }}</p>
         <ul v-if="Object.keys(clonarFieldErrors).length" class="mt-1 list-inside list-disc space-y-0.5">
           <li v-for="(msgs, field) in clonarFieldErrors" :key="field">
@@ -1961,6 +1971,7 @@ const clonarFieldErrors = ref({})
 
 const clonarForm = reactive({
   nombre:        '',
+  codigo:        '',
   fecha_inicio:  '',
   fecha_fin:     '',
   descripcion:   '',
@@ -1980,6 +1991,7 @@ const clonarPoblacionesDisplay = computed(() => {
 
 function resetClonarForm() {
   clonarForm.nombre        = ''
+  clonarForm.codigo        = ''
   clonarForm.fecha_inicio  = ''
   clonarForm.fecha_fin     = ''
   clonarForm.descripcion   = ''
@@ -2018,6 +2030,7 @@ async function submitClonar() {
       fecha_fin:     clonarForm.fecha_fin,
       copiar_precios: clonarForm.copiar_precios
     }
+    if (clonarForm.codigo?.trim())       payload.codigo      = clonarForm.codigo.trim()
     if (clonarForm.descripcion?.trim())  payload.descripcion = clonarForm.descripcion.trim()
     if (clonarForm.poblaciones?.length)  payload.poblaciones = clonarForm.poblaciones.map(Number)
 

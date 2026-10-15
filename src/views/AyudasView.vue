@@ -3,11 +3,11 @@
     <header class="border-b border-black/10 pb-6">
       <h1 class="text-xl font-medium text-slate-900">Manual de usuario</h1>
       <p class="mt-1 text-sm text-slate-500">
-        Guías paso a paso para usar el sistema. Elija un módulo y siga las secciones en orden, o salte a la que necesite.
+        Guías paso a paso para usar el sistema. Empiece por el mapa para ver cómo se conectan los módulos, o elija un manual.
       </p>
 
       <!-- Selector de módulo -->
-      <nav class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Módulos del manual">
+      <nav class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="Módulos del manual">
         <button
           v-for="modulo in MODULOS"
           :key="modulo.clave"
@@ -52,7 +52,7 @@
         </nav>
       </aside>
 
-      <component :is="moduloActivo.componente" :key="moduloActivo.clave" class="min-w-0" />
+      <component :is="moduloActivo.componente" :key="moduloActivo.clave" class="min-w-0" @abrir-manual="seleccionarModulo" />
     </div>
   </div>
 </template>
@@ -61,16 +61,24 @@
 import { computed }            from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import NavIcon                 from '@/components/icons/NavIcon.vue'
+import ManualMapaSistema       from '@/components/ayudas/ManualMapaSistema.vue'
 import ManualDocumentacion     from '@/components/ayudas/ManualDocumentacion.vue'
 import ManualMatriculas        from '@/components/ayudas/ManualMatriculas.vue'
 import ManualInventarios       from '@/components/ayudas/ManualInventarios.vue'
 import ManualIngreso           from '@/components/ayudas/ManualIngreso.vue'
+import { ETAPAS_SISTEMA }      from '@/components/ayudas/mapaSistema.js'
 
 const route  = useRoute()
 const router = useRouter()
 
-// Los `id` de cada sección deben coincidir con los de <AyudaSeccion> en el manual correspondiente
+// Los `id` de cada sección deben coincidir con los de <AyudaSeccion> en el manual correspondiente.
+// El mapa del sistema va primero: es el inicio de Ayudas y desde él se abren los demás manuales.
 const MODULOS = [
+  {
+    clave: 'mapa', titulo: 'Mapa del sistema', icono: 'schema', componente: ManualMapaSistema,
+    resumen: 'Cómo se conectan los módulos y en qué orden.',
+    secciones: ETAPAS_SISTEMA.map((etapa) => ({ id: etapa.id, titulo: etapa.titulo }))
+  },
   {
     clave: 'matriculas', titulo: 'Matrículas', icono: 'academico', componente: ManualMatriculas,
     resumen: 'Inscribir estudiantes en un curso y ciclo.',
@@ -128,6 +136,7 @@ const moduloActivo = computed(() => MODULOS.find((m) => m.clave === route.query.
 
 function seleccionarModulo(clave) {
   router.replace({ query: { ...route.query, modulo: clave } })
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 function irASeccion(id) {

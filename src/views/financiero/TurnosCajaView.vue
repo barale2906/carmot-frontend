@@ -189,7 +189,7 @@
         <p v-if="errorAutorizacion" class="text-sm text-red-600">{{ errorAutorizacion }}</p>
       </form>
       <template #footer>
-        <button type="button" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200" @click="mostrarAutorizacion = false">Cancelar</button>
+        <button type="button" class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="mostrarAutorizacion = false">Cancelar</button>
         <button
           type="button"
           :disabled="autorizando"

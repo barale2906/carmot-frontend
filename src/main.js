@@ -1,6 +1,7 @@
 import { createApp } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import App from './App.vue'
+import { routeAccessGuard, entrarAlModulo } from './guards/menuGuards'
 import Login from './views/Login.vue'
 import MainLayout from './layouts/MainLayout.vue'
 import Dashboard from './views/Dashboard.vue'
@@ -120,8 +121,8 @@ const routes = [
         path: '',
         component: ActivosLayout,
         children: [
-          { path: '',           name: 'Activos',             component: ActivosView },
-          { path: 'categorias', name: 'ActivosCategorias',   component: ActCategoriasView }
+          { path: '',           name: 'Activos',             component: ActivosView, meta: { permission: 'act_activos' } },
+          { path: 'categorias', name: 'ActivosCategorias',   component: ActCategoriasView, meta: { permission: 'act_categorias' } }
         ]
       }
     ]
@@ -137,21 +138,25 @@ const routes = [
           {
             path: '',
             name: 'FormularioMatricula',
+            meta: { permission: 'aca_matriculas' },
             component: FormularioMatricula
           },
           {
             path: 'recibo-pago',
             name: 'ReciboPago',
+            meta: { permission: 'fin_reciboPagoCrear' },
             component: ReciboPagoView
           },
           {
             path: 'asistencia',
             name: 'Asistencia',
+            meta: { permission: 'aca_asistencias', soloPersonal: true },
             component: AsistenciaView
           },
           {
             path: 'calificaciones',
             name: 'Calificaciones',
+            meta: { permission: 'aca_notas', soloPersonal: true },
             component: CalificacionesView
           }
         ]
@@ -169,26 +174,31 @@ const routes = [
           {
             path: '',
             name: 'Cursos',
+            meta: { permission: 'aca_cursos' },
             component: CursosView
           },
           {
             path: 'modulos',
             name: 'Modulos',
+            meta: { permission: 'aca_modulos' },
             component: ModulosView
           },
           {
             path: 'topicos',
             name: 'Topicos',
+            meta: { permission: 'aca_topicos' },
             component: TopicosView
           },
           {
             path: 'temas',
             name: 'Temas',
+            meta: { permission: 'aca_temas' },
             component: TemasView
           },
           {
             path: 'biblioteca',
             name: 'Biblioteca',
+            meta: { permission: 'ac_biblioteca' },
             component: BibliotecaView
           }
         ]
@@ -206,11 +216,13 @@ const routes = [
           {
             path: '',
             name: 'Ciclos',
+            meta: { permission: ['aca_programaciones', 'aca_ciclos'] },
             component: CiclosView
           },
           {
             path: 'grupos',
             name: 'Grupos',
+            meta: { permission: ['aca_programaciones', 'aca_grupos'] },
             component: GruposView
           }
         ]
@@ -224,6 +236,7 @@ const routes = [
       {
         path: '',
         name: 'Matriculas',
+        meta: { permission: 'aca_matriculas' },
         component: MatriculaView
       }
     ]
@@ -239,22 +252,26 @@ const routes = [
           {
             path: '',
             name: 'DocDocumentos',
+            meta: { permission: 'aca_documentos' },
             component: DocDocumentosView
           },
           {
             path: 'plantillas',
             name: 'DocPlantillas',
+            meta: { permission: 'aca_docPlantillas' },
             component: DocPlantillasView
           },
           {
             path: 'plantillas/:id(\\d+)',
             name: 'DocPlantillaEditor',
+            meta: { permission: 'aca_docPlantillas' },
             // Carga diferida: el editor TipTap solo se descarga al abrir una plantilla
             component: () => import('./views/academico/documentacion/DocPlantillaEditorView.vue')
           },
           {
             path: 'tipos',
             name: 'DocTiposDocumento',
+            meta: { permission: 'aca_docTipos' },
             component: DocTiposDocumentoView
           }
         ]
@@ -269,64 +286,78 @@ const routes = [
         path: '',
         component: FinancieroLayout,
         children: [
+          // Entrada del módulo: redirige a la primera opción del menú del usuario (F01)
+          { path: '', component: { render: () => null }, beforeEnter: entrarAlModulo },
           {
             path: 'tipos-producto',
             name: 'TiposProducto',
+            meta: { permission: 'fin_lp_tipos_producto' },
             component: TipoProductoView
           },
           {
             path: 'productos',
             name: 'ProductosLp',
+            meta: { permission: 'fin_lp_productos' },
             component: ProductoView
           },
           {
             path: 'listas-precios',
             name: 'ListasPrecios',
+            meta: { permission: 'fin_lp_listas_precios' },
             component: ListaPrecioView
           },
           {
             path: 'conceptos-pago',
             name: 'ConceptosPago',
+            meta: { permission: 'fin_conceptos_pago' },
             component: ConceptoPagoView
           },
           {
             path: 'recibos-pago',
             name: 'RecibosPago',
+            meta: { permission: 'fin_recibos_pago' },
             component: RecibosPagoView
           },
           {
             path: 'cartera',
             name: 'Cartera',
+            meta: { permission: 'fin_carteras' },
             component: CarteraView
           },
           {
             path: 'descuentos',
             name: 'Descuentos',
+            meta: { permission: 'fin_descuentos' },
             component: DescuentosView
           },
           {
             path: 'transferencias-pendientes',
             name: 'TransferenciasPendientes',
+            meta: { permission: 'fin_reciboPagoAprobar' },
             component: TransferenciasPendientesView
           },
           {
             path: 'caja',
             name: 'MiCaja',
+            meta: { permission: 'fin_ldTurnoCaja' },
             component: CajaView
           },
           {
             path: 'libro-diario',
             name: 'LibroDiario',
+            meta: { permission: 'fin_libroDiario' },
             component: LibroDiarioView
           },
           {
             path: 'turnos-caja',
             name: 'TurnosCaja',
+            meta: { permission: ['fin_ldTurnoCaja', 'fin_ldTurnos', 'fin_ldCierreAprobar'] },
             component: TurnosCajaView
           },
           {
             path: 'libro-diario-catalogos',
             name: 'LibroDiarioCatalogos',
+            meta: { permission: 'fin_ldCatalogos' },
             component: LdCatalogosView
           }
         ]
@@ -334,6 +365,7 @@ const routes = [
       {
         path: 'recibos-pago/nuevo',
         name: 'NuevoReciboPago',
+        meta: { permission: 'fin_reciboPagoCrear' },
         component: ReciboPagoView
       }
     ]
@@ -347,9 +379,9 @@ const routes = [
         component: CrmLayout,
         children: [
           { path: '',             redirect: '/crm/referidos' },
-          { path: 'referidos',    name: 'CrmReferidos',    component: ReferidosView },
-          { path: 'seguimientos', name: 'CrmSeguimientos', component: SeguimientosView },
-          { path: 'agendas',      name: 'CrmAgendas',      component: AgendasView }
+          { path: 'referidos',    name: 'CrmReferidos',    component: ReferidosView, meta: { permission: 'crm_referidos' } },
+          { path: 'seguimientos', name: 'CrmSeguimientos', component: SeguimientosView, meta: { permission: 'crm_seguimientos' } },
+          { path: 'agendas',      name: 'CrmAgendas',      component: AgendasView, meta: { permission: 'crm_agendas' } }
         ]
       }
     ]
@@ -362,29 +394,36 @@ const routes = [
         path: '',
         component: ConfiguracionLayout,
         children: [
+          // Entrada del módulo: redirige a la primera opción del menú del usuario (F01)
+          { path: '', component: { render: () => null }, beforeEnter: entrarAlModulo },
           {
             path: 'usuarios',
             name: 'Usuarios',
+            meta: { permission: 'co_users' },
             component: UsuariosView
           },
           {
             path: 'roles',
             name: 'Roles',
+            meta: { permission: ['co_roles', 'co_rolPermisos'] },
             component: RolesView
           },
           {
             path: 'eps',
             name: 'Eps',
+            meta: { permission: 'co_eps' },
             component: EpsView
           },
           {
             path: 'bancos',
             name: 'Bancos',
+            meta: { permission: 'co_bancos' },
             component: BancosView
           },
           {
             path: 'dias-no-laborables',
             name: 'DiasNoLaborables',
+            meta: { permission: 'co_diasNoLaborables' },
             component: DiasNoLaborablesView
           }
         ]
@@ -392,6 +431,7 @@ const routes = [
       {
         path: 'poblaciones',
         name: 'Poblaciones',
+        meta: { permission: 'co_poblaciones' },
         component: PoblacionesView
       },
       {
@@ -401,16 +441,19 @@ const routes = [
           {
             path: '',
             name: 'Sedes',
+            meta: { permission: 'co_sedes' },
             component: SedesView
           },
           {
             path: 'areas',
             name: 'Areas',
+            meta: { permission: 'co_areas' },
             component: AreasView
           },
           {
             path: 'horarios',
             name: 'Horarios',
+            meta: { permission: 'co_horarios' },
             component: HorariosView
           }
         ]
@@ -425,69 +468,84 @@ const routes = [
         path: '',
         component: InventarioLayout,
         children: [
+          // Entrada del módulo: redirige a la primera opción del menú del usuario (F01)
+          { path: '', component: { render: () => null }, beforeEnter: entrarAlModulo },
           {
             path: 'categorias',
             name: 'InvCategorias',
+            meta: { permission: 'inv_categorias' },
             component: CategoriasView
           },
           {
             path: 'unidades-medida',
             name: 'InvUnidadesMedida',
+            meta: { permission: 'inv_unidades' },
             component: UnidadesMedidaView
           },
           {
             path: 'productos',
             name: 'InvProductos',
+            meta: { permission: 'inv_productos' },
             component: ProductosInvView
           },
           {
             path: 'almacenes',
             name: 'InvAlmacenes',
+            meta: { permission: 'inv_almacenes' },
             component: AlmacenesView
           },
           {
             path: 'proveedores',
             name: 'InvProveedores',
+            meta: { permission: 'inv_proveedores' },
             component: ProveedoresView
           },
           {
             path: 'stock',
             name: 'InvStock',
+            meta: { permission: 'inv_stock' },
             component: StockView
           },
           {
             path: 'movimientos',
             name: 'InvMovimientos',
+            meta: { permission: 'inv_movimientos' },
             component: MovimientosView
           },
           {
             path: 'precios',
             name: 'InvPrecios',
+            meta: { permission: 'inv_precios' },
             component: PreciosInvView
           },
           {
             path: 'ventas',
             name: 'InvVentas',
+            meta: { permission: 'inv_ventas' },
             component: VentasView
           },
           {
             path: 'entregas',
             name: 'InvEntregas',
+            meta: { permission: 'inv_entregas' },
             component: EntregasView
           },
           {
             path: 'ordenes-compra',
             name: 'InvOrdenesCompra',
+            meta: { permission: 'inv_oc' },
             component: OrdenesCompraView
           },
           {
             path: 'transferencias',
             name: 'InvTransferencias',
+            meta: { permission: 'fin_reciboPagoAprobar' },
             component: InvTransferenciasPendientes
           },
           {
             path: 'recibos-pago',
             name: 'InvRecibos',
+            meta: { permission: 'fin_recibos_pago' },
             component: InvRecibosPagoView
           },
           {
@@ -505,6 +563,9 @@ const router = createRouter({
   history: createWebHistory(),
   routes
 })
+
+// Cada pantalla exige su permiso (meta.permission); antes cualquier usuario entraba por URL
+router.beforeEach(routeAccessGuard)
 
 createApp(App).use(router).mount('#app')
 

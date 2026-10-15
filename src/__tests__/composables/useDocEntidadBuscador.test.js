@@ -4,12 +4,12 @@ import { useDocEntidadBuscador } from '@/composables/useDocEntidadBuscador.js'
 
 vi.mock('@/services/matriculaService.js', () => ({ default: { getAll: vi.fn() } }))
 vi.mock('@/services/carteraService.js',   () => ({ default: { getDetalleMatricula: vi.fn() } }))
-vi.mock('@/services/userService.js',      () => ({ default: { getAll: vi.fn() } }))
+vi.mock('@/services/estudianteService.js', () => ({ default: { buscar: vi.fn() } }))
 vi.mock('@/services/cursoService.js',     () => ({ default: { getAll: vi.fn() } }))
 
 import matriculaService from '@/services/matriculaService.js'
 import carteraService   from '@/services/carteraService.js'
-import userService      from '@/services/userService.js'
+import estudianteService from '@/services/estudianteService.js'
 import cursoService     from '@/services/cursoService.js'
 
 const MATRICULA = 'App\\Models\\Academico\\Matricula'
@@ -97,7 +97,7 @@ describe('useDocEntidadBuscador', () => {
   })
 
   it('estudiante y curso usan sus servicios', async () => {
-    userService.getAll.mockResolvedValue({ data: [{ id: 5, primer_nombre: 'Ana', primer_apellido: 'Ruiz', documento: '123' }] })
+    estudianteService.buscar.mockResolvedValue({ data: [{ id: 5, primer_nombre: 'Ana', primer_apellido: 'Ruiz', documento: '123' }] })
     cursoService.getAll.mockResolvedValue({ data: [{ id: 8, nombre: 'Farmacia', status_text: 'Activo' }] })
 
     const estudiante = useDocEntidadBuscador(ref('App\\Models\\User'))

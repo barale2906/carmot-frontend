@@ -189,12 +189,12 @@
             <span class="block text-xs text-slate-500">Si lo desmarcas, todo queda pendiente en Entregas.</span>
           </span>
         </label>
-        <div v-if="abonoError" class="rounded-lg border border-red-200 bg-red-50 p-3">
+        <div v-if="abonoError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           <p class="text-sm text-red-700">{{ abonoError }}</p>
         </div>
       </div>
       <template #footer>
-        <button type="button" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showAbono = false">Cancelar</button>
+        <button type="button" class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showAbono = false">Cancelar</button>
         <button type="button" :disabled="savingAbono" class="rounded-lg bg-[#213360] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50" @click="handleAbono">
           {{ savingAbono ? 'Procesando...' : 'Registrar abono' }}
         </button>
@@ -239,7 +239,7 @@
           />
           <p class="mt-1 text-right text-xs text-slate-400">{{ motivoAnulacion.length }}/500</p>
         </div>
-        <div v-if="anulacionError" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">{{ anulacionError }}</div>
+        <div v-if="anulacionError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ anulacionError }}</div>
       </div>
       <template #footer>
         <button type="button" class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showAnulacion = false">Volver</button>

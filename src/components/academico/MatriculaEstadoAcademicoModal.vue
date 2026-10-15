@@ -30,6 +30,32 @@
           <p v-if="errores.motivo" class="mt-1 text-xs text-red-600">{{ errores.motivo[0] }}</p>
         </div>
         <p v-if="efecto" class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 md:col-span-2">{{ efecto }}</p>
+
+        <!-- Evaluación de cierre (requisitos para graduar) -->
+        <div v-if="esEstadoDeCierre(form.estado_academico)" class="rounded-lg border border-slate-200 p-3 text-sm md:col-span-2" aria-live="polite">
+          <p v-if="cargandoEvaluacion" class="text-slate-500">Evaluando notas y asistencia...</p>
+          <template v-else-if="evaluacion">
+            <p class="font-medium" :class="evaluacion.aprueba ? 'text-green-700' : 'text-red-700'">
+              {{ evaluacion.aprueba ? 'Cumple los requisitos para graduarse.' : 'No cumple los requisitos para graduarse:' }}
+            </p>
+            <ul v-if="evaluacion.motivos.length" class="mt-1 list-disc pl-5 text-slate-700">
+              <li v-for="motivo in evaluacion.motivos" :key="motivo">{{ motivo }}</li>
+            </ul>
+            <!-- N24: perdió por fallas sin posibilidad de recuperarse -->
+            <p v-if="evaluacion.asistencia.perdida_definitiva && !evaluacion.ciclo_terminado" class="mt-2 font-medium text-red-700">
+              Ya perdió por fallas: aunque asista al resto del ciclo no alcanza el mínimo. Puede pasarla a Reprobado ahora;
+              la matrícula finaliza y el estudiante queda libre para matricularse de nuevo.
+            </p>
+            <p class="mt-2 text-slate-600">
+              Asistencia: {{ evaluacion.asistencia.porcentaje }} %
+              <span v-if="evaluacion.asistencia.porcentaje_minimo !== null">(mínimo {{ evaluacion.asistencia.porcentaje_minimo }} %)</span>
+              · Nota aprobatoria: {{ evaluacion.nota_aprobatoria }}
+            </p>
+            <p v-if="evaluacion.saldo_pendiente > 0" class="mt-1 text-amber-700">
+              Saldo pendiente en cartera: {{ formatMoney(evaluacion.saldo_pendiente) }} (no impide el cambio; sigue siendo exigible).
+            </p>
+          </template>
+        </div>
         <p v-if="error" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 md:col-span-2">{{ error }}</p>
       </form>
       <p v-else-if="matricula.status === 2" class="rounded-lg bg-slate-50 p-3 text-sm text-slate-500">
@@ -83,7 +109,8 @@ import FormTextarea     from '@/components/forms/FormTextarea.vue'
 import matriculaService from '@/services/matriculaService.js'
 import { useNotification } from '@/composables/useNotification'
 import { fechaISO, fechaCorta } from '@/utils/crm.js'
-import { OPCIONES_ESTADO_ACADEMICO, claseEstadoAcademico, efectoDelCambio } from '@/utils/estadoAcademico.js'
+import { formatMoney } from '@/utils/formatters.js'
+import { opcionesPermitidas, claseEstadoAcademico, efectoDelCambio, esEstadoDeCierre } from '@/utils/estadoAcademico.js'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -97,9 +124,7 @@ const { success: notifySuccess } = useNotification()
 const hoy = fechaISO()
 
 const puedeCambiar = computed(() => props.canCambiar && props.matricula?.status !== 2)
-const opcionesDisponibles = computed(() =>
-  OPCIONES_ESTADO_ACADEMICO.filter(o => o.value !== props.matricula?.estado_academico)
-)
+const opcionesDisponibles = computed(() => opcionesPermitidas(props.matricula?.estado_academico))
 
 const form      = reactive({ estado_academico: '', fecha: hoy, motivo: '' })
 const errores   = ref({})
@@ -109,6 +134,23 @@ const efecto    = computed(() => efectoDelCambio(props.matricula?.estado_academi
 
 const historial         = ref([])
 const cargandoHistorial = ref(false)
+
+const evaluacion         = ref(null)
+const cargandoEvaluacion = ref(false)
+
+/** La evaluación de cierre se pide una vez, al elegir Graduado o Reprobado. */
+watch(() => form.estado_academico, async (estado) => {
+  if (!esEstadoDeCierre(estado) || evaluacion.value) return
+  cargandoEvaluacion.value = true
+  try {
+    const res = await matriculaService.evaluacionCierre(props.matricula.id)
+    evaluacion.value = res.data ?? null
+  } catch {
+    evaluacion.value = null
+  } finally {
+    cargandoEvaluacion.value = false
+  }
+})
 
 async function cargarHistorial() {
   cargandoHistorial.value = true
@@ -125,8 +167,9 @@ async function cargarHistorial() {
 watch(() => [props.modelValue, props.matricula?.id], ([abierto]) => {
   if (!abierto || !props.matricula) return
   Object.assign(form, { estado_academico: '', fecha: hoy, motivo: '' })
-  errores.value = {}
-  error.value   = ''
+  errores.value    = {}
+  error.value      = ''
+  evaluacion.value = null
   cargarHistorial()
 })
 

@@ -10,7 +10,7 @@
     <div v-else-if="registro" class="flex flex-col gap-5 pb-2">
       <div
         v-if="registro.status === STATUS_ANULADO"
-        class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800"
+        class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
       >
         Anulado por {{ registro.anulado_por?.name ?? '—' }} el {{ registro.anulado_at }}: {{ registro.motivo_anulacion }}
       </div>

@@ -7,10 +7,10 @@
  *
  * @param {{ cursos: ComputedRef, sedes: ComputedRef, comerciales: ComputedRef }} refs
  */
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 
 import cicloService          from '@/services/cicloService.js'
-import userService           from '@/services/userService.js'
+import estudianteService     from '@/services/estudianteService.js'
 import matriculaService      from '@/services/matriculaService.js'
 import precioProductoService from '@/services/precioProductoService.js'
 import poblacionService      from '@/services/poblacionService.js'
@@ -646,8 +646,9 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     fieldErrors.value          = {}
 
     try {
-      const res = await userService.getAll(
-        { search: q, per_page: 10, with: 'roles' },
+      // Se puede matricular a alguien del personal: la búsqueda incluye a todos (N01)
+      const res = await estudianteService.buscar(
+        { search: q, per_page: 10, incluir_personal: 1 },
         { _silent: true }
       )
       if (seq !== _busquedaSeq) return
@@ -681,10 +682,13 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     ])
   }
 
-  /** Inicia el flujo de nuevo estudiante usando el texto escrito como documento. */
+  /**
+   * Inicia el flujo de nuevo estudiante. El texto buscado solo se usa como documento
+   * si es un número de documento (si se buscó por nombre, el documento queda vacío).
+   */
   function registrarNuevoEstudiante() {
     resultadosBusqueda.value = []
-    _setNuevoEstudianteDefaults(documentoBusqueda.value.trim())
+    _setNuevoEstudianteDefaults(documentoDesdeBusqueda(documentoBusqueda.value))
   }
 
   /** Oculta el dropdown de resultados (usado en blur del input con delay). */
@@ -703,6 +707,17 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     estudianteForm.password              = doc
     estudianteForm.password_confirmation = doc
   }
+
+  // La contraseña por defecto es el documento: mientras no se edite a mano, sigue a los
+  // cambios del campo Documento (antes quedaba con el texto inicial de la búsqueda, F18).
+  watch(() => estudianteForm.documento, (nuevo, anterior) => {
+    if (estudianteEstado.value !== 'not_found') return
+    const previo = anterior ?? ''
+    if (estudianteForm.password === previo && estudianteForm.password_confirmation === previo) {
+      estudianteForm.password              = nuevo
+      estudianteForm.password_confirmation = nuevo
+    }
+  })
 
   /**
    * Verifica si el estudiante ya tiene una matrícula vigente (status = 1) en el
@@ -1010,7 +1025,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
       ...(cicloSedeId ? { sedes: [cicloSedeId] } : {})
     }
     try {
-      const res = await userService.create(payload, { _silent: true })
+      const res = await estudianteService.create(payload, { _silent: true })
       return res.data?.id ?? res?.id ?? null
     } catch (e) {
       _handleApiError(e, 3)
@@ -1027,7 +1042,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
       ...(estudianteForm.segundo_apellido ? { segundo_apellido: estudianteForm.segundo_apellido } : {})
     }
     try {
-      await userService.update(estudianteEncontrado.value.id, payload, { _silent: true })
+      await estudianteService.update(estudianteEncontrado.value.id, payload, { _silent: true })
     } catch (e) {
       _handleApiError(e, 2)
     }
@@ -1353,6 +1368,19 @@ function _defaultDetallesPrecarga() {
     nombre_contacto: '', telefono_contacto: '', correo_contacto: '',
     aprueba_uso_imagen: false, multiculturalidad: ''
   }
+}
+
+/**
+ * Documento a partir del texto del buscador de estudiantes: solo si es un número de
+ * documento (dígitos, admite puntos, espacios o guiones como separadores); si se
+ * buscó por nombre devuelve cadena vacía.
+ *
+ * @param {string} texto
+ * @returns {string}
+ */
+export function documentoDesdeBusqueda(texto) {
+  const limpio = String(texto ?? '').trim()
+  return /^\d[\d.\s-]*$/.test(limpio) ? limpio.replace(/[.\s-]/g, '') : ''
 }
 
 /**

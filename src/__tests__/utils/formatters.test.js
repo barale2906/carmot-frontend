@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { nombreCompleto } from '@/utils/formatters.js'
+import { nombreCompleto, formatMoney } from '@/utils/formatters.js'
 
 describe('nombreCompleto', () => {
   it('retorna cadena vacía para valor nulo', () => {
@@ -45,5 +45,15 @@ describe('nombreCompleto', () => {
       email: 'carlos@correo.com',
     }
     expect(nombreCompleto(usuario)).toBe('Carlos Ruiz')
+  })
+})
+
+describe('formatMoney (F07)', () => {
+  it('usa el formato colombiano sin decimales', () => {
+    expect(formatMoney(720000)).toBe('720.000')
+    expect(formatMoney('4800000.00')).toBe('4.800.000')
+    expect(formatMoney(999.6)).toBe('1.000')
+    expect(formatMoney(-30000)).toBe('-30.000')
+    expect(formatMoney(null)).toBe('0')
   })
 })

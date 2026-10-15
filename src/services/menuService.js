@@ -155,6 +155,26 @@ export const menuService = {
   },
 
   /**
+   * Primera opción navegable del menú del usuario dentro de un módulo
+   * (p. ej. '/financiero' → '/financiero/recibos-pago').
+   * @param {string} prefijo - Ruta del módulo
+   * @param {Array} menuItems - Árbol donde buscar (por defecto, la caché)
+   * @returns {string|null}
+   */
+  primeraRutaBajo(prefijo, menuItems = null) {
+    const items = menuItems || this._cachedMenu || []
+    for (const item of items) {
+      if (item.children?.length) {
+        const encontrada = this.primeraRutaBajo(prefijo, item.children)
+        if (encontrada) return encontrada
+      } else if (typeof item.route === 'string' && item.route.startsWith(`${prefijo}/`) && !item.disabled) {
+        return item.route
+      }
+    }
+    return null
+  },
+
+  /**
    * Obtener item por ruta (método privado)
    * @private
    */

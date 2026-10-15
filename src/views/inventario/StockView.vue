@@ -137,7 +137,7 @@
         </div>
       </div>
       <template #footer>
-        <button type="button" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showImportar = false">Cancelar</button>
+        <button type="button" class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showImportar = false">Cancelar</button>
         <button type="button" :disabled="importing || !importFile || !importAlmacenId" class="rounded-lg bg-[#213360] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50" @click="handleImportar">
           {{ importing ? 'Importando...' : 'Importar stock' }}
         </button>

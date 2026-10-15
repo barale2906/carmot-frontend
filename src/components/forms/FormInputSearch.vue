@@ -6,6 +6,7 @@
         class="text-sm font-medium text-slate-900"
       >
         {{ label }}
+        <span v-if="required" class="text-red-500" aria-hidden="true">*</span>
       </label>
       <FormFieldHelp v-if="help" :text="help" />
     </div>

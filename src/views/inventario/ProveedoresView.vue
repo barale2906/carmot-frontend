@@ -88,12 +88,12 @@
         <FormInput v-model="form.contacto_email" label="Email contacto" type="email" placeholder="Ej: ventas@proveedor.com" :error="formErrors.contacto_email?.[0]" />
         <FormInput v-model="form.direccion" label="Dirección" placeholder="Ej: Cra 15 # 25-40, Bogotá" :error="formErrors.direccion?.[0]" />
         <FormSelect v-model="form.status" label="Estado" :options="statusFormOptions" :error="formErrors.status?.[0]" />
-        <div v-if="formError" class="rounded-lg border border-red-200 bg-red-50 p-3">
+        <div v-if="formError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           <p class="text-sm text-red-700">{{ formError }}</p>
         </div>
       </form>
       <template #footer>
-        <button type="button" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showForm = false">Cancelar</button>
+        <button type="button" class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showForm = false">Cancelar</button>
         <button type="button" :disabled="saving" class="rounded-lg bg-[#213360] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50" @click="handleSubmit">
           {{ saving ? 'Guardando...' : (editingItem ? 'Guardar cambios' : 'Crear proveedor') }}
         </button>
@@ -136,6 +136,9 @@ import FormInputSearch from '@/components/forms/FormInputSearch.vue'
 import FormInput       from '@/components/forms/FormInput.vue'
 import FormSelect      from '@/components/forms/FormSelect.vue'
 import ModalBase       from '@/components/ModalBase.vue'
+import { useConfirm } from '@/composables/useConfirm.js'
+
+const { confirm } = useConfirm()
 
 const { success: notifySuccess } = useNotification()
 
@@ -185,7 +188,7 @@ function clearFilters() { filters.search = ''; filters.status = ''; loadProveedo
 function goToPage(p) { if (p >= 1 && p <= pagination.lastPage) loadProveedores(p) }
 
 async function handleDelete(row) {
-  if (!confirm(`¿Eliminar el proveedor "${row.razon_social}"?`)) return
+  if (!await confirm(`¿Eliminar el proveedor "${row.razon_social}"?`)) return
   deleting.value = { ...deleting.value, [row.id]: true }; actionError.value = ''
   try { await invProveedorService.delete(row.id); notifySuccess('Proveedor eliminado.'); loadProveedores(pagination.currentPage) }
   catch (e) { actionError.value = e?.response?.data?.message ?? 'No se pudo eliminar.' }
@@ -207,7 +210,7 @@ async function handleRestore(item) {
   finally { restoringId.value = null }
 }
 async function handleForceDelete(item) {
-  if (!confirm(`¿Eliminar permanentemente "${item.razon_social}"?`)) return
+  if (!await confirm(`¿Eliminar permanentemente "${item.razon_social}"? Esta acción no se puede deshacer.`)) return
   forceDeleting.value = item.id
   try { await invProveedorService.forceDelete(item.id); notifySuccess(`Proveedor "${item.razon_social}" eliminado permanentemente.`); trashedItems.value = trashedItems.value.filter(i => i.id !== item.id) }
   catch (e) { actionError.value = e?.response?.data?.message ?? 'No se pudo eliminar permanentemente.' }

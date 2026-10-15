@@ -188,14 +188,14 @@
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormSelect
             v-model="form.sede_id"
-            label="Sede *"
+            label="Sede"
             help="Sede donde se imparte el ciclo."
             :options="formSedeOptions"
             :required="true"
           />
           <FormSelect
             v-model="form.curso_id"
-            label="Curso *"
+            label="Curso"
             help="Programa académico base del ciclo."
             :options="formCursoOptions"
             :required="true"
@@ -206,7 +206,7 @@
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormInput
             v-model="form.fecha_inicio"
-            label="Fecha inicio *"
+            label="Fecha inicio"
             type="date"
             help="Primer día académico del ciclo. Necesario para calcular las fechas de cada grupo."
             :required="true"
@@ -291,8 +291,8 @@
           </div>
 
           <!-- Esperando curso y fecha -->
-          <div v-if="!form.curso_id || !form.fecha_inicio" class="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-center">
-            <p class="text-sm text-slate-500">Selecciona el curso y la fecha de inicio para ver los grupos disponibles.</p>
+          <div v-if="!form.sede_id || !form.curso_id || !form.fecha_inicio" class="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-center">
+            <p class="text-sm text-slate-500">Selecciona la sede, el curso y la fecha de inicio para ver los grupos disponibles.</p>
           </div>
 
           <!-- Cargando -->
@@ -301,7 +301,7 @@
           </div>
 
           <!-- Error al cargar -->
-          <div v-else-if="prevError" class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div v-else-if="prevError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
             {{ prevError }}
             <button type="button" class="ml-2 underline" @click="previsualizarCalendario">Reintentar</button>
           </div>
@@ -416,17 +416,8 @@
           </div>
         </div>
 
-        <!-- ── Inscritos y Estado ─────────────────────────────────────────── -->
+        <!-- ── Estado (los inscritos los cuenta el sistema con las matrículas) ── -->
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FormInput
-            v-model="form.inscritos"
-            label="Inscritos"
-            type="number"
-            placeholder="0"
-            min="0"
-            hint="Número de estudiantes inscritos (opcional)."
-            help="Conteo orientativo de cupos ocupados (opcional)."
-          />
           <FormSelect
             v-model="form.status"
             label="Estado"
@@ -436,8 +427,8 @@
         </div>
 
         <!-- Errores -->
-        <div v-if="formError" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">{{ formError }}</div>
-        <div v-if="fieldErrors && Object.keys(fieldErrors).length" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div v-if="formError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ formError }}</div>
+        <div v-if="fieldErrors && Object.keys(fieldErrors).length" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           <ul class="list-inside list-disc space-y-1">
             <li v-for="(msgs, field) in fieldErrors" :key="field">
               <strong>{{ field }}:</strong> {{ Array.isArray(msgs) ? msgs.join(', ') : msgs }}
@@ -462,7 +453,7 @@
   <ModalBase v-model="showEliminarModal" title="Eliminar ciclo" description="Esta acción moverá el ciclo a la papelera.">
     <div class="pb-2">
       <p class="text-sm text-slate-700">¿Estás seguro de que deseas eliminar <strong>{{ targetCiclo?.nombre }}</strong>?</p>
-      <div v-if="actionError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{{ actionError }}</div>
+      <div v-if="actionError" class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ actionError }}</div>
     </div>
     <template #footer>
       <button type="button" class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showEliminarModal = false">Cancelar</button>
@@ -476,7 +467,7 @@
   <ModalBase v-model="showRestaurarModal" title="Restaurar ciclo" description="El ciclo volverá a estar disponible en el sistema.">
     <div class="pb-2">
       <p class="text-sm text-slate-700">¿Deseas restaurar <strong>{{ targetCiclo?.nombre }}</strong>?</p>
-      <div v-if="actionError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{{ actionError }}</div>
+      <div v-if="actionError" class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ actionError }}</div>
     </div>
     <template #footer>
       <button type="button" class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showRestaurarModal = false">Cancelar</button>
@@ -959,7 +950,6 @@ const form = reactive({
   fecha_inicio: '',
   fecha_fin: '',
   fecha_fin_automatica: true,
-  inscritos: '',
   status: 1
 })
 
@@ -1011,17 +1001,13 @@ const fechaFinCalculada = computed(() => {
 })
 
 // ─── Watchers: recarga previsualización cuando cambian curso o fecha ──────────
-watch([() => form.curso_id, () => form.fecha_inicio], ([cursoId, fechaInicio]) => {
+watch([() => form.sede_id, () => form.curso_id, () => form.fecha_inicio], ([sedeId, cursoId, fechaInicio]) => {
   gruposSeleccionados.value = []
   prevData.value = null
   prevError.value = ''
-  if (cursoId && fechaInicio) {
+  if (sedeId && cursoId && fechaInicio) {
     previsualizarCalendario()
   }
-})
-
-watch(() => form.sede_id, () => {
-  gruposSeleccionados.value = []
 })
 
 // En modo fijo la previsualización simula el ajuste con la fecha fin elegida
@@ -1030,7 +1016,7 @@ watch([() => form.fecha_fin_automatica, () => form.fecha_fin], ([automatica, fec
     const { fecha_fin: _omitido, ...resto } = fieldErrors.value
     fieldErrors.value = resto
   }
-  if (!showFormModal.value || !form.curso_id || !form.fecha_inicio) return
+  if (!showFormModal.value || !form.sede_id || !form.curso_id || !form.fecha_inicio) return
   if (automatica && automatica === automaticaAnterior) return
   if (!automatica && !fechaFin) return
   previsualizarCalendario({ conservarSeleccion: true })
@@ -1113,7 +1099,8 @@ const prevLoading = ref(false)
 const prevError   = ref('')
 
 function previsualizarParams() {
-  const params = { curso_id: form.curso_id, fecha_inicio: form.fecha_inicio }
+  // Solo los grupos de la sede del ciclo: el backend rechaza grupos de otra sede
+  const params = { curso_id: form.curso_id, fecha_inicio: form.fecha_inicio, sede_id: form.sede_id }
   if (!form.fecha_fin_automatica && form.fecha_fin > form.fecha_inicio) params.fecha_fin = form.fecha_fin
   return params
 }
@@ -1123,7 +1110,7 @@ function previsualizarParams() {
  *   se mantiene la lista visible para no perder la selección de grupos.
  */
 async function previsualizarCalendario({ conservarSeleccion = false } = {}) {
-  if (!form.curso_id || !form.fecha_inicio) return
+  if (!form.sede_id || !form.curso_id || !form.fecha_inicio) return
   prevLoading.value = !conservarSeleccion
   if (!conservarSeleccion) prevData.value = null
   prevError.value   = ''
@@ -1146,7 +1133,6 @@ function resetForm() {
   form.fecha_inicio = ''
   form.fecha_fin = ''
   form.fecha_fin_automatica = true
-  form.inscritos = ''
   form.status = 1
   gruposSeleccionados.value = []
   prevData.value  = null
@@ -1174,7 +1160,6 @@ async function openEdit(ciclo) {
   form.fecha_inicio = ciclo.fecha_inicio ? ciclo.fecha_inicio.slice(0, 10) : ''
   form.fecha_fin = ciclo.fecha_fin ? ciclo.fecha_fin.slice(0, 10) : ''
   form.fecha_fin_automatica = ciclo.fecha_fin_automatica ?? true
-  form.inscritos = ciclo.inscritos ?? ''
   form.status = ciclo.status ?? 1
 
   showFormModal.value = true
@@ -1214,7 +1199,6 @@ async function submitForm() {
     }
     if (form.descripcion?.trim()) payload.descripcion = form.descripcion.trim()
     if (!form.fecha_fin_automatica) payload.fecha_fin = form.fecha_fin
-    if (form.inscritos !== '' && form.inscritos !== null) payload.inscritos = Number(form.inscritos)
     if (gruposSeleccionados.value.length) payload.grupos = [...gruposSeleccionados.value]
 
     if (editingCiclo.value) {

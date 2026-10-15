@@ -3,6 +3,15 @@ import api from './api.js'
 const BASE = '/configuracion/users'
 
 const userService = {
+  /**
+   * Cambia la contraseña del usuario autenticado (perfil).
+   * @param {{ contrasena_actual: string, password: string, password_confirmation: string }} payload
+   */
+  async cambiarMiContrasena(payload, config = {}) {
+    const { data } = await api.put('/configuracion/perfil/contrasena', payload, config)
+    return data
+  },
+
   async getAll(params = {}) {
     const { data } = await api.get(BASE, { params })
     return data

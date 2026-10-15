@@ -393,10 +393,10 @@
         </div>
 
         <!-- Errores -->
-        <div v-if="formError" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div v-if="formError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {{ formError }}
         </div>
-        <div v-if="Object.keys(filteredFieldErrors).length > 0" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div v-if="Object.keys(filteredFieldErrors).length > 0" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           <ul class="list-inside list-disc space-y-1">
             <li v-for="(msgs, field) in filteredFieldErrors" :key="field">
               <strong>{{ field }}:</strong> {{ Array.isArray(msgs) ? msgs.join(', ') : msgs }}
@@ -441,7 +441,7 @@
         <p class="mt-1 text-xs text-amber-600">
           No se puede inactivar una sede con grupos académicos activos.
         </p>
-        <div v-if="actionError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div v-if="actionError" class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {{ actionError }}
         </div>
       </div>
@@ -474,7 +474,7 @@
         <p class="text-sm text-slate-700">
           ¿Deseas restaurar la sede <strong>{{ targetSede?.nombre }}</strong>?
         </p>
-        <div v-if="actionError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div v-if="actionError" class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {{ actionError }}
         </div>
       </div>

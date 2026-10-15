@@ -102,7 +102,7 @@
         </section>
       </div>
 
-      <div v-if="error" class="rounded-lg border border-red-200 bg-red-50 p-3">
+      <div v-if="error" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
         <p class="text-sm text-red-700">{{ error }}</p>
       </div>
     </div>

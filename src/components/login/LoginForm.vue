@@ -77,7 +77,7 @@
 
       <div
         v-if="submitError"
-        class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+        class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
         role="alert"
       >
         {{ submitError }}

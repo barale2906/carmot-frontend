@@ -209,7 +209,7 @@
         <div>
           <FormSelect
             v-model="form.tipo_producto_id"
-            label="Tipo de producto *"
+            label="Tipo de producto"
             :options="tiposOptions"
             :required="true"
             hint="Categoría del producto. Determina si puede financiarse en cuotas."
@@ -231,7 +231,7 @@
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormInput
             v-model="form.nombre"
-            label="Nombre *"
+            label="Nombre"
             placeholder="Ej: Inglés Avanzado - Matrícula"
             hint="Máximo 255 caracteres."
             help="Nombre visible del producto en listas de precios y cobros."
@@ -289,7 +289,7 @@
           <div class="grid grid-cols-1 gap-2 sm:grid-cols-[140px_1fr_auto]">
             <FormSelect
               v-model="addRefTipo"
-              label="Tipo *"
+              label="Tipo" required
               :options="[{ value: 'curso', label: 'Curso' }, { value: 'modulo', label: 'Módulo' }]"
               help="Tipo de entidad académica a vincular."
             />
@@ -339,7 +339,7 @@
         />
 
         <!-- Error general -->
-        <div v-if="formError" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div v-if="formError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           <p class="font-medium">{{ formError }}</p>
           <ul v-if="Object.keys(fieldErrors).length" class="mt-1 list-inside list-disc space-y-0.5">
             <li v-for="(msgs, field) in fieldErrors" :key="field">{{ Array.isArray(msgs) ? msgs.join(', ') : msgs }}</li>
@@ -362,7 +362,7 @@
     <div class="pb-2">
       <p class="text-sm text-slate-700">¿Estás seguro de que deseas eliminar <strong>{{ targetProducto?.nombre }}</strong>?</p>
       <p class="mt-2 text-xs text-slate-500">Si el producto tiene precios activos en listas de precios vigentes, eliminar puede causar inconsistencias. Considera inactivarlo primero.</p>
-      <div v-if="actionError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{{ actionError }}</div>
+      <div v-if="actionError" class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ actionError }}</div>
     </div>
     <template #footer>
       <button type="button" class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showEliminarModal = false">Cancelar</button>

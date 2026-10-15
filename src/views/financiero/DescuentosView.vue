@@ -207,7 +207,7 @@
       <!-- Tipo de movimiento -->
       <FormSelect
         v-model="createForm.tipo_movimiento"
-        label="Tipo de ajuste *"
+        label="Tipo de ajuste"
         help="Descuento: reduce el precio. Sobrecargo: lo incrementa."
         :options="tipoMovimientoCrearOptions"
         required
@@ -215,7 +215,7 @@
 
       <FormInputSearch
         v-model="createForm.nombre"
-        label="Nombre *"
+        label="Nombre"
         placeholder="Ej: Pronto Pago 10%"
         help="Identificador descriptivo del ajuste."
         required
@@ -224,7 +224,7 @@
       <!-- Tipo de valor -->
       <FormSelect
         v-model="createForm.tipo"
-        label="Tipo de valor *"
+        label="Tipo de valor"
         help="Porcentual: se calcula sobre una base. Valor fijo: monto fijo en pesos."
         :options="tipoValorOptions"
         required
@@ -243,7 +243,7 @@
       <!-- Aplicación -->
       <FormSelect
         v-model="createForm.aplicacion"
-        label="Aplicación *"
+        label="Aplicación"
         help="Base sobre la que se calcula el ajuste."
         :options="aplicacionOptions"
         required
@@ -252,7 +252,7 @@
       <!-- Activación -->
       <FormSelect
         v-model="createForm.tipo_activacion"
-        label="Tipo de activación *"
+        label="Tipo de activación"
         help="Disparador que hace efectivo el ajuste."
         :options="activacionOptions"
         required
@@ -262,7 +262,7 @@
       <FormInput
         v-if="createForm.tipo_movimiento === 'descuento' && createForm.tipo_activacion === 'pago_anticipado'"
         v-model.number="createForm.dias_anticipacion"
-        label="Días de anticipación *"
+        label="Días de anticipación"
         type="number"
         min="1"
         help="Cuántos días antes del vencimiento debe pagarse para aplicar el descuento."
@@ -272,7 +272,7 @@
       <FormInputSearch
         v-if="createForm.tipo_movimiento === 'descuento' && createForm.tipo_activacion === 'codigo_promocional'"
         v-model="createForm.codigo_descuento"
-        label="Código promocional *"
+        label="Código promocional"
         placeholder="Ej: REF2026"
         help="El cliente ingresa este código para activar el descuento."
         required
@@ -338,14 +338,14 @@
       <div class="grid gap-4 sm:grid-cols-2">
         <FormInput
           v-model="createForm.fecha_inicio"
-          label="Fecha inicio *"
+          label="Fecha inicio"
           type="date"
           help="Primer día en que el ajuste puede aplicarse."
           required
         />
         <FormInput
           v-model="createForm.fecha_fin"
-          label="Fecha fin *"
+          label="Fecha fin"
           type="date"
           help="Último día en que el ajuste puede aplicarse."
           required
@@ -353,7 +353,7 @@
       </div>
 
       <!-- Error general -->
-      <div v-if="createError" class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      <div v-if="createError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
         {{ createError }}
       </div>
     </form>
@@ -488,7 +488,7 @@
       <p class="text-sm text-slate-700">
         ¿Confirmas que deseas aprobar <strong>{{ targetItem?.nombre }}</strong>?
       </p>
-      <div v-if="actionError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{{ actionError }}</div>
+      <div v-if="actionError" class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ actionError }}</div>
     </div>
     <template #footer>
       <button
@@ -517,7 +517,7 @@
       <p class="text-sm text-slate-700">
         ¿Confirmas que deseas activar <strong>{{ targetItem?.nombre }}</strong>?
       </p>
-      <div v-if="actionError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{{ actionError }}</div>
+      <div v-if="actionError" class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ actionError }}</div>
     </div>
     <template #footer>
       <button
@@ -546,7 +546,7 @@
       <p class="text-sm text-slate-700">
         ¿Confirmas que deseas inactivar <strong>{{ targetItem?.nombre }}</strong>?
       </p>
-      <div v-if="actionError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{{ actionError }}</div>
+      <div v-if="actionError" class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ actionError }}</div>
     </div>
     <template #footer>
       <button
@@ -567,6 +567,7 @@
 </template>
 
 <script setup>
+import { formatMoney } from '@/utils/formatters.js'
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import StatCard        from '@/components/dashboard/StatCard.vue'
 import DataTable       from '@/components/activos/DataTable.vue'
@@ -693,10 +694,6 @@ function statusBadgeVariant(s) {
   return map[s] ?? 'inactivo'
 }
 
-function formatMoney(val) {
-  if (val == null) return '0'
-  return Number(val).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-}
 
 // ─── Carga del listado ────────────────────────────────────────────────────────
 async function loadDescuentos(page = 1) {

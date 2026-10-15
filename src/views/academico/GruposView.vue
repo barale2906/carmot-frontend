@@ -381,10 +381,10 @@
           </div>
         </div>
 
-        <div v-if="formError" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div v-if="formError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {{ formError }}
         </div>
-        <div v-if="fieldErrors && Object.keys(fieldErrors).length" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div v-if="fieldErrors && Object.keys(fieldErrors).length" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           <ul class="list-inside list-disc space-y-1">
             <li v-for="(msgs, field) in fieldErrors" :key="field">
               <strong>{{ field }}:</strong> {{ Array.isArray(msgs) ? msgs.join(', ') : msgs }}
@@ -425,7 +425,7 @@
           ¿Estás seguro de que deseas eliminar
           <strong>{{ targetGrupo?.nombre }}</strong>?
         </p>
-        <div v-if="actionError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div v-if="actionError" class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {{ actionError }}
         </div>
       </div>
@@ -458,7 +458,7 @@
         <p class="text-sm text-slate-700">
           ¿Deseas restaurar <strong>{{ targetGrupo?.nombre }}</strong>?
         </p>
-        <div v-if="actionError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div v-if="actionError" class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {{ actionError }}
         </div>
       </div>
@@ -601,7 +601,7 @@ import SemanarioGrupos from '@/components/academico/SemanarioGrupos.vue'
 import { useNotification } from '@/composables/useNotification'
 import { nombreCompleto } from '@/utils/formatters.js'
 
-const { success: notifySuccess } = useNotification()
+const { success: notifySuccess, warning: notifyWarning } = useNotification()
 
 const JORNADAS = [
   { value: 0, label: 'Mañana' },
@@ -959,7 +959,6 @@ function buildGrupoPayload() {
     modulo_id: Number(form.modulo_id) || null,
     profesor_id: Number(form.profesor_id) || null,
     nombre: String(form.nombre || '').trim(),
-    inscritos: 0,
     jornada: Number(form.jornada) ?? 0,
     status: 1
   }
@@ -984,19 +983,25 @@ async function submitForm() {
     const grupoPayload = buildGrupoPayload()
     const horariosPayload = buildHorariosPayload()
 
+    let advertencias = []
     if (editingGrupo.value) {
       const grupoId = editingGrupo.value.id
       await grupoService.update(grupoId, grupoPayload, { _silent: true })
-      await grupoService.updateHorarios(grupoId, { horarios: horariosPayload }, { _silent: true })
+      const res = await grupoService.updateHorarios(grupoId, { horarios: horariosPayload }, { _silent: true })
+      advertencias = res.meta?.advertencias ?? []
       notifySuccess(`El grupo "${form.nombre}" fue actualizado correctamente.`)
     } else {
       const res = await grupoService.create(grupoPayload, { _silent: true })
+      advertencias = res.meta?.advertencias ?? []
       const nuevoId = res.data?.id
       if (nuevoId && horariosPayload.length) {
-        await grupoService.updateHorarios(nuevoId, { horarios: horariosPayload }, { _silent: true })
+        const resHorarios = await grupoService.updateHorarios(nuevoId, { horarios: horariosPayload }, { _silent: true })
+        advertencias = resHorarios.meta?.advertencias ?? []
       }
       notifySuccess(`El grupo "${form.nombre}" fue creado correctamente.`)
     }
+    // Cruce de horario del profesor con otro de sus grupos (no bloquea, B03)
+    advertencias.forEach((mensaje) => notifyWarning(mensaje, 'Cruce de horario del profesor'))
 
     showFormModal.value = false
     await Promise.all([loadGrupos(pagination.currentPage), loadStatistics()])

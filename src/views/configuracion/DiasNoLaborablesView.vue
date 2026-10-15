@@ -404,7 +404,7 @@
           :rows="2"
         />
 
-        <div v-if="formError" class="rounded-lg border border-red-200 bg-red-50 p-3">
+        <div v-if="formError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           <p class="text-sm text-red-700">{{ formError }}</p>
         </div>
       </form>
@@ -420,7 +420,7 @@
         </button>
         <button
           type="button"
-          class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
           @click="showForm = false"
         >
           Cancelar
@@ -493,7 +493,7 @@
           El rango abarca {{ rangoTotalDias }} {{ rangoTotalDias === 1 ? 'día' : 'días' }} (incluye fines de semana).
         </p>
 
-        <div v-if="rangoError" class="rounded-lg border border-red-200 bg-red-50 p-3">
+        <div v-if="rangoError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           <p class="text-sm text-red-700">{{ rangoError }}</p>
         </div>
       </form>
@@ -501,7 +501,7 @@
       <template #footer>
         <button
           type="button"
-          class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
           @click="showRango = false"
         >
           Cancelar
@@ -552,7 +552,7 @@
           desde la papelera).
         </p>
 
-        <div v-if="festivosError" class="rounded-lg border border-red-200 bg-red-50 p-3">
+        <div v-if="festivosError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           <p class="text-sm text-red-700">{{ festivosError }}</p>
         </div>
       </form>
@@ -560,7 +560,7 @@
       <template #footer>
         <button
           type="button"
-          class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
           @click="showFestivos = false"
         >
           Cancelar
@@ -673,7 +673,7 @@
         </li>
       </ul>
 
-      <p v-if="trashedError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{{ trashedError }}</p>
+      <p v-if="trashedError" class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ trashedError }}</p>
 
       <template #footer>
         <button

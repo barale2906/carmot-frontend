@@ -12,6 +12,7 @@ import {
   MAX_SOPORTE_BYTES,
   filasMediosPago,
   validarMotivo,
+  resumenSinEfectivo,
 } from '@/utils/libroDiario.js'
 
 const IVA = { impuesto_id: 1, efecto: EFECTO_SUMA, porcentaje: 19 }
@@ -145,5 +146,23 @@ describe('validarMotivo', () => {
     expect(validarMotivo('')).toBe('Escriba el motivo.')
     expect(validarMotivo('No')).toContain('al menos 5 caracteres')
     expect(validarMotivo('  Vuelva a contar ')).toBeNull()
+  })
+})
+
+describe('resumen restringido del cajero (N26)', () => {
+  const restringido = { restringido: true, por_medio_pago: { transferencia: { academico: 5000, ingresos: 5000 } }, transferencias_pendientes: null }
+  const etiquetas = { efectivo: 'Efectivo', transferencia: 'Transferencia', cheque: 'Cheque' }
+
+  it('se reconoce por la marca del backend', () => {
+    expect(resumenSinEfectivo(restringido)).toBe(true)
+    expect(resumenSinEfectivo({ ingresos: {}, por_medio_pago: {} })).toBe(false)
+    expect(resumenSinEfectivo(null)).toBe(false)
+  })
+
+  it('no muestra filas de totales ni la fila de efectivo', () => {
+    expect(filasResumenTurno(restringido)).toEqual([])
+    const { filas, totales } = filasMediosPago(restringido, etiquetas)
+    expect(filas.map((f) => f.medio)).toEqual(['transferencia'])
+    expect(totales.ingresos).toBe(5000)
   })
 })

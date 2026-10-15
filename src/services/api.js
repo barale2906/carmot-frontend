@@ -41,8 +41,20 @@ api.interceptors.response.use(
       return Promise.reject(error)
     }
 
+    // Límite de peticiones (429): un reintento tras el tiempo que indica el servidor (máx. 10 s, F04)
+    if (status === 429 && error.config && !error.config._reintento429) {
+      const segundos = Math.min(Number(error.response?.headers?.['retry-after']) || 2, 10)
+      error.config._reintento429 = true
+      return new Promise((resolve) => setTimeout(resolve, segundos * 1000)).then(() => api(error.config))
+    }
+
     if (!silent) {
-      if (status === 403) {
+      if (status === 429) {
+        notify.warning(
+          'Hay demasiadas solicitudes seguidas. Espera unos segundos e intenta de nuevo.',
+          'Un momento'
+        )
+      } else if (status === 403) {
         notify.error(
           data?.message ?? 'No tienes permiso para realizar esta acción.',
           'Acceso denegado'

@@ -208,3 +208,17 @@ describe('menuService', () => {
     })
   })
 })
+
+describe('menuService.primeraRutaBajo', () => {
+  it('devuelve la primera hoja del módulo, saltando grupos y deshabilitadas', () => {
+    const menu = [
+      { route: '/dashboard' },
+      { route: '/financiero', children: [
+        { route: '#financiero-listas', children: [{ route: '/financiero/tipos-producto', disabled: true }] },
+        { route: '#financiero-recibos', children: [{ route: '/financiero/recibos-pago' }] },
+      ] },
+    ]
+    expect(menuService.primeraRutaBajo('/financiero', menu)).toBe('/financiero/recibos-pago')
+    expect(menuService.primeraRutaBajo('/inventario', menu)).toBeNull()
+  })
+})

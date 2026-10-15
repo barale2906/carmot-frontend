@@ -58,6 +58,8 @@ const pageTitle = computed(() => {
     { prefix: '/pendientes',              title: 'Pendientes' },
     { prefix: '/calendario',              title: 'Calendario' },
     { prefix: '/inventario',              title: 'Inventario' },
+    { prefix: '/financiero',              title: 'Financiero' },
+    { prefix: '/ayudas',                  title: 'Ayudas' },
     { prefix: '/control-estudiantes',     title: 'Control Estudiantes' },
     { prefix: '/cartera',                 title: 'Cartera' },
     { prefix: '/reportes',                title: 'Reportes' },

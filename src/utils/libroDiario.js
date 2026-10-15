@@ -82,13 +82,25 @@ export function calcularDesdeTotal(total, impuestos = []) {
 }
 
 /**
- * Agrupa el resumen de un turno en las filas que muestra la UI.
+ * Indica si el resumen viene restringido: el cajero, mientras su cierre no esté aprobado,
+ * solo recibe los medios de pago distintos al efectivo (conteo ciego, N26).
+ *
+ * @param {object|null} resumen - `resumen` de un turno de caja
+ * @returns {boolean}
+ */
+export function resumenSinEfectivo(resumen) {
+  return !!resumen?.restringido
+}
+
+/**
+ * Agrupa el resumen de un turno en las filas que muestra la UI. Un resumen restringido
+ * (sin efectivo) no tiene totales que mostrar.
  *
  * @param {object|null} resumen - `resumen` de un turno de caja
  * @returns {Array<{ clave: string, label: string, valor: number }>}
  */
 export function filasResumenTurno(resumen) {
-  if (!resumen) return []
+  if (!resumen || resumenSinEfectivo(resumen)) return []
   return [
     { clave: 'base', label: 'Base inicial', valor: resumen.base_inicial ?? 0 },
     { clave: 'academico', label: 'Recibos académicos', valor: resumen.ingresos?.academico ?? 0 },
@@ -136,13 +148,16 @@ export function tipoVistaPrevia(mime) {
  * Desglose de todos los medios de pago de un turno (incluidos los que están en cero),
  * en el orden del catálogo de medios, con sus totales. `porOrigen` es false en los
  * resúmenes congelados antes de existir el desglose por académico/inventario/otros.
+ * En un resumen restringido (N26) solo salen los medios recibidos, sin el efectivo.
  *
  * @param {object|null} resumen - `resumen` de un turno de caja
  * @param {Record<string, string>} etiquetas - { efectivo: 'Efectivo', ... }
  */
 export function filasMediosPago(resumen, etiquetas = {}) {
   const porMedio = resumen?.por_medio_pago ?? {}
-  const claves = [...new Set([...Object.keys(etiquetas), ...Object.keys(porMedio)])]
+  // Restringido: solo los medios que envió el backend (sin efectivo)
+  const catalogo = resumenSinEfectivo(resumen) ? Object.keys(etiquetas).filter((m) => m in porMedio) : Object.keys(etiquetas)
+  const claves = [...new Set([...catalogo, ...Object.keys(porMedio)])]
   const campos = ['academico', 'inventario', 'otros', 'ingresos', 'egresos']
 
   const filas = claves.map((medio) => ({

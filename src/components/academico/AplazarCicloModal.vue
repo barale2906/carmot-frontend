@@ -158,7 +158,7 @@
     <form v-else-if="view === 'aplazar'" class="flex flex-col gap-4 pb-2" @submit.prevent="submitAplazar">
       <FormSelect
         v-model="aplazarForm.tipo_aplazamiento_id"
-        label="Tipo de aplazamiento *"
+        label="Tipo de aplazamiento"
         help="Motivo por el que se aplaza el ciclo."
         :options="tiposOptions"
         :required="true"
@@ -166,7 +166,7 @@
       <div>
         <FormInput
           v-model="aplazarForm.fecha_reinicio_probable"
-          label="Fecha probable de reinicio *"
+          label="Fecha probable de reinicio"
           type="date"
           :min="minFechaReinicio"
           help="Debe ser posterior a la fecha de inicio actual del ciclo."
@@ -229,7 +229,7 @@
       <div>
         <FormInput
           v-model="ampliarForm.fecha_reinicio_probable"
-          label="Nueva fecha probable de reinicio *"
+          label="Nueva fecha probable de reinicio"
           type="date"
           :min="minFechaAmpliar"
           help="Debe ser posterior a la fecha probable actual."
@@ -273,7 +273,7 @@
       <div>
         <FormInput
           v-model="interrumpirForm.fecha_reinicio_real"
-          label="Fecha real de reinicio *"
+          label="Fecha real de reinicio"
           type="date"
           :min="minFechaInterrumpir"
           :max="maxFechaInterrumpir"
@@ -295,7 +295,7 @@
 
     <!-- ── Vista: Revertir ──────────────────────────────────────────────────── -->
     <div v-else-if="view === 'revertir'" class="flex flex-col gap-4 pb-2">
-      <div class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+      <div class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
         <p class="font-medium">Esta acción restaurará todas las fechas a su estado original.</p>
         <p class="mt-1">
           Se revertirán las fechas del ciclo, sus grupos y las clases programadas
@@ -360,7 +360,7 @@ const FormErrors = {
     fieldErrors: { type: Object, default: () => ({}) }
   },
   template: `
-    <div v-if="error || Object.keys(fieldErrors).length" class="rounded-lg bg-red-50 p-3 text-sm text-red-700 space-y-1">
+    <div v-if="error || Object.keys(fieldErrors).length" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 space-y-1">
       <p v-if="error">{{ error }}</p>
       <ul v-if="Object.keys(fieldErrors).length" class="list-inside list-disc space-y-0.5">
         <li v-for="(msgs, field) in fieldErrors" :key="field">
@@ -529,17 +529,19 @@ async function loadData() {
   view.value = 'loading'
   loadError.value = ''
   try {
-    const [cicloRes, tiposRes, userPerms] = await Promise.all([
+    const [cicloRes, tiposRes, userPerms, esSuperusuario] = await Promise.all([
       cicloService.getById(props.ciclo.id, { with: 'aplazamientoActivo,aplazamientos' }),
       aplazamientoService.getTipos({ status: 1, per_page: 50 }),
-      authService.getUserPermissions()
+      authService.getUserPermissions(),
+      authService.esSuperusuario()
     ])
     cicloDetalle.value      = cicloRes.data
     aplazamientoActivo.value = cicloRes.data?.aplazamiento_activo ?? null
     historial.value         = cicloRes.data?.aplazamientos ?? []
     tiposAplazamiento.value = tiposRes.data ?? []
     canCreate.value         = userPerms.includes('aca_aplazamientoCrear')
-    canRevert.value         = userPerms.includes('aca_aplazamientoInactivar')
+    // Devolver un aplazamiento es siempre del superusuario (N25)
+    canRevert.value         = esSuperusuario
     view.value = 'main'
   } catch {
     loadError.value = 'Error al cargar la información del ciclo.'

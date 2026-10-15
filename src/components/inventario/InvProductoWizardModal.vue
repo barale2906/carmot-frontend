@@ -11,10 +11,9 @@
       <div
         v-if="visible"
         class="fixed inset-0 z-[1000] flex items-start justify-center overflow-y-auto bg-black/50 px-4 py-8"
-        @click.self="close"
       >
         <div
-          class="relative my-auto w-full max-w-2xl rounded-xl border border-black/10 bg-white shadow-xl"
+          class="relative my-auto w-full max-w-2xl rounded-[10px] border border-black/10 bg-white shadow-xl"
           @click.stop
         >
           <!-- Cabecera -->
@@ -185,7 +184,7 @@
               :rows="2"
               :error="formErrors.descripcion?.[0]"
             />
-            <div v-if="formError" class="rounded-lg border border-red-200 bg-red-50 p-3">
+            <div v-if="formError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
               <p class="text-sm text-red-700">{{ formError }}</p>
             </div>
           </div>
@@ -249,7 +248,7 @@
               Aún no hay variantes. Puedes agregarlas ahora o después desde la tabla.
             </div>
 
-            <div v-if="saveError" class="rounded-lg border border-red-200 bg-red-50 p-3">
+            <div v-if="saveError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
               <p class="text-sm text-red-700">{{ saveError }}</p>
             </div>
           </div>
@@ -317,7 +316,7 @@
               Aún no hay componentes. Puedes agregarlos ahora o después desde la tabla.
             </div>
 
-            <div v-if="saveError" class="rounded-lg border border-red-200 bg-red-50 p-3">
+            <div v-if="saveError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
               <p class="text-sm text-red-700">{{ saveError }}</p>
             </div>
           </div>
@@ -353,7 +352,7 @@
                 </div>
               </dl>
             </div>
-            <div v-if="saveError" class="rounded-lg border border-red-200 bg-red-50 p-3">
+            <div v-if="saveError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
               <p class="text-sm text-red-700">{{ saveError }}</p>
             </div>
           </div>

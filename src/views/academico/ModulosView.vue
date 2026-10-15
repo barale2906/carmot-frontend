@@ -333,10 +333,10 @@
           </p>
         </div>
 
-        <div v-if="formError" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div v-if="formError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {{ formError }}
         </div>
-        <div v-if="fieldErrors && Object.keys(fieldErrors).length" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div v-if="fieldErrors && Object.keys(fieldErrors).length" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           <ul class="list-inside list-disc space-y-1">
             <li v-for="(msgs, field) in fieldErrors" :key="field">
               <strong>{{ field }}:</strong> {{ Array.isArray(msgs) ? msgs.join(', ') : msgs }}
@@ -379,7 +379,7 @@
         <p class="mt-2 text-xs text-slate-500">
           No se puede eliminar si el módulo tiene cursos o grupos asociados.
         </p>
-        <div v-if="actionError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div v-if="actionError" class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {{ actionError }}
         </div>
       </div>
@@ -412,7 +412,7 @@
         <p class="text-sm text-slate-700">
           ¿Deseas restaurar <strong>{{ targetModulo?.nombre }}</strong>?
         </p>
-        <div v-if="actionError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div v-if="actionError" class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {{ actionError }}
         </div>
       </div>

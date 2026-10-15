@@ -1,7 +1,7 @@
 import { ref, computed, watch } from 'vue'
 import matriculaService         from '@/services/matriculaService.js'
 import carteraService           from '@/services/carteraService.js'
-import userService              from '@/services/userService.js'
+import estudianteService        from '@/services/estudianteService.js'
 import cursoService             from '@/services/cursoService.js'
 import { nombreCompleto }       from '@/utils/formatters.js'
 import { entidadClaseCorta }    from '@/utils/documentacion.js'
@@ -57,7 +57,7 @@ export const ADAPTADORES_ENTIDAD = {
   User: {
     placeholder: 'Nombre o documento del estudiante...',
     async buscar(termino) {
-      const res = await userService.getAll({ search: termino, per_page: POR_PAGINA })
+      const res = await estudianteService.buscar({ search: termino, per_page: POR_PAGINA })
       return (res.data ?? []).map((u) => ({
         id:      u.id,
         titulo:  nombreCompleto(u) || `Usuario #${u.id}`,

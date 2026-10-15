@@ -195,7 +195,7 @@
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <FormInput
           v-model="form.nombre"
-          label="Nombre *"
+          label="Nombre"
           placeholder="Ej: Matrícula de Curso"
           hint="Máximo 255 caracteres."
           help="Nombre del tipo en pantallas y al asignar productos LP."
@@ -205,7 +205,7 @@
         />
         <FormInput
           v-model="form.codigo"
-          label="Código *"
+          label="Código"
           placeholder="Ej: MAT-CURSO"
           hint="Único. Máximo 50 caracteres."
           help="Identificador único del tipo para datos e integraciones."
@@ -253,7 +253,7 @@
       />
 
       <!-- Error general -->
-      <div v-if="formError" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+      <div v-if="formError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
         <p class="font-medium">{{ formError }}</p>
         <ul v-if="Object.keys(fieldErrors).length" class="mt-1 list-inside list-disc space-y-0.5">
           <li v-for="(msgs, field) in fieldErrors" :key="field">{{ Array.isArray(msgs) ? msgs.join(', ') : msgs }}</li>
@@ -275,7 +275,7 @@
     <div class="pb-2">
       <p class="text-sm text-slate-700">¿Estás seguro de que deseas eliminar <strong>{{ targetTipo?.nombre }}</strong>?</p>
       <p class="mt-2 text-xs text-slate-500">Si este tipo tiene productos activos vinculados, la eliminación no será posible.</p>
-      <div v-if="actionError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{{ actionError }}</div>
+      <div v-if="actionError" class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ actionError }}</div>
     </div>
     <template #footer>
       <button type="button" class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showEliminarModal = false">Cancelar</button>

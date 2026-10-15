@@ -208,7 +208,14 @@
         <FormInput v-model="form.celular" type="tel" label="Celular" required :error="formErrors.celular?.[0]" />
         <FormInput v-model="form.ciudad" label="Ciudad" required :error="formErrors.ciudad?.[0]" />
         <FormSelect v-model="form.curso_id" label="Curso de interés" required :options="opcionesCurso" :error="formErrors.curso_id?.[0]" />
-        <FormSelect v-model="form.gestor_id" label="Asesor" required :options="opcionesGestor" :error="formErrors.gestor_id?.[0]" />
+        <FormSelect
+          v-model="form.gestor_id"
+          label="Asesor"
+          required
+          :options="opcionesGestor"
+          :error="formErrors.gestor_id?.[0]"
+          hint="Gestiona el lead hasta matricularlo. Cambiarlo lo reasigna y queda en la bitácora."
+        />
         <FormInput v-model="form.talla_overol" label="Talla de overol" placeholder="Ej: M" :error="formErrors.talla_overol?.[0]" />
         <FormInput v-model="form.talla_botas" label="Talla de botas" placeholder="Ej: 40" :error="formErrors.talla_botas?.[0]" />
         <FormSelect
@@ -227,7 +234,7 @@
       <template #footer>
         <button
           type="button"
-          class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
           @click="showForm = false"
         >
           Cancelar

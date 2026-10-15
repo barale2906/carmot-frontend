@@ -25,9 +25,9 @@
         </li>
         <li role="listitem">
           <StatCard
-            title="Inactivos"
+            title="Eliminados"
             :value="stats.eliminados"
-            description="Eliminados del sistema"
+            description="En la papelera"
             icon="pendientes"
             icon-variant="blue"
           />
@@ -321,10 +321,10 @@
           </template>
         </div>
 
-        <div v-if="formError" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div v-if="formError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {{ formError }}
         </div>
-        <div v-if="fieldErrors && Object.keys(fieldErrors).length > 0" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div v-if="fieldErrors && Object.keys(fieldErrors).length > 0" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           <ul class="list-inside list-disc space-y-1">
             <li v-for="(msgs, field) in fieldErrors" :key="field">
               <strong>{{ field }}:</strong> {{ Array.isArray(msgs) ? msgs.join(', ') : msgs }}
@@ -368,7 +368,7 @@
             {{ targetHorario.sede?.nombre }}
           </span>
         </p>
-        <div v-if="actionError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div v-if="actionError" class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {{ actionError }}
         </div>
       </div>
@@ -406,7 +406,7 @@
             {{ targetHorario.sede?.nombre }}
           </span>
         </p>
-        <div v-if="actionError" class="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div v-if="actionError" class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {{ actionError }}
         </div>
       </div>

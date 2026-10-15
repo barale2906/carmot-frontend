@@ -10,10 +10,9 @@
     >
       <div
         class="fixed inset-0 z-[1000] flex items-start justify-center overflow-y-auto bg-black/50 px-4 py-8"
-        @click.self="close"
       >
         <div
-          class="relative my-auto w-full max-w-3xl rounded-xl border border-black/10 bg-white shadow-xl"
+          class="relative my-auto w-full max-w-3xl rounded-[10px] border border-black/10 bg-white shadow-xl"
           @click.stop
         >
           <!-- Cabecera -->
@@ -123,10 +122,10 @@
               <div v-if="mostrarFormNuevo" class="flex flex-col gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
                 <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Datos del nuevo estudiante</p>
                 <div class="grid grid-cols-2 gap-3">
-                  <FormInput v-model="nuevoForm.primer_nombre"   label="Primer nombre *"   :error="nuevoErrors.primer_nombre?.[0]" />
-                  <FormInput v-model="nuevoForm.primer_apellido" label="Primer apellido *"  :error="nuevoErrors.primer_apellido?.[0]" />
-                  <FormInput v-model="nuevoForm.documento"       label="N.° documento *"    :error="nuevoErrors.documento?.[0]" />
-                  <FormInput v-model="nuevoForm.email"           label="Correo electrónico *" type="email" :error="nuevoErrors.email?.[0]" />
+                  <FormInput v-model="nuevoForm.primer_nombre"   label="Primer nombre" required   :error="nuevoErrors.primer_nombre?.[0]" />
+                  <FormInput v-model="nuevoForm.primer_apellido" label="Primer apellido" required  :error="nuevoErrors.primer_apellido?.[0]" />
+                  <FormInput v-model="nuevoForm.documento"       label="N.° documento" required    :error="nuevoErrors.documento?.[0]" />
+                  <FormInput v-model="nuevoForm.email"           label="Correo electrónico" required type="email" :error="nuevoErrors.email?.[0]" />
                 </div>
                 <p class="text-xs text-slate-400">La contraseña inicial será el número de documento.</p>
                 <div v-if="nuevoError" class="rounded-lg bg-red-50 p-2 text-xs text-red-700">{{ nuevoError }}</div>
@@ -411,7 +410,7 @@
               />
             </div>
 
-            <div v-if="formError" class="rounded-lg border border-red-200 bg-red-50 p-3">
+            <div v-if="formError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
               <p class="text-sm text-red-700">{{ formError }}</p>
             </div>
           </div>
@@ -463,7 +462,7 @@ import { ref, reactive, computed, onMounted, toRef } from 'vue'
 import invVentaService        from '@/services/invVentaService.js'
 import invAlmacenService      from '@/services/invAlmacenService.js'
 import bancoService           from '@/services/bancoService.js'
-import userService            from '@/services/userService.js'
+import estudianteService      from '@/services/estudianteService.js'
 import { authService }        from '@/services/authService.js'
 import { useNotification }    from '@/composables/useNotification'
 import {
@@ -542,8 +541,9 @@ async function buscarEstudiante() {
   buscandoEstudiante.value = true
   estudianteBuscado.value  = false
   try {
-    const res = await userService.getAll(
-      { search: estudianteQuery.value, per_page: 10, with: 'roles' },
+    // El buscador ya excluye al personal que no estudia (F15, N01)
+    const res = await estudianteService.buscar(
+      { search: estudianteQuery.value, per_page: 10 },
       { _silent: true }
     )
     estudiantesResultados.value = res.data ?? []
@@ -835,7 +835,7 @@ async function handleSubmit() {
         roles:                 ['alumno'],
         ...(sedeActual.value ? { sedes: [sedeActual.value] } : {}),
       }
-      const created = await userService.create(payload, { _silent: true })
+      const created = await estudianteService.create(payload, { _silent: true })
       const newId   = created.data?.id ?? created?.id ?? null
       if (!newId) throw new Error('No se obtuvo ID del nuevo estudiante.')
       estudianteSeleccionado.value = { ...estudianteSeleccionado.value, id: newId }

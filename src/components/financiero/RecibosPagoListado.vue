@@ -357,13 +357,13 @@
       </dl>
 
       <!-- Motivo de anulación -->
-      <div v-if="detailRecibo.esta_anulado && detailRecibo.motivo_anulacion" class="rounded-lg border border-red-200 bg-red-50 p-3">
+      <div v-if="detailRecibo.esta_anulado && detailRecibo.motivo_anulacion" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
         <p class="text-xs font-semibold uppercase tracking-wide text-red-700">Motivo de anulación</p>
         <p class="mt-1 text-sm text-red-800">{{ detailRecibo.motivo_anulacion }}</p>
       </div>
 
       <!-- Motivo de rechazo (transferencia rechazada) -->
-      <div v-if="detailRecibo.esta_rechazado && detailRecibo.motivo_rechazo" class="rounded-lg border border-red-200 bg-red-50 p-3">
+      <div v-if="detailRecibo.esta_rechazado && detailRecibo.motivo_rechazo" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
         <p class="text-xs font-semibold uppercase tracking-wide text-red-700">Motivo de rechazo</p>
         <p class="mt-1 text-sm text-red-800">{{ detailRecibo.motivo_rechazo }}</p>
       </div>
@@ -599,7 +599,7 @@
         Recibo de inventario: su valor se descuenta del abono del pedido. Si el pedido ya está pagado,
         anula el pedido completo desde Inventario → Ventas.
       </p>
-      <div v-if="actionError" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+      <div v-if="actionError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
         {{ actionError }}
       </div>
     </div>
@@ -627,7 +627,7 @@
     description="Actualiza los datos del recibo rechazado y reenvíalo a aprobación."
   >
     <div class="space-y-4 pb-2">
-      <div v-if="actionError" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">{{ actionError }}</div>
+      <div v-if="actionError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ actionError }}</div>
 
       <!-- Banco -->
       <div>
@@ -692,7 +692,7 @@
         en estado <strong>{{ targetRecibo?.status_text }}</strong>?
       </p>
       <p class="text-xs text-slate-500">Esta acción no se puede deshacer. El comprobante adjunto también será eliminado.</p>
-      <div v-if="actionError" class="rounded-lg bg-red-50 p-3 text-sm text-red-700">{{ actionError }}</div>
+      <div v-if="actionError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ actionError }}</div>
     </div>
     <template #footer>
       <button
@@ -713,6 +713,7 @@
 </template>
 
 <script setup>
+import { formatMoney } from '@/utils/formatters.js'
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRouter }           from 'vue-router'
 import StatCard                from '@/components/dashboard/StatCard.vue'
@@ -825,10 +826,6 @@ function statusBadgeVariant(status) {
   return map[status] ?? 'inactivo'
 }
 
-function formatMoney(val) {
-  if (val == null) return '0.00'
-  return Number(val).toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
 
 function isImageUrl(url) {
   return /\.(jpe?g|png|webp|gif)(\?.*)?$/i.test(url)

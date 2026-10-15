@@ -168,12 +168,12 @@
             </template>
           </FormCheckboxGroup>
           <p v-if="poblacionesLoading" class="mt-1 text-xs text-slate-400">Cargando poblaciones...</p>
-          <div v-if="listaFormError" class="rounded-lg border border-red-200 bg-red-50 p-3">
+          <div v-if="listaFormError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
             <p class="text-sm text-red-700">{{ listaFormError }}</p>
           </div>
         </form>
         <template #footer>
-          <button type="button" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showListaForm = false">Cancelar</button>
+          <button type="button" class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showListaForm = false">Cancelar</button>
           <button type="button" :disabled="listaSaving" class="rounded-lg bg-[#213360] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50" @click="handleListaSubmit">
             {{ listaSaving ? 'Guardando...' : (editingLista ? 'Guardar cambios' : 'Crear lista') }}
           </button>
@@ -192,12 +192,12 @@
             <input v-model="clonarForm.copiar_precios" type="checkbox" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
             Copiar precios de la lista origen
           </label>
-          <div v-if="clonarFormError" class="rounded-lg border border-red-200 bg-red-50 p-3">
+          <div v-if="clonarFormError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
             <p class="text-sm text-red-700">{{ clonarFormError }}</p>
           </div>
         </form>
         <template #footer>
-          <button type="button" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showClonarForm = false">Cancelar</button>
+          <button type="button" class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showClonarForm = false">Cancelar</button>
           <button type="button" :disabled="clonarSaving" class="rounded-lg bg-[#213360] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50" @click="handleClonar">
             {{ clonarSaving ? 'Clonando...' : 'Clonar lista' }}
           </button>
@@ -407,12 +407,12 @@
           </template>
           <FormInput v-model="form.precio" label="Precio" type="number" min="0" step="0.01" placeholder="0.00" required :error="formErrors.precio?.[0]" />
           <FormTextarea v-model="form.observaciones" label="Observaciones" placeholder="Observaciones opcionales..." :rows="2" :error="formErrors.observaciones?.[0]" />
-          <div v-if="formError" class="rounded-lg border border-red-200 bg-red-50 p-3">
+          <div v-if="formError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
             <p class="text-sm text-red-700">{{ formError }}</p>
           </div>
         </form>
         <template #footer>
-          <button type="button" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showForm = false">Cancelar</button>
+          <button type="button" class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showForm = false">Cancelar</button>
           <button type="button" :disabled="saving" class="rounded-lg bg-[#213360] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50" @click="handleSubmit">
             {{ saving ? 'Guardando...' : (editingItem ? 'Guardar cambios' : 'Crear precio') }}
           </button>

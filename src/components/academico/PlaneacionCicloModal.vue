@@ -16,7 +16,7 @@
         <span class="text-sm text-slate-500">Cargando planeación...</span>
       </div>
 
-      <div v-else-if="error" class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+      <div v-else-if="error" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
         {{ error }}
         <button type="button" class="ml-2 underline" @click="load">Reintentar</button>
       </div>

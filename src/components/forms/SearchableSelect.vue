@@ -19,6 +19,18 @@
         {{ seleccionada ? seleccionada.label : placeholder }}
       </span>
     </button>
+    <button
+      v-if="clearable && seleccionada && !disabled"
+      type="button"
+      class="absolute top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      :class="size === 'sm' ? 'right-7' : 'right-9'"
+      aria-label="Quitar selección"
+      @click.stop="limpiar"
+    >
+      <svg class="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
     <span
       class="pointer-events-none absolute top-1/2 -translate-y-1/2 text-slate-500"
       :class="size === 'sm' ? 'right-2' : 'right-3'"
@@ -72,19 +84,19 @@
             class="flex items-start gap-2 px-3 py-2 text-sm"
             :class="[
               opcion.disabled ? 'cursor-not-allowed text-slate-400' : 'cursor-pointer text-slate-700',
-              i === indiceActivo && !opcion.disabled ? 'bg-blue-50' : '',
-              esSeleccionada(opcion) ? 'font-medium text-blue-700' : ''
+              i === indiceActivo && !opcion.disabled ? 'bg-blue-600 text-white' : '',
+              esSeleccionada(opcion) ? (i === indiceActivo ? 'font-medium' : 'font-medium text-blue-700') : ''
             ]"
             @mousedown.prevent="seleccionar(opcion)"
-            @mouseenter="indiceActivo = i"
+            @mousemove="resaltarConRaton($event, i)"
           >
             <span class="min-w-0 flex-1">
               <span class="block break-words">{{ opcion.label }}</span>
-              <span v-if="opcion.description" class="block text-xs font-normal text-slate-500">{{ opcion.description }}</span>
+              <span v-if="opcion.description" class="block text-xs font-normal" :class="i === indiceActivo && !opcion.disabled ? 'text-blue-100' : 'text-slate-500'">{{ opcion.description }}</span>
             </span>
             <svg
               v-if="esSeleccionada(opcion)"
-              class="mt-0.5 size-4 shrink-0 text-blue-600"
+              class="mt-0.5 size-4 shrink-0" :class="i === indiceActivo ? 'text-white' : 'text-blue-600'"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -94,7 +106,7 @@
             </svg>
           </li>
           <li v-if="!opcionesFiltradas.length" class="px-3 py-3 text-center text-sm text-slate-400">
-            {{ emptyText }}
+            {{ textoVacio }}
           </li>
         </ul>
       </div>
@@ -115,7 +127,19 @@
  * @prop {Array}  options    [{ value, label, description?, disabled? }]
  * @prop {String} size       'md' (formularios) | 'sm' (tablas/toolbars)
  * @prop {String} variant    'filled' (estilo FormSelect) | 'outline' (borde, fondo blanco)
+ * @prop {Boolean} clearable  Muestra ✕ para quitar la selección (emite null y `clear`)
+ * @prop {Boolean} keepOpen   Modo "agregar": elegir no cambia el valor ni cierra; limpia la búsqueda
+ *                            y deja el panel listo para el siguiente (selector de varios)
+ * @prop {Boolean} remote     Modo búsqueda en servidor: no filtra localmente, emite `search` (con
+ *                            debounce, desde `minChars`) y el padre responde con `options`
+ * @prop {Boolean} loading    Con `remote`: muestra "Buscando..."
+ * @prop {Object}  selectedOption  Opción a mostrar como elegida cuando no está en `options`
+ *                            (típico en `remote`, donde las opciones son solo los resultados)
+ * Teclado: escribir filtra; ↑/↓ o Tab/Shift+Tab recorren las opciones; Enter selecciona; Esc cierra.
  * @emits update:modelValue, change — solo cuando el valor cambia, como el nativo
+ * @emits select — la opción completa elegida (siempre, también en `keepOpen`)
+ * @emits search — texto a buscar (solo `remote`)
+ * @emits clear  — se quitó la selección con ✕
  */
 import { ref, computed, watch, nextTick, useAttrs, onBeforeUnmount } from 'vue'
 import { filtrarOpciones, mismoValor }                                 from '@/utils/busqueda.js'
@@ -133,10 +157,17 @@ const props = defineProps({
   disabled:          { type: Boolean, default: false },
   invalid:           { type: Boolean, default: false },
   size:              { type: String, default: 'md', validator: (v) => ['md', 'sm'].includes(v) },
-  variant:           { type: String, default: 'filled', validator: (v) => ['filled', 'outline'].includes(v) }
+  variant:           { type: String, default: 'filled', validator: (v) => ['filled', 'outline'].includes(v) },
+  clearable:         { type: Boolean, default: false },
+  keepOpen:          { type: Boolean, default: false },
+  remote:            { type: Boolean, default: false },
+  loading:           { type: Boolean, default: false },
+  minChars:          { type: Number, default: 0 },
+  debounce:          { type: Number, default: 350 },
+  selectedOption:    { type: Object, default: null }
 })
 
-const emit = defineEmits(['update:modelValue', 'change'])
+const emit = defineEmits(['update:modelValue', 'change', 'select', 'search', 'clear'])
 
 // class/style van al contenedor (ancho, márgenes); el resto (aria-*, title...) al botón
 const attrs = useAttrs()
@@ -161,8 +192,22 @@ const consulta     = ref('')
 const indiceActivo = ref(-1)
 const panelStyle   = ref({})
 
-const seleccionada      = computed(() => props.options.find((o) => mismoValor(o.value, props.modelValue)) ?? null)
-const opcionesFiltradas = computed(() => filtrarOpciones(props.options, consulta.value))
+const seleccionada = computed(() =>
+  props.options.find((o) => mismoValor(o.value, props.modelValue)) ?? props.selectedOption
+)
+
+const faltanLetras = computed(() => props.remote && consulta.value.trim().length < props.minChars)
+
+const opcionesFiltradas = computed(() => {
+  if (!props.remote) return filtrarOpciones(props.options, consulta.value)
+  return faltanLetras.value ? [] : props.options
+})
+
+const textoVacio = computed(() => {
+  if (!props.remote) return props.emptyText
+  if (faltanLetras.value) return `Escribe al menos ${props.minChars} letras para buscar`
+  return props.loading ? 'Buscando...' : props.emptyText
+})
 
 const valorValidacion = computed(() => {
   if (!seleccionada.value) return ''
@@ -214,6 +259,7 @@ function actualizarPosicion() {
 function abrir(textoInicial = '') {
   if (props.disabled || abierto.value) return
   consulta.value = textoInicial
+  ultimaPosicionRaton = null
   actualizarPosicion()
   abierto.value = true
   indiceActivo.value = textoInicial ? primerHabilitado(0, 1) : indiceInicial()
@@ -252,14 +298,27 @@ function onClickFuera(event) {
 }
 
 watch(() => props.disabled, (deshabilitado) => { if (deshabilitado) cerrar() })
-onBeforeUnmount(quitarListeners)
+onBeforeUnmount(() => { quitarListeners(); clearTimeout(temporizadorBusqueda) })
 
 // ── Selección ────────────────────────────────────────────────────────────────
 
+function limpiar() {
+  emit('update:modelValue', null)
+  emit('change', null)
+  emit('clear')
+}
+
 function seleccionar(opcion) {
   if (!opcion || opcion.disabled) return
+  if (props.keepOpen) {
+    emit('select', opcion)
+    consulta.value = ''
+    nextTick(() => searchRef.value?.focus())
+    return
+  }
   const cambio = !mismoValor(opcion.value, props.modelValue)
   cerrar({ devolverFoco: true })
+  emit('select', opcion)
   if (!cambio) return
   emit('update:modelValue', opcion.value)
   emit('change', opcion.value)
@@ -294,11 +353,37 @@ function scrollAlActivo() {
   })
 }
 
-watch(consulta, () => {
+let temporizadorBusqueda = null
+
+watch(consulta, (texto) => {
   if (!abierto.value) return
   indiceActivo.value = primerHabilitado(0, 1)
   if (listRef.value) listRef.value.scrollTop = 0
+  if (props.remote) {
+    clearTimeout(temporizadorBusqueda)
+    if (texto.trim().length >= props.minChars) {
+      temporizadorBusqueda = setTimeout(() => emit('search', texto.trim()), props.debounce)
+    }
+  }
 })
+
+// Cuando llegan los resultados remotos, el resaltado vuelve a la primera opción
+watch(() => props.options, () => {
+  if (abierto.value && props.remote) indiceActivo.value = primerHabilitado(0, 1)
+})
+
+// El navegador dispara mouseenter al desplazarse la lista bajo un cursor quieto, y eso le
+// quitaba el resaltado al teclado: el hover solo cuenta si el ratón realmente se movió.
+let ultimaPosicionRaton = null
+
+function resaltarConRaton(event, indice) {
+  const { clientX, clientY } = event
+  const seMovio = !ultimaPosicionRaton
+    || ultimaPosicionRaton.x !== clientX
+    || ultimaPosicionRaton.y !== clientY
+  ultimaPosicionRaton = { x: clientX, y: clientY }
+  if (seMovio && !opcionesFiltradas.value[indice]?.disabled) indiceActivo.value = indice
+}
 
 function onTriggerKeydown(event) {
   // Con el panel abierto (foco devuelto al botón por un clic), el teclado sigue en el buscador
@@ -342,9 +427,18 @@ function onSearchKeydown(event) {
       cerrar({ devolverFoco: true })
       break
     case 'Tab':
-      // El panel vive al final del body: sin devolver el foco, el Tab saltaría fuera del formulario
+      // El panel vive al final del body: el Tab no puede dejar el foco allí. Recorre las
+      // opciones (Shift+Tab en reversa) y se selecciona con Enter; al pasar la última, cierra.
       event.preventDefault()
-      cerrar({ devolverFoco: true })
+      {
+        const siguiente = primerHabilitado(indiceActivo.value + (event.shiftKey ? -1 : 1), event.shiftKey ? -1 : 1)
+        if (siguiente >= 0) {
+          indiceActivo.value = siguiente
+          scrollAlActivo()
+        } else {
+          cerrar({ devolverFoco: true })
+        }
+      }
       break
   }
 }
