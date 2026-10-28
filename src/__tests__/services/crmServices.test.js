@@ -61,16 +61,27 @@ describe('seguimientoService', () => {
     expect(api.get).toHaveBeenCalledWith('/crm/seguimientos/by-referido/5', { params: { per_page: 50 } })
   })
 
-  it('crea, actualiza y elimina', async () => {
+  it('consulta la bitácora agrupada por lead', async () => {
+    api.get.mockResolvedValue({ data: { data: [], meta: {} } })
+    const res = await seguimientoService.getPorLead({ search: 'ana', page: 2 })
+    expect(api.get).toHaveBeenCalledWith('/crm/seguimientos/por-lead', { params: { search: 'ana', page: 2 } })
+    expect(res).toEqual({ data: [], meta: {} })
+  })
+
+  it('descarga el Excel del lapso como blob', async () => {
+    const blob = new Blob(['x'])
+    api.get.mockResolvedValue({ data: blob })
+    const params = { fecha_desde: '2026-10-01', fecha_hasta: '2026-10-31', search: 'ana' }
+    const res = await seguimientoService.exportarExcel(params)
+    expect(api.get).toHaveBeenCalledWith('/crm/seguimientos/excel', { params, responseType: 'blob' })
+    expect(res).toBe(blob)
+  })
+
+  it('crea con el payload recibido', async () => {
     api.post.mockResolvedValue({ data: {} })
-    api.put.mockResolvedValue({ data: {} })
-    api.delete.mockResolvedValue({ data: {} })
-    await seguimientoService.create({ referido_id: 1 })
-    await seguimientoService.update(2, { seguimiento: 'x' })
-    await seguimientoService.delete(2)
-    expect(api.post).toHaveBeenCalledWith('/crm/seguimientos', { referido_id: 1 })
-    expect(api.put).toHaveBeenCalledWith('/crm/seguimientos/2', { seguimiento: 'x' })
-    expect(api.delete).toHaveBeenCalledWith('/crm/seguimientos/2')
+    const payload = { referido_id: 1, estado_referido: 2, proxima_accion: { tipo: 'llamada', fecha: '2026-11-02', hora: '09:00', nota: null } }
+    await seguimientoService.create(payload)
+    expect(api.post).toHaveBeenCalledWith('/crm/seguimientos', payload)
   })
 })
 

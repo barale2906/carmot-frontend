@@ -85,7 +85,7 @@
               class="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800"
             >
               Convirtiendo el lead <strong>{{ referido.nombre || 'sin nombre' }}</strong>
-              ({{ referido.celular }}). Su curso de interés, celular, tallas y asesor se precargan;
+              ({{ referido.celular }}). Su curso de interés, celular y asesor se precargan;
               al guardar, el lead queda como <strong>Matriculado</strong>.
             </div>
 

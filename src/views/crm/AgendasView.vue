@@ -20,6 +20,9 @@
           <FormInput v-model="filters.fecha_hasta" type="date" label="Hasta:" @change="loadAgendas(1)" />
         </div>
         <div class="w-full sm:w-[170px]">
+          <FormSelect v-model="filters.tipo" label="Tipo:" :options="opcionesFiltroTipo" @change="loadAgendas(1)" />
+        </div>
+        <div class="w-full sm:w-[170px]">
           <FormSelect v-model="filters.status" label="Estado:" :options="opcionesFiltroEstado" @change="loadAgendas(1)" />
         </div>
         <div class="w-full sm:w-[220px]">
@@ -33,7 +36,7 @@
             @click="openCreate"
           >
             <NavIcon name="plus" class="size-4" />
-            Nueva cita
+            Programar acción
           </button>
           <button
             type="button"
@@ -50,8 +53,8 @@
     <section aria-labelledby="listado-agendas-heading">
       <SectionHeader
         id="listado-agendas-heading"
-        title="Agenda de citas"
-        description="Registra el resultado de cada cita. Al agendar o reprogramar, la bitácora del lead se actualiza automáticamente."
+        title="Agenda"
+        description="Llamadas, visitas y demás acciones programadas con cada lead. Registra su resultado; al programar o reprogramar, la bitácora del lead se actualiza automáticamente."
         class="mb-4"
       />
 
@@ -62,16 +65,20 @@
         <p class="text-sm text-red-700">{{ error }}</p>
       </div>
       <div v-else-if="!agendas.length" class="rounded-[14px] border border-black/10 bg-white py-12 text-center text-sm text-slate-400">
-        No hay citas en el rango seleccionado.
+        No hay acciones programadas en el rango seleccionado.
       </div>
 
-      <DataTable v-else :columns="tableColumns" :data="agendas" row-key="id" aria-label="Agenda de citas" actions-first>
+      <DataTable v-else :columns="tableColumns" :data="agendas" row-key="id" aria-label="Agenda" actions-first>
         <template #cell="{ column, value, row }">
           <template v-if="column.key === 'fecha'">
             <span class="font-medium text-slate-900">{{ fechaCorta(value) }}</span>
           </template>
           <template v-else-if="column.key === 'hora'">
             {{ horaCorta(value) }}
+          </template>
+          <template v-else-if="column.key === 'tipo'">
+            <span class="font-medium text-slate-900">{{ row.tipo_text }}</span>
+            <span v-if="row.nota" class="block max-w-xs text-xs text-slate-500">{{ row.nota }}</span>
           </template>
           <template v-else-if="column.key === 'referido'">
             <span class="text-slate-900">{{ row.referido?.nombre || 'Sin nombre' }}</span>
@@ -95,16 +102,16 @@
             <button
               type="button"
               class="rounded p-1.5 text-green-700 transition-colors hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-500"
-              title="Asistió"
-              @click="marcar(row, ESTADOS_AGENDA.ASISTIO)"
+              :title="textoEstadoAgenda(ESTADOS_AGENDA.REALIZADA, row.tipo)"
+              @click="marcar(row, ESTADOS_AGENDA.REALIZADA)"
             >
               <NavIcon name="check" class="size-4" />
             </button>
             <button
               type="button"
               class="rounded p-1.5 text-red-600 transition-colors hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500"
-              title="No asistió"
-              @click="marcar(row, ESTADOS_AGENDA.NO_ASISTIO)"
+              :title="textoEstadoAgenda(ESTADOS_AGENDA.NO_REALIZADA, row.tipo)"
+              @click="marcar(row, ESTADOS_AGENDA.NO_REALIZADA)"
             >
               <NavIcon name="ban" class="size-4" />
             </button>
@@ -119,7 +126,7 @@
             <button
               type="button"
               class="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              title="Cancelar cita"
+              title="Cancelar"
               @click="marcar(row, ESTADOS_AGENDA.CANCELO)"
             >
               <NavIcon name="close" class="size-4" />
@@ -129,7 +136,7 @@
             v-if="can('crm_agendaInactivar')"
             type="button"
             class="rounded p-1.5 text-slate-500 transition-colors hover:bg-red-100 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
-            title="Eliminar cita"
+            title="Eliminar"
             @click="handleDelete(row)"
           >
             <NavIcon name="trash" class="size-4" />
@@ -142,7 +149,7 @@
         class="mt-4 flex items-center justify-between rounded-[14px] border border-black/10 bg-white px-6 py-3"
       >
         <p class="text-sm text-slate-500">
-          Mostrando {{ pagination.from }}–{{ pagination.to }} de {{ pagination.total }} citas
+          Mostrando {{ pagination.from }}–{{ pagination.to }} de {{ pagination.total }} acciones
         </p>
         <div class="flex gap-2">
           <button
@@ -165,13 +172,13 @@
       </div>
     </section>
 
-    <!-- Modal: nueva cita / reprogramar -->
+    <!-- Modal: programar acción / reprogramar -->
     <ModalBase
       v-model="showForm"
-      :title="reprogramando ? 'Reprogramar cita' : 'Nueva cita'"
+      :title="reprogramando ? 'Reprogramar' : 'Programar acción'"
       :description="reprogramando
-        ? `La cita del ${fechaCorta(reprogramando.fecha)} queda como Reprogramó y se crea una nueva.`
-        : 'Agenda una cita con un lead del CRM'"
+        ? `La acción del ${fechaCorta(reprogramando.fecha)} queda como Reprogramó y se crea una nueva.`
+        : 'Programa una llamada, visita u otra acción con un lead del CRM'"
     >
       <form class="flex flex-col gap-4 pb-2" @submit.prevent="handleSubmit">
         <FormSelect
@@ -182,8 +189,10 @@
           :options="opcionesReferido"
           :error="formErrors.referido_id?.[0]"
         />
+        <FormSelect v-model="form.tipo" label="Tipo" required :options="OPCIONES_TIPO_AGENDA" :error="formErrors.tipo?.[0]" />
         <FormInput v-model="form.fecha" type="date" label="Fecha" required :min="hoy" :error="formErrors.fecha?.[0]" />
         <FormInput v-model="form.hora" type="time" label="Hora" required :error="formErrors.hora?.[0]" />
+        <FormInput v-model="form.nota" label="Nota" placeholder="Qué se debe hacer" :error="formErrors.nota?.[0]" />
         <div v-if="formError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           <p class="text-sm text-red-700">{{ formError }}</p>
         </div>
@@ -224,7 +233,7 @@ import { usePermisos }     from '@/composables/usePermisos.js'
 import { useConfirm }      from '@/composables/useConfirm.js'
 import { useNotification } from '@/composables/useNotification'
 import {
-  OPCIONES_ESTADO_AGENDA, ESTADOS_AGENDA, claseEstadoAgenda, citaAbierta,
+  OPCIONES_TIPO_AGENDA, ESTADOS_AGENDA, opcionesEstadoAgenda, textoEstadoAgenda, claseEstadoAgenda, citaAbierta,
   jornadaDeHora, horaCorta, fechaISO, fechaCorta, rangoProximosDias
 } from '@/utils/crm.js'
 
@@ -246,7 +255,9 @@ const opcionesFiltroAgendador = computed(() => [
   { value: '', label: 'Todos los asesores' },
   ...agendadores.value.map(a => ({ value: a.id, label: a.name }))
 ])
-const opcionesFiltroEstado = [{ value: '', label: 'Todos los estados' }, ...OPCIONES_ESTADO_AGENDA]
+// Con un tipo elegido, el filtro de estado usa sus textos (Contestó, Asistió...)
+const opcionesFiltroEstado = computed(() => [{ value: '', label: 'Todos los estados' }, ...opcionesEstadoAgenda(filters.tipo)])
+const opcionesFiltroTipo   = [{ value: '', label: 'Todos los tipos' }, ...OPCIONES_TIPO_AGENDA]
 
 async function loadCatalogos() {
   try {
@@ -261,11 +272,12 @@ const agendas    = ref([])
 const loading    = ref(false)
 const error      = ref('')
 const pagination = reactive({ currentPage: 1, lastPage: 1, total: 0, from: 0, to: 0 })
-const filters    = reactive({ search: '', status: '', agendador_id: '', ...rangoProximosDias(7) })
+const filters    = reactive({ search: '', tipo: '', status: '', agendador_id: '', ...rangoProximosDias(7) })
 
 const tableColumns = [
   { key: 'fecha',     label: 'Fecha' },
   { key: 'hora',      label: 'Hora' },
+  { key: 'tipo',      label: 'Acción' },
   { key: 'referido',  label: 'Lead' },
   { key: 'agendador', label: 'Agendó' },
   { key: 'status',    label: 'Estado' }
@@ -302,29 +314,29 @@ function onSearchInput() {
 }
 
 function clearFilters() {
-  Object.assign(filters, { search: '', status: '', agendador_id: '', ...rangoProximosDias(7) })
+  Object.assign(filters, { search: '', tipo: '', status: '', agendador_id: '', ...rangoProximosDias(7) })
   loadAgendas(1)
 }
 
-// ─── Resultado de la cita ─────────────────────────────────────────────────────
+// ─── Resultado de la acción ─────────────────────────────────────────────────────
 async function marcar(row, status) {
   try {
     await agendaService.update(row.id, { status })
-    notifySuccess('Cita actualizada.')
+    notifySuccess('Agenda actualizada.')
     loadAgendas(pagination.currentPage)
   } catch (e) {
-    notifyError(e?.response?.data?.message ?? 'No se pudo actualizar la cita.')
+    notifyError(e?.response?.data?.message ?? 'No se pudo actualizar la agenda.')
   }
 }
 
 async function handleDelete(row) {
-  if (!await confirm(`¿Eliminar la cita del ${fechaCorta(row.fecha)} con "${row.referido?.nombre || row.referido?.celular}"?`)) return
+  if (!await confirm(`¿Eliminar la acción del ${fechaCorta(row.fecha)} con "${row.referido?.nombre || row.referido?.celular}"?`)) return
   try {
     await agendaService.delete(row.id)
-    notifySuccess('Cita eliminada.')
+    notifySuccess('Acción eliminada.')
     loadAgendas(pagination.currentPage)
   } catch (e) {
-    notifyError(e?.response?.data?.message ?? 'No se pudo eliminar la cita.')
+    notifyError(e?.response?.data?.message ?? 'No se pudo eliminar la acción.')
   }
 }
 
@@ -334,13 +346,20 @@ const reprogramando = ref(null)
 const saving        = ref(false)
 const formError     = ref('')
 const formErrors    = ref({})
-const form          = reactive({ referido_id: '', fecha: '', hora: '' })
+const form          = reactive({ referido_id: '', tipo: 'llamada', fecha: '', hora: '', nota: '' })
 
 function abrirFormulario(cita = null) {
   reprogramando.value = cita
   formError.value     = ''
   formErrors.value    = {}
-  Object.assign(form, { referido_id: cita?.referido_id ?? '', fecha: '', hora: horaCorta(cita?.hora) })
+  // Al reprogramar se conservan el tipo y la nota de la acción original
+  Object.assign(form, {
+    referido_id: cita?.referido_id ?? '',
+    tipo:        cita?.tipo ?? 'llamada',
+    fecha:       '',
+    hora:        horaCorta(cita?.hora),
+    nota:        cita?.nota ?? ''
+  })
   showForm.value = true
 }
 
@@ -355,19 +374,21 @@ async function handleSubmit() {
     // Primero se crea la nueva cita: si la fecha es inválida, la original queda intacta.
     await agendaService.create({
       referido_id: Number(form.referido_id),
+      tipo:        form.tipo,
       fecha:       form.fecha,
       hora:        form.hora,
-      jornada:     jornadaDeHora(form.hora)
+      jornada:     jornadaDeHora(form.hora),
+      nota:        form.nota.trim() || null
     })
     if (reprogramando.value) {
       await agendaService.update(reprogramando.value.id, { status: ESTADOS_AGENDA.REPROGRAMO })
     }
-    notifySuccess(reprogramando.value ? 'Cita reprogramada.' : 'Cita agendada.')
+    notifySuccess(reprogramando.value ? 'Acción reprogramada.' : 'Acción programada.')
     showForm.value = false
     loadAgendas(pagination.currentPage)
   } catch (e) {
     if (e?.response?.status === 422) formErrors.value = e.response.data?.errors ?? {}
-    formError.value = e?.response?.data?.message ?? 'No se pudo guardar la cita.'
+    formError.value = e?.response?.data?.message ?? 'No se pudo guardar la acción.'
   } finally {
     saving.value = false
   }

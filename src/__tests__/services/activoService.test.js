@@ -28,6 +28,30 @@ describe('activoService', () => {
     expect(api.post).toHaveBeenCalledWith('/activos/activos/4/estado', { estado: 'baja' })
   })
 
+  it('sube la imagen como multipart y la elimina', async () => {
+    api.post.mockResolvedValue({ data: {} })
+    api.delete.mockResolvedValue({ data: {} })
+    const archivo = new File(['x'], 'taladro.jpg', { type: 'image/jpeg' })
+    await activoService.subirImagen(4, archivo)
+    await activoService.eliminarImagen(4)
+    const [url, cuerpo] = api.post.mock.calls[0]
+    expect(url).toBe('/activos/activos/4/imagen')
+    expect(cuerpo).toBeInstanceOf(FormData)
+    expect(cuerpo.get('imagen')).toBe(archivo)
+    expect(api.delete).toHaveBeenCalledWith('/activos/activos/4/imagen')
+  })
+
+  it('lista, recibe y cancela traslados', async () => {
+    api.get.mockResolvedValue({ data: { data: [] } })
+    api.post.mockResolvedValue({ data: {} })
+    await activoService.getTraslados({ estado: 'pendiente' })
+    await activoService.recibirTraslado(9, { fecha_recepcion: '2026-10-27' })
+    await activoService.cancelarTraslado(9, { motivo: 'Ya no se necesita' })
+    expect(api.get).toHaveBeenCalledWith('/activos/traslados', { params: { estado: 'pendiente' } })
+    expect(api.post).toHaveBeenCalledWith('/activos/traslados/9/recibir', { fecha_recepcion: '2026-10-27' })
+    expect(api.post).toHaveBeenCalledWith('/activos/traslados/9/cancelar', { motivo: 'Ya no se necesita' })
+  })
+
   it('gestiona categorías', async () => {
     api.post.mockResolvedValue({ data: {} })
     api.put.mockResolvedValue({ data: {} })

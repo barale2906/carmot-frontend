@@ -20,22 +20,95 @@ export const OPCIONES_ESTADO_REFERIDO = [
   { value: 4, label: 'Declinado' }
 ]
 
-/** Estados de una cita. */
-export const ESTADOS_AGENDA = {
-  AGENDADO:   0,
-  ASISTIO:    1,
-  NO_ASISTIO: 2,
-  REPROGRAMO: 3,
-  CANCELO:    4
+/**
+ * Estados que ofrece el formulario de seguimiento. Matriculado no se asigna a mano: elegirlo
+ * abre el asistente de matrícula y el backend marca el lead al generarla.
+ * @param {boolean} permitirMatricular Si el usuario puede crear matrículas y el lead aún se puede convertir
+ */
+export function opcionesEstadoSeguimiento(permitirMatricular) {
+  return OPCIONES_ESTADO_REFERIDO
+    .filter(o => permitirMatricular || o.value !== ESTADOS_REFERIDO.MATRICULADO)
+    .map(o => o.value === ESTADOS_REFERIDO.MATRICULADO ? { ...o, label: 'Matriculado (generar matrícula)' } : o)
 }
 
-export const OPCIONES_ESTADO_AGENDA = [
-  { value: 0, label: 'Agendado' },
-  { value: 1, label: 'Asistió' },
-  { value: 2, label: 'No asistió' },
-  { value: 3, label: 'Reprogramó' },
-  { value: 4, label: 'Canceló' }
+/**
+ * Traduce el estado elegido en el formulario de seguimiento a lo que se envía al backend.
+ * @param {number|string} estadoElegido Estado seleccionado en el formulario
+ * @param {number|null} estadoActual Estado actual del lead (null si aún no existe)
+ * @returns {{ estado: number|null, convertir: boolean }} `estado` solo si cambia y no es
+ *   Matriculado; `convertir` indica que hay que abrir el asistente de matrícula.
+ */
+export function resolverEstadoSeguimiento(estadoElegido, estadoActual) {
+  const estado = estadoElegido === '' || estadoElegido === null ? null : Number(estadoElegido)
+  if (estado === ESTADOS_REFERIDO.MATRICULADO) return { estado: null, convertir: true }
+  return { estado: estado === estadoActual ? null : estado, convertir: false }
+}
+
+/** Estados de una acción de la agenda. */
+export const ESTADOS_AGENDA = {
+  AGENDADO:     0,
+  REALIZADA:    1,
+  NO_REALIZADA: 2,
+  REPROGRAMO:   3,
+  CANCELO:      4
+}
+
+/**
+ * Texto de los resultados según el tipo de acción (Agenda::RESULTADOS_POR_TIPO del backend):
+ * una visita se asiste, una llamada se contesta, un mensaje se responde.
+ */
+const RESULTADOS_POR_TIPO = {
+  visita:  { 1: 'Asistió',   2: 'No asistió' },
+  llamada: { 1: 'Contestó',  2: 'No contestó' },
+  mensaje: { 1: 'Respondió', 2: 'Sin respuesta' },
+  otro:    { 1: 'Realizada', 2: 'No realizada' }
+}
+
+/**
+ * Opciones de estado de la agenda; con tipo, los resultados usan el texto de ese tipo.
+ * @param {string} [tipo] 'visita' | 'llamada' | 'mensaje' | 'otro'; vacío = texto genérico
+ */
+export function opcionesEstadoAgenda(tipo) {
+  const resultados = RESULTADOS_POR_TIPO[tipo] ?? RESULTADOS_POR_TIPO.otro
+  return [
+    { value: ESTADOS_AGENDA.AGENDADO,     label: 'Agendado' },
+    { value: ESTADOS_AGENDA.REALIZADA,    label: resultados[1] },
+    { value: ESTADOS_AGENDA.NO_REALIZADA, label: resultados[2] },
+    { value: ESTADOS_AGENDA.REPROGRAMO,   label: 'Reprogramó' },
+    { value: ESTADOS_AGENDA.CANCELO,      label: 'Canceló' }
+  ]
+}
+
+/**
+ * Texto de un estado de la agenda según el tipo de acción.
+ * @param {number} status
+ * @param {string} [tipo]
+ */
+export function textoEstadoAgenda(status, tipo) {
+  return opcionesEstadoAgenda(tipo).find(o => o.value === status)?.label ?? 'Desconocido'
+}
+
+/** Tipos de acción que se programan en la agenda (Agenda::TIPOS del backend). */
+export const OPCIONES_TIPO_AGENDA = [
+  { value: 'llamada', label: 'Llamada' },
+  { value: 'visita',  label: 'Visita' },
+  { value: 'mensaje', label: 'Mensaje / WhatsApp' },
+  { value: 'otro',    label: 'Otro' }
 ]
+
+/** Próxima acción en blanco del formulario de seguimiento (sin tipo = no se programa nada). */
+export function proximaAccionVacia() {
+  return { tipo: '', fecha: '', hora: '', nota: '' }
+}
+
+/**
+ * `proxima_accion` que se envía al backend, o null si no se eligió tipo de acción.
+ * @param {{ tipo: string, fecha: string, hora: string, nota: string }} accion
+ */
+export function proximaAccionPayload(accion) {
+  if (!accion?.tipo) return null
+  return { tipo: accion.tipo, fecha: accion.fecha, hora: accion.hora, nota: accion.nota?.trim() || null }
+}
 
 const CLASES_ESTADO_REFERIDO = {
   0: 'bg-slate-100 text-slate-700',

@@ -5,7 +5,7 @@
         Gestión de activos
       </h1>
       <p class="mt-1 text-sm text-slate-500">
-        Control de elementos, herramientas y equipos por sede y área, con su historial de traslados y estados.
+        Control de elementos, herramientas y equipos por sede y área, con traslados que se confirman al recibirlos en el destino.
       </p>
       <FormulariosNav v-if="navItems.length > 1" :items="navItems" class="mt-4" />
     </header>
@@ -24,6 +24,7 @@ onMounted(() => loadPermisos().catch(() => {}))
 
 const navItems = computed(() => [
   can('act_activos')    && { label: 'Inventario', to: '/activos', exact: true },
+  (can('act_activos') || can('act_activoRecibir')) && { label: 'Traslados', to: '/activos/traslados' },
   can('act_categorias') && { label: 'Categorías', to: '/activos/categorias' }
 ].filter(Boolean))
 </script>

@@ -2,12 +2,11 @@
   <ModalBase
     :model-value="modelValue"
     size="xl"
-    :title="activo ? `Editar ${activo.codigo}` : 'Nuevo activo'"
+    :title="activo ? `Editar ${etiquetaActivo(activo)}` : 'Nuevo activo'"
     :description="activo ? 'La ubicación y el estado se cambian con Mover y Estado, que dejan historial.' : 'Registra un equipo, herramienta o mueble en una sede.'"
     @update:model-value="emit('update:modelValue', $event)"
   >
     <form class="grid grid-cols-1 gap-4 pb-2 md:grid-cols-2" @submit.prevent="guardar">
-      <FormInput v-model="form.codigo" label="Código" required placeholder="Ej: TUN-HER-0001" :error="errores.codigo?.[0]" />
       <FormInput v-model="form.nombre" label="Nombre" required :error="errores.nombre?.[0]" />
       <FormSelect v-model="form.categoria_id" label="Categoría" required :options="opcionesCategoria" :error="errores.categoria_id?.[0]" />
       <FormSelect v-model="form.responsable_id" label="Responsable" :options="opcionesResponsable" :error="errores.responsable_id?.[0]" />
@@ -29,6 +28,30 @@
       <div class="md:col-span-2">
         <FormTextarea v-model="form.observaciones" label="Observaciones" :rows="2" />
       </div>
+
+      <!-- Imagen del activo: la actual (si la hay) y la carga de una nueva que la reemplaza -->
+      <div v-if="imagenActual && !imagen" class="flex items-center gap-3 rounded-lg border border-slate-200 p-3 md:col-span-2">
+        <img :src="imagenActual" :alt="`Imagen de ${form.nombre}`" class="size-16 shrink-0 rounded-lg border border-slate-200 object-cover" />
+        <p class="flex-1 text-sm text-slate-600">
+          {{ quitarImagen ? 'La imagen se quitará al guardar.' : 'Imagen actual. Sube otra para reemplazarla.' }}
+        </p>
+        <button
+          type="button"
+          class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          @click="quitarImagen = !quitarImagen"
+        >
+          {{ quitarImagen ? 'Conservar' : 'Quitar imagen' }}
+        </button>
+      </div>
+      <FormFileUpload
+        v-model="imagen"
+        span="full"
+        label="Imagen del activo"
+        accept="image/jpeg,image/png,image/webp"
+        description="Foto del equipo, herramienta o mueble (JPG, PNG o WEBP, máx. 10 MB)"
+        upload-label="Seleccionar imagen"
+        :error="errores.imagen?.[0]"
+      />
       <p v-if="error" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 md:col-span-2">{{ error }}</p>
     </form>
 
@@ -58,10 +81,11 @@ import ModalBase     from '@/components/ModalBase.vue'
 import FormInput     from '@/components/forms/FormInput.vue'
 import FormSelect    from '@/components/forms/FormSelect.vue'
 import FormTextarea  from '@/components/forms/FormTextarea.vue'
+import FormFileUpload from '@/components/forms/FormFileUpload.vue'
 import activoService from '@/services/activoService.js'
 import { useNotification } from '@/composables/useNotification'
 import { fechaISO } from '@/utils/crm.js'
-import { ESTADOS_INICIALES, areasDeSede, payloadActivo } from '@/utils/activos.js'
+import { ESTADOS_INICIALES, areasDeSede, payloadActivo, etiquetaActivo } from '@/utils/activos.js'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -74,7 +98,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['update:modelValue', 'saved'])
 
-const { success: notifySuccess } = useNotification()
+const { success: notifySuccess, error: notifyError } = useNotification()
 const hoy = fechaISO()
 
 const opcionesCategoria   = computed(() => (props.catalogos.categorias ?? []).map(c => ({ value: c.id, label: c.nombre })))
@@ -86,14 +110,19 @@ const form      = reactive({})
 const errores   = ref({})
 const error     = ref('')
 const guardando = ref(false)
+const imagen       = ref(null)
+const quitarImagen = ref(false)
+const imagenActual = computed(() => props.activo?.imagen_url ?? null)
 
 watch(() => props.modelValue, (abierto) => {
   if (!abierto) return
   errores.value = {}
   error.value   = ''
+  imagen.value       = null
+  quitarImagen.value = false
   const a = props.activo
   Object.assign(form, {
-    codigo: a?.codigo ?? '', nombre: a?.nombre ?? '', descripcion: a?.descripcion ?? '',
+    nombre: a?.nombre ?? '', descripcion: a?.descripcion ?? '',
     categoria_id: a?.categoria_id ?? '', responsable_id: a?.responsable_id ?? '',
     sede_id: a?.sede_id ?? props.sedeId ?? '', area_id: a?.area_id ?? '', estado: a?.estado ?? 'operativo',
     marca: a?.marca ?? '', modelo: a?.modelo ?? '', serial: a?.serial ?? '',
@@ -110,8 +139,9 @@ async function guardar() {
     const res = props.activo
       ? await activoService.update(props.activo.id, payload)
       : await activoService.create(payload)
+    const guardado = await sincronizarImagen(res.data)
     notifySuccess(res.message ?? 'Activo guardado.')
-    emit('saved', res.data)
+    emit('saved', guardado)
     emit('update:modelValue', false)
   } catch (e) {
     if (e?.response?.status === 422) errores.value = e.response.data?.errors ?? {}
@@ -119,5 +149,20 @@ async function guardar() {
   } finally {
     guardando.value = false
   }
+}
+
+/**
+ * La imagen viaja en su propio endpoint (multipart) después de guardar los datos.
+ * Si falla, el activo ya quedó guardado: se avisa sin perder lo registrado.
+ */
+async function sincronizarImagen(activo) {
+  try {
+    if (imagen.value) return (await activoService.subirImagen(activo.id, imagen.value)).data
+    if (quitarImagen.value && activo.imagen) return (await activoService.eliminarImagen(activo.id)).data
+  } catch (e) {
+    const detalle = e?.response?.data?.errors?.imagen?.[0] ?? e?.response?.data?.message ?? ''
+    notifyError(`El activo se guardó, pero la imagen no: ${detalle}`.trim())
+  }
+  return activo
 }
 </script>

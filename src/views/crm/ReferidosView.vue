@@ -216,8 +216,18 @@
           :error="formErrors.gestor_id?.[0]"
           hint="Gestiona el lead hasta matricularlo. Cambiarlo lo reasigna y queda en la bitácora."
         />
-        <FormInput v-model="form.talla_overol" label="Talla de overol" placeholder="Ej: M" :error="formErrors.talla_overol?.[0]" />
-        <FormInput v-model="form.talla_botas" label="Talla de botas" placeholder="Ej: 40" :error="formErrors.talla_botas?.[0]" />
+        <!-- Primer seguimiento: queda en la bitácora junto con el lead -->
+        <SeguimientoForm
+          v-if="!editing && can('crm_seguimientoCrear')"
+          v-model:texto="form.seguimiento"
+          v-model:estado="form.status"
+          v-model:proxima="form.proxima"
+          class="md:col-span-2"
+          label="Primer seguimiento"
+          :permitir-matricular="can('aca_matriculaCrear')"
+          :permitir-agendar="can('crm_agendaCrear')"
+          :errores="formErrors"
+        />
         <FormSelect
           v-if="editing"
           v-model="form.status"
@@ -320,12 +330,14 @@ import FormInput          from '@/components/forms/FormInput.vue'
 import FormSelect         from '@/components/forms/FormSelect.vue'
 import ModalBase          from '@/components/ModalBase.vue'
 import ReferidoFichaModal from '@/components/crm/ReferidoFichaModal.vue'
+import SeguimientoForm    from '@/components/crm/SeguimientoForm.vue'
 import { usePermisos }     from '@/composables/usePermisos.js'
 import { useConfirm }      from '@/composables/useConfirm.js'
 import { useNotification } from '@/composables/useNotification'
 import {
   OPCIONES_ESTADO_REFERIDO, ESTADOS_REFERIDO,
-  claseEstadoReferido, puedeConvertirse, fechaCorta
+  claseEstadoReferido, puedeConvertirse, resolverEstadoSeguimiento,
+  proximaAccionVacia, proximaAccionPayload, fechaCorta
 } from '@/utils/crm.js'
 
 const router = useRouter()
@@ -446,7 +458,7 @@ async function formularioVacio() {
   const user = await authService.getUser().catch(() => null)
   return {
     nombre: '', celular: '', ciudad: '', curso_id: '', gestor_id: user?.id ?? '',
-    talla_overol: '', talla_botas: '', status: ESTADOS_REFERIDO.CREADO
+    seguimiento: '', status: ESTADOS_REFERIDO.CREADO, proxima: proximaAccionVacia()
   }
 }
 
@@ -468,8 +480,6 @@ function openEdit(row) {
     ciudad:       row.ciudad ?? '',
     curso_id:     row.curso_id ?? '',
     gestor_id:    row.gestor_id ?? '',
-    talla_overol: row.talla_overol ?? '',
-    talla_botas:  row.talla_botas ?? '',
     status:       row.status
   })
   showForm.value = true
@@ -484,17 +494,28 @@ async function handleSubmit() {
     celular:      form.celular.trim(),
     ciudad:       form.ciudad.trim(),
     curso_id:     form.curso_id ? Number(form.curso_id) : null,
-    gestor_id:    form.gestor_id ? Number(form.gestor_id) : null,
-    talla_overol: form.talla_overol.trim() || null,
-    talla_botas:  form.talla_botas.trim() || null
+    gestor_id:    form.gestor_id ? Number(form.gestor_id) : null
   }
   try {
     if (editing.value) {
       await referidoService.update(editing.value.id, { ...payload, status: Number(form.status) })
       notifySuccess('Lead actualizado.')
     } else {
-      await referidoService.create(payload)
+      // Elegir Matriculado crea el lead "Pendiente por matricular" y abre el asistente de
+      // matrícula; el backend lo pasa a Matriculado al generar la matrícula.
+      const { estado, convertir: abrirMatricula } = resolverEstadoSeguimiento(form.status, null)
+      const res = await referidoService.create({
+        ...payload,
+        status:      abrirMatricula ? ESTADOS_REFERIDO.PENDIENTE : (estado ?? ESTADOS_REFERIDO.CREADO),
+        seguimiento:    form.seguimiento.trim() || null,
+        proxima_accion: proximaAccionPayload(form.proxima)
+      })
       notifySuccess('Lead creado.')
+      if (abrirMatricula) {
+        showForm.value = false
+        convertir(res.data)
+        return
+      }
     }
     showForm.value = false
     refrescar()

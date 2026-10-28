@@ -36,6 +36,7 @@ const icons = {
   expand_more:      () => svg([path('M6 9l6 6 6-6')]),
   expand_less:      () => svg([path('M18 15l-6-6-6 6')]),
   location:         () => svg([path('M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z'), path('M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z')]),
+  swap_horiz:       () => svg([path('M16 3l4 4-4 4M20 7H4M8 21l-4-4 4-4M4 17h16')]),
 
   // Iconos legados (menú anterior hardcodeado)
   formularios:         () => svg([path('M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm0 2l5 5h-5V4zM8 12h8M8 16h8M8 8h4')]),

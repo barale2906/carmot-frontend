@@ -23,6 +23,49 @@ export function esDeBaja(activo) {
   return activo?.estado === 'baja'
 }
 
+/** Activo con un traslado enviado sin recibir: sigue en el origen y no se mueve ni cambia de estado. */
+export function estaEnTransito(activo) {
+  return !!activo?.traslado_pendiente
+}
+
+/** Identificación corta del activo (ya no tiene código interno): `#12 · Taladro`. */
+export function etiquetaActivo(activo) {
+  if (!activo) return ''
+  return [`#${activo.id}`, activo.nombre].filter(Boolean).join(' · ')
+}
+
+/** Estados del traslado (replican ActMovimiento::ESTADOS_TRASLADO). */
+export const ESTADOS_TRASLADO = [
+  { value: 'pendiente', label: 'Pendiente de recepción' },
+  { value: 'recibido',  label: 'Recibido' },
+  { value: 'cancelado', label: 'Cancelado' }
+]
+
+/** Variante de StatusBadge para el estado del traslado. */
+export function varianteTraslado(estado) {
+  return { pendiente: 'mantenimiento', recibido: 'operativo', cancelado: 'baja' }[estado] ?? 'disponible'
+}
+
+/**
+ * Acciones posibles sobre un traslado según el usuario: recibe quien tiene la sede de
+ * destino (y el permiso) siempre que no sea quien lo envió, salvo el superusuario;
+ * cancela quien tiene la de origen. Solo si sigue pendiente.
+ *
+ * @param {object} traslado
+ * @param {Array<number>} misSedes ids de las sedes asignadas al usuario
+ * @param {(permiso: string) => boolean} can
+ * @param {{ id?: number, superusuario?: boolean }} [usuario] usuario autenticado
+ */
+export function accionesTraslado(traslado, misSedes, can, usuario = {}) {
+  const pendiente = traslado?.estado_traslado === 'pendiente'
+  const tiene = (id) => (misSedes ?? []).some(s => String(s) === String(id))
+  const loEnvio = usuario.id != null && String(traslado?.usuario?.id) === String(usuario.id)
+  return {
+    recibir:  pendiente && can('act_activoRecibir') && tiene(traslado.sede_destino_id) && (!loEnvio || !!usuario.superusuario),
+    cancelar: pendiente && can('act_activoTrasladar') && tiene(traslado.sede_origen_id)
+  }
+}
+
 /**
  * Áreas de una sede según el catálogo de filtros (`[{ id, nombre, areas: [...] }]`).
  * @param {Array} sedes
@@ -54,7 +97,6 @@ export function distribucionPorArea(porArea, areas) {
 export function payloadActivo(form, { creando }) {
   const texto = (v) => (v === null || v === undefined || String(v).trim() === '') ? null : String(v).trim()
   const payload = {
-    codigo:         texto(form.codigo),
     nombre:         texto(form.nombre),
     descripcion:    texto(form.descripcion),
     categoria_id:   form.categoria_id ? Number(form.categoria_id) : null,

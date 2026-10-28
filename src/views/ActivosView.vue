@@ -28,8 +28,8 @@
             <FormInputSearch
               v-model="filters.search"
               label="Buscar:"
-              placeholder="Código, nombre o serial..."
-              help="Busca activos por código interno, nombre o serial."
+              placeholder="ID, nombre o serial..."
+              help="Busca activos por ID (número exacto), nombre o serial."
               @input="onSearchInput"
             />
           </div>
@@ -94,12 +94,22 @@
       <DataTable v-else :columns="tableColumns" :data="activos" row-key="id" aria-label="Listado de activos" actions-first>
         <template #cell="{ column, value, row, formatted }">
           <StatusBadge v-if="column.key === 'estado'" :label="row.estado_texto" :variant="varianteEstado(row.estado)" />
-          <span v-else-if="column.key === 'area'" class="inline-flex items-center gap-1">
-            <NavIcon name="location" class="size-4 text-slate-500" />
-            {{ [row.sede?.nombre, row.area?.nombre].filter(Boolean).join(' · ') }}
+          <span v-else-if="column.key === 'area'" class="flex flex-col gap-1">
+            <span class="inline-flex items-center gap-1">
+              <NavIcon name="location" class="size-4 text-slate-500" />
+              {{ [row.sede?.nombre, row.area?.nombre].filter(Boolean).join(' · ') }}
+            </span>
+            <span
+              v-if="estaEnTransito(row)"
+              class="inline-flex w-fit items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800"
+              :title="`Pendiente de recepción desde el ${fechaCorta(row.traslado_pendiente.fecha)}`"
+            >
+              <NavIcon name="swap_horiz" class="size-3.5" />
+              En tránsito a {{ row.traslado_pendiente.destino }}
+            </span>
           </span>
           <span v-else-if="column.key === 'categoria'">{{ row.categoria?.nombre ?? '—' }}</span>
-          <span v-else-if="column.key === 'codigo'" class="font-medium text-slate-900">{{ value }}</span>
+          <span v-else-if="column.key === 'id'" class="font-medium text-slate-900">{{ value }}</span>
           <span v-else-if="column.key === 'fecha_ingreso'">{{ fechaCorta(value) }}</span>
           <span v-else-if="column.key === 'valor'">{{ formatoCOP(value) }}</span>
           <span v-else>{{ formatted ?? value ?? '—' }}</span>
@@ -115,16 +125,16 @@
           </button>
           <template v-if="!esDeBaja(row)">
             <button
-              v-if="can('act_activoTrasladar')"
+              v-if="can('act_activoTrasladar') && !estaEnTransito(row)"
               type="button"
               class="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              title="Mover a otra sede o área"
+              title="Trasladar a otra sede o área"
               @click="openMovimiento(row, 'traslado')"
             >
               <NavIcon name="location" class="size-4" />
             </button>
             <button
-              v-if="can('act_activoEditar')"
+              v-if="can('act_activoEditar') && !estaEnTransito(row)"
               type="button"
               class="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
               title="Cambiar estado"
@@ -219,7 +229,7 @@ import { useConfirm }        from '@/composables/useConfirm.js'
 import { useNotification }   from '@/composables/useNotification'
 import { fechaCorta } from '@/utils/crm.js'
 import {
-  ESTADOS_ACTIVO, varianteEstado, esDeBaja, areasDeSede, distribucionPorArea, formatoCOP
+  ESTADOS_ACTIVO, varianteEstado, esDeBaja, estaEnTransito, etiquetaActivo, areasDeSede, distribucionPorArea, formatoCOP
 } from '@/utils/activos.js'
 
 const { can, loadPermisos } = usePermisos()
@@ -252,7 +262,7 @@ const pagination = reactive({ currentPage: 1, lastPage: 1, total: 0, from: 0, to
 const filters    = reactive({ sede_id: '', area_id: '', categoria_id: '', estado: '', search: '' })
 
 const tableColumns = [
-  { key: 'codigo',        label: 'Código' },
+  { key: 'id',            label: 'ID' },
   { key: 'nombre',        label: 'Nombre' },
   { key: 'categoria',     label: 'Categoría' },
   { key: 'area',          label: 'Ubicación', icon: 'location' },
@@ -336,7 +346,7 @@ function verFicha(row) {
 }
 
 async function eliminar(row) {
-  const mensaje = `¿Eliminar el activo ${row.codigo}? Usa esta opción solo para registros creados por error; para retirarlo del inventario cámbialo a "De baja".`
+  const mensaje = `¿Eliminar el activo ${etiquetaActivo(row)}? Usa esta opción solo para registros creados por error; para retirarlo del inventario cámbialo a "De baja".`
   if (!await confirm(mensaje)) return
   try {
     await activoService.delete(row.id)

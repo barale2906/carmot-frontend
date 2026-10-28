@@ -838,8 +838,6 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
       if (!obj[campo] && valor) obj[campo] = valor
     }
     completar(datosPersonales, 'celular', lead.celular)
-    completar(detalles, 'talla_overol', lead.talla_overol)
-    completar(detalles, 'talla_botas', lead.talla_botas)
     completar(detalles, 'comercial_id', lead.gestor_id ? String(lead.gestor_id) : '')
     if (!estudianteForm.primer_nombre && estudianteEstado.value !== 'found') {
       Object.assign(estudianteForm, separarNombreCompleto(lead.nombre))

@@ -1,8 +1,8 @@
 <template>
   <ModalBase
     :model-value="modelValue"
-    :title="modo === 'traslado' ? `Mover ${activo?.codigo ?? ''}` : `Cambiar estado de ${activo?.codigo ?? ''}`"
-    :description="activo ? `${activo.nombre} · ${ubicacionActual}` : ''"
+    :title="modo === 'traslado' ? `Trasladar ${etiquetaActivo(activo)}` : `Cambiar estado de ${etiquetaActivo(activo)}`"
+    :description="activo ? `Ubicación actual: ${ubicacionActual}` : ''"
     @update:model-value="emit('update:modelValue', $event)"
   >
     <form class="flex flex-col gap-4 pb-2" @submit.prevent="guardar">
@@ -10,6 +10,10 @@
         <FormSelect v-model="form.sede_id" label="Sede de destino" required :options="opcionesSede" :error="errores.sede_id?.[0]" @change="form.area_id = ''" />
         <FormSelect v-model="form.area_id" label="Área de destino" :options="opcionesArea" :error="errores.area_id?.[0]" />
         <FormSelect v-model="form.responsable_id" label="Responsable" :options="opcionesResponsable" />
+        <p class="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+          El activo quedará <strong>en tránsito</strong> y seguirá en su ubicación actual hasta que en el destino
+          registren su recepción (Activos → Traslados). Mientras tanto no se podrá mover ni cambiar de estado.
+        </p>
       </template>
       <template v-else>
         <FormSelect v-model="form.estado" label="Nuevo estado" required :options="opcionesEstado" :error="errores.estado?.[0]" />
@@ -17,7 +21,7 @@
           La baja es definitiva: el activo no se podrá volver a mover ni cambiar de estado.
         </p>
       </template>
-      <FormInput v-model="form.fecha" type="date" label="Fecha" required :max="hoy" :error="errores.fecha?.[0]" />
+      <FormInput v-model="form.fecha" type="date" :label="modo === 'traslado' ? 'Fecha de envío' : 'Fecha'" required :max="hoy" :error="errores.fecha?.[0]" />
       <FormTextarea v-model="form.motivo" label="Motivo" required :rows="3" />
       <p v-if="errores.motivo" class="-mt-3 text-xs text-red-600">{{ errores.motivo[0] }}</p>
       <p v-if="error" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ error }}</p>
@@ -38,7 +42,7 @@
         :class="form.estado === 'baja' && modo === 'estado' ? 'bg-red-700 hover:bg-red-800' : 'bg-[#213360] hover:bg-[#1a294d]'"
         @click="guardar"
       >
-        {{ guardando ? 'Guardando...' : (modo === 'traslado' ? 'Mover activo' : 'Cambiar estado') }}
+        {{ guardando ? 'Guardando...' : (modo === 'traslado' ? 'Enviar traslado' : 'Cambiar estado') }}
       </button>
     </template>
   </ModalBase>
@@ -53,7 +57,7 @@ import FormTextarea  from '@/components/forms/FormTextarea.vue'
 import activoService from '@/services/activoService.js'
 import { useNotification } from '@/composables/useNotification'
 import { fechaISO } from '@/utils/crm.js'
-import { ESTADOS_ACTIVO, areasDeSede } from '@/utils/activos.js'
+import { ESTADOS_ACTIVO, areasDeSede, etiquetaActivo } from '@/utils/activos.js'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },

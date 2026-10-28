@@ -13,6 +13,7 @@ import CalificacionesView from './views/academico/CalificacionesView.vue'
 import ActivosView from './views/ActivosView.vue'
 import ActivosLayout from './layouts/ActivosLayout.vue'
 import ActCategoriasView from './views/activos/ActCategoriasView.vue'
+import ActTrasladosView from './views/activos/ActTrasladosView.vue'
 import FormulariosLayout from './layouts/FormulariosLayout.vue'
 import ConfiguracionLayout from './layouts/ConfiguracionLayout.vue'
 import SedesLayout from './layouts/SedesLayout.vue'
@@ -122,6 +123,7 @@ const routes = [
         component: ActivosLayout,
         children: [
           { path: '',           name: 'Activos',             component: ActivosView, meta: { permission: 'act_activos' } },
+          { path: 'traslados',  name: 'ActivosTraslados',    component: ActTrasladosView, meta: { permission: ['act_activos', 'act_activoRecibir'] } },
           { path: 'categorias', name: 'ActivosCategorias',   component: ActCategoriasView, meta: { permission: 'act_categorias' } }
         ]
       }

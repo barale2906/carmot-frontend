@@ -2,7 +2,7 @@
   <ModalBase
     :model-value="modelValue"
     size="xl"
-    :title="ficha ? `${ficha.codigo} · ${ficha.nombre}` : 'Ficha del activo'"
+    :title="ficha ? etiquetaActivo(ficha) : 'Ficha del activo'"
     :description="ficha ? [ficha.sede?.nombre, ficha.area?.nombre].filter(Boolean).join(' · ') : ''"
     @update:model-value="emit('update:modelValue', $event)"
   >
@@ -10,6 +10,15 @@
     <p v-else-if="error" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ error }}</p>
 
     <div v-else-if="ficha" class="flex flex-col gap-6 pb-2">
+      <a v-if="ficha.imagen_url" :href="ficha.imagen_url" target="_blank" rel="noopener" class="self-start" title="Ver imagen en tamaño completo">
+        <img :src="ficha.imagen_url" :alt="`Imagen de ${ficha.nombre}`" class="max-h-56 rounded-lg border border-slate-200 object-contain" />
+      </a>
+
+      <p v-if="ficha.traslado_pendiente" class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+        <strong>En tránsito</strong> hacia {{ ficha.traslado_pendiente.destino }} desde el {{ fechaCorta(ficha.traslado_pendiente.fecha) }}:
+        pendiente de que el destino registre la recepción.
+      </p>
+
       <dl class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
         <div v-for="dato in datos" :key="dato.etiqueta">
           <dt class="text-xs text-slate-400">{{ dato.etiqueta }}</dt>
@@ -34,6 +43,15 @@
               <span class="text-xs text-slate-400"> · {{ fechaCorta(mov.fecha) }} · {{ mov.usuario?.name ?? '—' }}</span>
             </p>
             <p v-if="mov.motivo" class="mt-1 text-slate-600">{{ mov.motivo }}</p>
+            <p v-if="mov.estado_traslado" class="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+              <StatusBadge :label="mov.estado_traslado_texto" :variant="varianteTraslado(mov.estado_traslado)" />
+              <template v-if="mov.estado_traslado === 'recibido'">
+                Recibido el {{ fechaCorta(mov.fecha_recepcion) }} por {{ mov.recibido_por?.name ?? '—' }}<template v-if="mov.observaciones_recepcion">: {{ mov.observaciones_recepcion }}</template>
+              </template>
+              <template v-else-if="mov.estado_traslado === 'cancelado'">
+                Cancelado por {{ mov.cancelado_por?.name ?? '—' }}: {{ mov.motivo_cancelacion }}
+              </template>
+            </p>
           </li>
         </ol>
       </section>
@@ -57,7 +75,7 @@ import ModalBase     from '@/components/ModalBase.vue'
 import StatusBadge   from '@/components/activos/StatusBadge.vue'
 import activoService from '@/services/activoService.js'
 import { fechaCorta } from '@/utils/crm.js'
-import { varianteEstado, formatoCOP } from '@/utils/activos.js'
+import { varianteEstado, varianteTraslado, formatoCOP, etiquetaActivo } from '@/utils/activos.js'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
