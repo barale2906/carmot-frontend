@@ -15,6 +15,44 @@ export function descargarBlob(contenido, nombreArchivo, tipo = 'application/octe
   URL.revokeObjectURL(url)
 }
 
+/** Iframe de la última impresión; se reutiliza para no cerrar un diálogo aún abierto. */
+let iframeImpresion = null
+
+/**
+ * Abre el diálogo de impresión del navegador con un PDF, sin salir de la página.
+ *
+ * El PDF se carga en un iframe oculto colgado de `<body>` (fuera de la app), así que
+ * sobrevive a un cambio de ruta. El iframe anterior se descarta en la siguiente
+ * impresión; si el navegador no deja imprimir el iframe, el PDF se abre en otra pestaña.
+ *
+ * @param {Blob|ArrayBuffer} contenido
+ */
+export function imprimirPdf(contenido) {
+  const blob = contenido instanceof Blob ? contenido : new Blob([contenido], { type: 'application/pdf' })
+  const pdf  = blob.type === 'application/pdf' ? blob : new Blob([blob], { type: 'application/pdf' })
+
+  if (iframeImpresion) {
+    URL.revokeObjectURL(iframeImpresion.src)
+    iframeImpresion.remove()
+  }
+
+  const url    = URL.createObjectURL(pdf)
+  const iframe = document.createElement('iframe')
+  iframe.setAttribute('aria-hidden', 'true')
+  iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0'
+  iframe.onload = () => {
+    try {
+      iframe.contentWindow.focus()
+      iframe.contentWindow.print()
+    } catch {
+      window.open(url, '_blank')
+    }
+  }
+  iframe.src = url
+  document.body.appendChild(iframe)
+  iframeImpresion = iframe
+}
+
 /**
  * Extrae el mensaje de error de una respuesta con `responseType: 'blob'`,
  * donde el JSON del backend llega envuelto en un Blob.

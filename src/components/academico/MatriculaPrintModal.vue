@@ -138,14 +138,10 @@
               </div>
 
               <!-- Información del curso -->
-              <PrintSection title="Información del curso" highlight>
+              <PrintSection title="Información del curso" highlight :print-cols="3">
                 <PrintField label="Técnico" :value="data.curso" span="full" class="print:col-span-1" />
                 <PrintField label="Ciclo"        :value="data.ciclo" />
                 <PrintField label="Fecha de inicio" :value="formatDate(data.detalleCurso.fechaInicio)" />
-                <div class="col-span-2 mt-1 print:col-span-1 print:mt-0">
-                  <dt class="text-xs text-slate-400 print:text-[7.5pt] print:leading-tight print:text-slate-500">Valor matrícula</dt>
-                  <dd class="text-xl font-bold text-[#213360] print:text-[13pt] print:leading-tight">{{ formatCOP(data.detalleCurso.monto) }}</dd>
-                </div>
               </PrintSection>
 
               <div class="print:grid print:grid-cols-4 print:gap-x-3">
@@ -248,7 +244,7 @@ import { computed, h, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import NavIcon from '@/components/icons/NavIcon.vue'
-import { formatDate, formatCOP } from '@/composables/useMatriculaWizard.js'
+import { formatDate } from '@/composables/useMatriculaWizard.js'
 import logoSrc from '@/assets/images/logo.svg'
 
 const props = defineProps({

@@ -20,7 +20,7 @@ import {
   checklistEscaneados,
   DESCRIPCION_HOJA_MATRICULA,
 } from '@/utils/documentacion.js'
-import { descargarBlob, mensajeErrorBlob } from '@/utils/descargas.js'
+import { descargarBlob, imprimirPdf, mensajeErrorBlob } from '@/utils/descargas.js'
 
 describe('estados', () => {
   it('textos de estado de plantilla', () => {
@@ -186,7 +186,10 @@ describe('nombreArchivoDocumento / fechaHoraLocal', () => {
 })
 
 describe('descargas', () => {
-  afterEach(() => vi.restoreAllMocks())
+  afterEach(() => {
+    vi.restoreAllMocks()
+    document.body.querySelectorAll('iframe').forEach(f => f.remove())
+  })
 
   it('descargarBlob crea el enlace con el nombre indicado', () => {
     URL.createObjectURL = vi.fn(() => 'blob:x')
@@ -195,6 +198,40 @@ describe('descargas', () => {
     descargarBlob(new Blob(['%PDF']), 'CONT-1.pdf')
     expect(click).toHaveBeenCalled()
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:x')
+  })
+
+  it('imprimirPdf carga el PDF en un iframe oculto y abre el diálogo de impresión', () => {
+    URL.createObjectURL = vi.fn(() => 'blob:pdf')
+    URL.revokeObjectURL = vi.fn()
+    imprimirPdf(new Blob(['%PDF']))
+
+    const iframe = document.body.querySelector('iframe[aria-hidden="true"]')
+    expect(iframe).not.toBeNull()
+    const print = vi.fn()
+    Object.defineProperty(iframe, 'contentWindow', { value: { focus: vi.fn(), print } })
+    iframe.onload()
+    expect(print).toHaveBeenCalled()
+  })
+
+  it('imprimirPdf reemplaza el iframe de la impresión anterior', () => {
+    URL.createObjectURL = vi.fn(() => 'blob:pdf')
+    URL.revokeObjectURL = vi.fn()
+    imprimirPdf(new Blob(['%PDF']))
+    imprimirPdf(new Blob(['%PDF']))
+    expect(document.body.querySelectorAll('iframe[aria-hidden="true"]')).toHaveLength(1)
+    expect(URL.revokeObjectURL).toHaveBeenCalled()
+  })
+
+  it('imprimirPdf abre el PDF en otra pestaña si el iframe no se puede imprimir', () => {
+    URL.createObjectURL = vi.fn(() => 'blob:pdf')
+    URL.revokeObjectURL = vi.fn()
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null)
+    imprimirPdf(new Blob(['%PDF']))
+
+    const iframe = document.body.querySelector('iframe[aria-hidden="true"]')
+    Object.defineProperty(iframe, 'contentWindow', { value: { focus: vi.fn(), print: () => { throw new Error('bloqueado') } } })
+    iframe.onload()
+    expect(open).toHaveBeenCalledWith('blob:pdf', '_blank')
   })
 
   it('mensajeErrorBlob lee el JSON envuelto en un Blob', async () => {

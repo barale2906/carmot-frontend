@@ -728,11 +728,12 @@ import reciboPagoService           from '@/services/reciboPagoService.js'
 import { authService }             from '@/services/authService.js'
 import { useNotification }         from '@/composables/useNotification'
 import { opcionesBanco }           from '@/utils/formatters.js'
+import { descargarBlob, imprimirPdf } from '@/utils/descargas.js'
 import bancoService                from '@/services/bancoService.js'
 
 const route  = useRoute()
 const router = useRouter()
-const { success: notifySuccess } = useNotification()
+const { success: notifySuccess, warning: notifyWarning } = useNotification()
 
 const today = () => new Date().toISOString().substring(0, 10)
 
@@ -1485,6 +1486,7 @@ async function onSubmit() {
       nextTick(() => bloqueEsperaRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
     } else {
       notifySuccess(`Recibo ${res.data?.numero_recibo ?? ''} generado correctamente.`)
+      await descargarEImprimir(res.data)
       router.push('/financiero/recibos-pago')
     }
   } catch (e) {
@@ -1496,6 +1498,21 @@ async function onSubmit() {
     }
   } finally {
     guardando.value = false
+  }
+}
+
+/**
+ * Descarga el PDF del recibo recién generado y abre el diálogo de impresión.
+ * Si el PDF falla, el recibo ya existe: se avisa y se puede reimprimir desde el listado.
+ */
+async function descargarEImprimir(recibo) {
+  if (!recibo?.id) return
+  try {
+    const res = await reciboPagoService.getPdf(recibo.id, { _silent: true })
+    descargarBlob(res.data, `Recibo_${recibo.numero_recibo ?? recibo.id}.pdf`, 'application/pdf')
+    imprimirPdf(res.data)
+  } catch {
+    notifyWarning('No se pudo descargar el PDF del recibo. Puedes imprimirlo desde el listado.')
   }
 }
 

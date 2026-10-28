@@ -67,9 +67,10 @@ const reciboPagoService = {
   /**
    * GET /financiero/recibos-pago/{id}/pdf
    * Retorna blob para descarga directa del PDF.
+   * Config opcional (ej: { _silent: true } para manejar el error en la vista).
    */
-  async getPdf(id) {
-    return api.get(`${BASE}/${id}/pdf`, { responseType: 'blob' })
+  async getPdf(id, config = {}) {
+    return api.get(`${BASE}/${id}/pdf`, { responseType: 'blob', ...config })
   },
 
   /**
