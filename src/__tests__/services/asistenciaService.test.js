@@ -24,6 +24,20 @@ describe('asistenciaService', () => {
     expect(api.get).toHaveBeenCalledWith('/academico/asistencias', { params: { clase_programada_id: 9, per_page: 500 } })
   })
 
+  it('lista con filtros, trae las opciones de filtro y descarga el Excel como blob', async () => {
+    api.get.mockResolvedValue({ data: { data: [] } })
+    await asistenciaService.listar({ sede_id: 2, fecha: '2026-10-13' })
+    await asistenciaService.getFiltros()
+    expect(api.get).toHaveBeenCalledWith('/academico/asistencias', { params: { sede_id: 2, fecha: '2026-10-13' } })
+    expect(api.get).toHaveBeenCalledWith('/academico/asistencias/filters')
+
+    const blob = new Blob(['xlsx'])
+    api.get.mockResolvedValue({ data: blob })
+    const res = await asistenciaService.exportarExcel({ grupo_id: 4 })
+    expect(api.get).toHaveBeenCalledWith('/academico/asistencias/excel', { params: { grupo_id: 4 }, responseType: 'blob' })
+    expect(res).toBe(blob)
+  })
+
   it('registra la lista de una clase', async () => {
     api.post.mockResolvedValue({ data: { meta: { creadas: 2 } } })
     const res = await asistenciaService.registrarClase(9, [{ estudiante_id: 1, estado: 'presente' }])

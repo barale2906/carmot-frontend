@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   sumaPesos, pesosValidos, payloadEsquema, planillaDesdeSabana,
-  notaValida, cambiosPorTipo, formatoNota
+  notaValida, cambiosPorTipo, formatoNota,
+  estadoResultado, requiereRecuperacion, paramsConsolidado, tieneAlcance
 } from '@/utils/calificaciones.js'
 
 describe('pesos del esquema', () => {
@@ -58,5 +59,31 @@ describe('planilla de notas', () => {
   it('formatea la nota con un decimal', () => {
     expect(formatoNota(4.25)).toBe('4.3')
     expect(formatoNota(null)).toBe('—')
+  })
+})
+
+describe('consulta de notas', () => {
+  it('da etiqueta y color al resultado del módulo', () => {
+    expect(estadoResultado('aprobado').label).toBe('Aprobado')
+    expect(estadoResultado('reprobado').claseBadge).toContain('red')
+    expect(estadoResultado('desconocido').label).toBe('Pendiente')
+  })
+
+  it('pide recuperación solo a reprobados sin recuperación y con el ciclo abierto', () => {
+    expect(requiereRecuperacion({ puede_recuperar: true, recuperacion: null })).toBe(true)
+    expect(requiereRecuperacion({ puede_recuperar: true, recuperacion: { nota: 3 } })).toBe(false)
+    expect(requiereRecuperacion({ puede_recuperar: false, recuperacion: null })).toBe(false)
+  })
+
+  it('arma los params sin filtros vacíos', () => {
+    expect(paramsConsolidado({ ciclo_id: '3', grupo_id: '', buscar: '', por_recuperar: false })).toEqual({ ciclo_id: '3' })
+    expect(paramsConsolidado({ grupo_id: 2, por_recuperar: true })).toEqual({ grupo_id: 2, por_recuperar: 1 })
+  })
+
+  it('exige un filtro de alcance antes de consultar', () => {
+    expect(tieneAlcance({ estado: 'aprobado' })).toBe(false)
+    expect(tieneAlcance({ buscar: 'an' })).toBe(false)
+    expect(tieneAlcance({ buscar: 'ana' })).toBe(true)
+    expect(tieneAlcance({ profesor_id: '4' })).toBe(true)
   })
 })

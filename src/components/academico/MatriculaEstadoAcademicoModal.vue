@@ -41,10 +41,12 @@
             <ul v-if="evaluacion.motivos.length" class="mt-1 list-disc pl-5 text-slate-700">
               <li v-for="motivo in evaluacion.motivos" :key="motivo">{{ motivo }}</li>
             </ul>
-            <!-- N24: perdió por fallas sin posibilidad de recuperarse -->
-            <p v-if="evaluacion.asistencia.perdida_definitiva && !evaluacion.ciclo_terminado" class="mt-2 font-medium text-red-700">
-              Ya perdió por fallas: aunque asista al resto del ciclo no alcanza el mínimo. Puede pasarla a Reprobado ahora;
-              la matrícula finaliza y el estudiante queda libre para matricularse de nuevo.
+            <!-- Asistencia: informativa, la aprobación la define la nota del profesor -->
+            <ul v-if="evaluacion.advertencias?.length" class="mt-2 list-disc pl-5 text-amber-700">
+              <li v-for="advertencia in evaluacion.advertencias" :key="advertencia">{{ advertencia }}</li>
+            </ul>
+            <p v-if="evaluacion.asistencia.perdida_definitiva && !evaluacion.ciclo_terminado" class="mt-2 text-amber-700">
+              Aunque asista al resto del ciclo no alcanzará el mínimo de asistencia. Es solo un aviso: si aprueba lo define la nota del profesor al terminar el ciclo.
             </p>
             <p class="mt-2 text-slate-600">
               Asistencia: {{ evaluacion.asistencia.porcentaje }} %

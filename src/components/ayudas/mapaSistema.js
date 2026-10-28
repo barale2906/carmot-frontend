@@ -93,18 +93,18 @@ export const ETAPAS_SISTEMA = [
     descripcion: 'El día a día del profesor con los estudiantes de su grupo.',
     requiere: ['Oferta académica', 'Matrícula'],
     flujos: [
-      { nombre: 'Asistencia', pasos: ['Configuración de asistencia (mínimo y pérdida por fallas)', 'Clases programadas (se generan del horario)', 'Tomar asistencia'] },
-      { nombre: 'Notas', pasos: ['Esquema de calificación del grupo (pesos al 100 %)', 'Registrar notas', 'Sábana de notas'] }
+      { nombre: 'Asistencia', pasos: ['Configuración de asistencia (mínimo y alerta de fallas)', 'Clases programadas (se generan del horario)', 'Tomar asistencia'] },
+      { nombre: 'Notas', pasos: ['Esquema de calificación del grupo (pesos al 100 %)', 'Registrar notas', 'Recuperación de reprobados', 'Consulta y sábana de notas', 'Cierre de notas del ciclo'] }
     ]
   },
   {
     id: 'mapa-cierre', titulo: 'Cierre y certificación', icono: 'school', tono: 'marca',
     menu: 'Académico → Matrículas → Estado académico',
-    descripcion: 'El final de la matrícula. Graduar exige notas aprobadas y asistencia cumplida.',
+    descripcion: 'El final de la matrícula. Graduar exige las notas aprobadas: la asistencia es informativa, decide la nota del profesor.',
     requiere: ['Clases, asistencia y notas', 'Documentos'],
     flujos: [
       { nombre: 'Graduación', pasos: ['Evaluación de cierre', 'Graduado', 'Certificado de notas y diploma'] },
-      { nombre: 'Sin aprobar', pasos: ['Evaluación de cierre', 'Reprobado (también por fallas)', 'Puede matricularse de nuevo'] },
+      { nombre: 'Sin aprobar', pasos: ['Evaluación de cierre', 'Reprobado (por la nota del profesor)', 'Puede matricularse de nuevo'] },
       { nombre: 'Otros estados', pasos: ['Aplazado', 'Retirado o desertado'] }
     ]
   },

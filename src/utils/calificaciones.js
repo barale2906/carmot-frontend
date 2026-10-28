@@ -84,3 +84,38 @@ export function cambiosPorTipo(original, actual) {
 export function formatoNota(nota) {
   return nota === null || nota === undefined || nota === '' ? '—' : Number(nota).toFixed(1)
 }
+
+/** Estados del resultado de un módulo (SabanaNotasService) con su etiqueta y colores. */
+export const ESTADOS_RESULTADO = [
+  { value: 'aprobado',  label: 'Aprobado',  claseBadge: 'bg-green-100 text-green-800' },
+  { value: 'reprobado', label: 'Reprobado', claseBadge: 'bg-red-100 text-red-700' },
+  { value: 'pendiente', label: 'Pendiente', claseBadge: 'bg-slate-100 text-slate-600' }
+]
+
+/** Estado del resultado de un módulo: etiqueta y clase del badge. */
+export function estadoResultado(estado) {
+  return ESTADOS_RESULTADO.find(e => e.value === estado) ?? ESTADOS_RESULTADO[2]
+}
+
+/** Reprobado por notas sin recuperación registrada y con el ciclo abierto. */
+export function requiereRecuperacion(fila) {
+  return !!fila?.puede_recuperar && !fila?.recuperacion
+}
+
+/**
+ * Params del consolidado: descarta filtros vacíos y envía `por_recuperar` como 1.
+ * El backend exige al menos ciclo, grupo, profesor, estudiante o búsqueda.
+ */
+export function paramsConsolidado(filtros) {
+  const params = Object.fromEntries(
+    Object.entries(filtros ?? {}).filter(([, v]) => v !== '' && v !== null && v !== undefined && v !== false)
+  )
+  if (params.por_recuperar) params.por_recuperar = 1
+  return params
+}
+
+/** ¿Hay algún filtro que defina el alcance de la consulta? */
+export function tieneAlcance(filtros) {
+  return ['ciclo_id', 'grupo_id', 'profesor_id', 'estudiante_id'].some(k => !!filtros?.[k])
+    || String(filtros?.buscar ?? '').trim().length >= 3
+}

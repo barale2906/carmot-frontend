@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  ESTADOS_ASISTENCIA, admiteJustificacion, justificacionesSinMotivo, paramsListado,
   claseSugerida, esClaseFutura, construirPlanilla, resumenPlanilla, payloadPlanilla, etiquetaClase
 } from '@/utils/asistencia.js'
 
@@ -29,22 +30,67 @@ describe('planilla', () => {
   const estudiantes = [{ id: 10 }, { id: 11 }]
 
   it('usa lo registrado y deja "presente" por defecto a quien no tiene registro', () => {
-    const planilla = construirPlanilla(estudiantes, [{ estudiante_id: 11, estado: 'ausente', observaciones: 'Enfermo' }])
+    const planilla = construirPlanilla(estudiantes, [
+      { estudiante_id: 11, estado: 'ausente', justificada: true, justificacion: 'Cita médica', observaciones: null }
+    ])
     expect(planilla).toEqual([
-      { estudiante_id: 10, estado: 'presente', observaciones: '', guardada: false },
-      { estudiante_id: 11, estado: 'ausente', observaciones: 'Enfermo', guardada: true }
+      { estudiante_id: 10, estado: 'presente', justificada: false, justificacion: '', observaciones: '', guardada: false },
+      { estudiante_id: 11, estado: 'ausente', justificada: true, justificacion: 'Cita médica', observaciones: '', guardada: true }
     ])
   })
 
-  it('resume por estado y arma el payload con observaciones nulas', () => {
+  it('resume por estado y arma el payload con textos vacíos en null', () => {
     const planilla = construirPlanilla(estudiantes, [])
     planilla[1].estado = 'tardanza'
     planilla[1].observaciones = '  '
-    expect(resumenPlanilla(planilla)).toEqual({ presente: 1, tardanza: 1, ausente: 0, justificado: 0 })
+    expect(resumenPlanilla(planilla)).toEqual({ presente: 1, tardanza: 1, ausente: 0, justificadas: 0 })
     expect(payloadPlanilla(planilla)).toEqual([
-      { estudiante_id: 10, estado: 'presente', observaciones: null },
-      { estudiante_id: 11, estado: 'tardanza', observaciones: null }
+      { estudiante_id: 10, estado: 'presente', justificada: false, justificacion: null, observaciones: null },
+      { estudiante_id: 11, estado: 'tardanza', justificada: false, justificacion: null, observaciones: null }
     ])
+  })
+
+  it('la ausencia justificada sigue siendo ausente y la justificación de un presente se descarta', () => {
+    const planilla = construirPlanilla(estudiantes, [])
+    Object.assign(planilla[0], { estado: 'presente', justificada: true, justificacion: 'x' })
+    Object.assign(planilla[1], { estado: 'ausente', justificada: true, justificacion: ' Cita médica ' })
+    expect(resumenPlanilla(planilla)).toEqual({ presente: 1, tardanza: 0, ausente: 1, justificadas: 1 })
+    expect(payloadPlanilla(planilla)).toEqual([
+      { estudiante_id: 10, estado: 'presente', justificada: false, justificacion: null, observaciones: null },
+      { estudiante_id: 11, estado: 'ausente', justificada: true, justificacion: 'Cita médica', observaciones: null }
+    ])
+  })
+
+  it('detecta justificaciones sin motivo', () => {
+    const planilla = construirPlanilla(estudiantes, [])
+    Object.assign(planilla[1], { estado: 'ausente', justificada: true, justificacion: '  ' })
+    expect(justificacionesSinMotivo(planilla).map(f => f.estudiante_id)).toEqual([11])
+  })
+})
+
+describe('estados y justificación', () => {
+  it('no existe el estado "justificado": la justificación va aparte', () => {
+    expect(ESTADOS_ASISTENCIA.map(e => e.value)).toEqual(['presente', 'tardanza', 'ausente'])
+  })
+
+  it('solo se justifica una ausencia o una tardanza', () => {
+    expect(admiteJustificacion('ausente')).toBe(true)
+    expect(admiteJustificacion('tardanza')).toBe(true)
+    expect(admiteJustificacion('presente')).toBe(false)
+  })
+})
+
+describe('paramsListado', () => {
+  it('descarta filtros vacíos', () => {
+    expect(paramsListado({ sede_id: 2, curso_id: '', estudiante: null, estado: 'ausente' }))
+      .toEqual({ sede_id: 2, estado: 'ausente' })
+  })
+
+  it('con un día de clase ignora el rango', () => {
+    expect(paramsListado({ fecha: '2026-10-13', fecha_desde: '2026-10-01', fecha_hasta: '2026-10-31' }))
+      .toEqual({ fecha: '2026-10-13' })
+    expect(paramsListado({ fecha: '', fecha_desde: '2026-10-01', fecha_hasta: '2026-10-31' }))
+      .toEqual({ fecha_desde: '2026-10-01', fecha_hasta: '2026-10-31' })
   })
 })
 
