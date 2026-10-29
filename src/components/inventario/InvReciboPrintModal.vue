@@ -53,7 +53,8 @@
                   {{ numeroRecibo }}
                 </span>
                 <p class="mt-1.5 text-xs text-slate-500">Fecha: {{ fechaFormateada }}</p>
-                <p class="mt-0.5 text-xs">
+                <!-- El estado solo aplica al estado de cuenta del pedido; el recibo no lo muestra -->
+                <p v-if="!reciboActual" class="mt-0.5 text-xs">
                   Estado: <span class="font-medium" :class="statusClass">{{ statusTexto }}</span>
                 </p>
               </div>
@@ -74,25 +75,20 @@
               Recibo anulado.
             </p>
 
-            <!-- Datos del cliente -->
-            <div class="grid grid-cols-2 gap-x-6 gap-y-2 rounded-xl border border-slate-200 p-4 text-sm">
+            <!-- Datos del cliente: una sola fila (estudiante + documento | almacén) -->
+            <dl class="grid grid-cols-2 gap-x-6 rounded-xl border border-slate-200 px-4 py-2 text-sm">
               <div>
                 <dt class="text-xs text-slate-400">Estudiante</dt>
-                <dd class="font-medium text-slate-800">{{ nombreEstudiante }}</dd>
-              </div>
-              <div>
-                <dt class="text-xs text-slate-400">Documento</dt>
-                <dd class="font-medium text-slate-800">{{ pedido.estudiante?.documento ?? '—' }}</dd>
+                <dd class="font-medium text-slate-800">
+                  {{ nombreEstudiante }}
+                  <span v-if="pedido.estudiante?.documento" class="text-xs font-normal text-slate-500">· Doc. {{ pedido.estudiante.documento }}</span>
+                </dd>
               </div>
               <div>
                 <dt class="text-xs text-slate-400">Almacén</dt>
                 <dd class="text-slate-800">{{ pedido.almacen?.nombre ?? '—' }}</dd>
               </div>
-              <div>
-                <dt class="text-xs text-slate-400">Cajero</dt>
-                <dd class="text-slate-800">{{ pedido.cajero?.nombre ?? '—' }}</dd>
-              </div>
-            </div>
+            </dl>
 
             <!-- Tabla de ítems -->
             <div class="mt-4">
@@ -133,6 +129,9 @@
                 Total cobrado con sobrecargos: {{ formatCurrency(reciboActual.valor_total) }}
               </p>
             </div>
+            <p class="mt-2 text-xs text-slate-600">
+              Responsable: <span class="font-medium text-slate-800">{{ pedido.cajero?.nombre ?? '—' }}</span>
+            </p>
 
             <!-- Totales -->
             <div class="mt-4 flex flex-col items-end gap-1.5 border-t border-slate-200 pt-3 text-sm">
@@ -168,18 +167,6 @@
                   <span class="font-mono font-medium text-slate-800">{{ formatCurrency(link.monto_abonado) }}</span>
                 </li>
               </ul>
-            </div>
-
-            <!-- Firmas -->
-            <div class="mt-10 grid grid-cols-2 gap-8 break-inside-avoid">
-              <div class="border-t border-slate-300 pt-2">
-                <p class="text-xs font-medium text-slate-700">Firma del estudiante</p>
-                <p class="mt-0.5 text-xs text-slate-400">{{ nombreEstudiante }}</p>
-              </div>
-              <div class="border-t border-slate-300 pt-2">
-                <p class="text-xs font-medium text-slate-700">Responsable de caja</p>
-                <p class="mt-0.5 text-xs text-slate-400">{{ pedido.cajero?.nombre ?? '' }}</p>
-              </div>
             </div>
 
             <!-- Pie de página -->

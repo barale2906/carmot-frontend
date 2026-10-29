@@ -56,13 +56,6 @@
                     {{ recibo.numero_recibo }}
                   </span>
                   <p class="mt-1.5 text-xs text-slate-500">Fecha: {{ recibo.fecha_recibo }}</p>
-                  <p class="mt-0.5 text-xs">
-                    Estado:
-                    <span
-                      class="font-medium"
-                      :class="recibo.status === 1 ? 'text-green-700' : recibo.status === 3 ? 'text-red-600' : 'text-slate-700'"
-                    >{{ recibo.status_text }}</span>
-                  </p>
                 </div>
               </div>
 
@@ -72,25 +65,20 @@
                 <p class="text-sm font-semibold uppercase tracking-wide">Recibo de pago</p>
               </div>
 
-              <!-- Datos generales -->
-              <div class="grid grid-cols-2 gap-x-6 gap-y-2 rounded-xl border border-slate-200 p-4 text-sm">
+              <!-- Datos generales: una sola fila (estudiante + documento | curso) -->
+              <dl class="grid grid-cols-2 gap-x-6 rounded-xl border border-slate-200 px-4 py-2 text-sm">
                 <div>
                   <dt class="text-xs text-slate-400">Estudiante</dt>
-                  <dd class="font-medium text-slate-800">{{ nombreEstudiante }}</dd>
+                  <dd class="font-medium text-slate-800">
+                    {{ nombreEstudiante }}
+                    <span v-if="documentoEstudiante" class="text-xs font-normal text-slate-500">· Doc. {{ documentoEstudiante }}</span>
+                  </dd>
                 </div>
                 <div>
-                  <dt class="text-xs text-slate-400">Programa</dt>
+                  <dt class="text-xs text-slate-400">Curso</dt>
                   <dd class="text-slate-800">{{ nombreCurso }}</dd>
                 </div>
-                <div>
-                  <dt class="text-xs text-slate-400">Responsable</dt>
-                  <dd class="text-slate-800">{{ recibo.cajero?.name ?? `ID ${recibo.cajero_id}` }}</dd>
-                </div>
-                <div>
-                  <dt class="text-xs text-slate-400">Fecha de transacción</dt>
-                  <dd class="text-slate-800">{{ recibo.fecha_transaccion ?? recibo.fecha_recibo }}</dd>
-                </div>
-              </div>
+              </dl>
 
               <!-- Conceptos de pago -->
               <div class="mt-5">
@@ -168,18 +156,9 @@
                     </tr>
                   </tbody>
                 </table>
-              </div>
-
-              <!-- Firmas -->
-              <div class="mt-10 grid grid-cols-2 gap-8 break-inside-avoid">
-                <div class="border-t border-slate-300 pt-2">
-                  <p class="text-xs font-medium text-slate-700">Firma del estudiante</p>
-                  <p class="mt-0.5 text-xs text-slate-400">{{ nombreEstudiante }}</p>
-                </div>
-                <div class="border-t border-slate-300 pt-2">
-                  <p class="text-xs font-medium text-slate-700">Responsable de caja</p>
-                  <p class="mt-0.5 text-xs text-slate-400">{{ recibo.cajero?.name ?? '' }}</p>
-                </div>
+                <p class="mt-2 text-xs text-slate-600">
+                  Responsable: <span class="font-medium text-slate-800">{{ recibo.cajero?.name ?? `ID ${recibo.cajero_id}` }}</span>
+                </p>
               </div>
 
               <p class="mt-6 border-t border-black/5 pt-3 text-center text-[10px] text-slate-400">
@@ -291,14 +270,23 @@ const generadoEl = computed(() =>
 )
 
 /**
- * El backend puede devolver `matricula.estudiante` como string (guía) u objeto
- * con campos `name`/`primer_nombre`. Se maneja ambos casos.
+ * El estudiante llega en `recibo.estudiante` (with=estudiante) o, en su defecto,
+ * en `matricula.estudiante`, que puede ser string (guía) u objeto con
+ * `name`/`primer_nombre`. Se manejan todos los casos.
  */
+const estudiante = computed(() => props.recibo?.estudiante ?? props.recibo?.matricula?.estudiante ?? null)
+
 const nombreEstudiante = computed(() => {
-  const est = props.recibo?.matricula?.estudiante
+  const est = estudiante.value
   if (!est) return `ID ${props.recibo?.estudiante_id ?? '—'}`
   if (typeof est === 'string') return est
   return est.name ?? [est.primer_nombre, est.primer_apellido].filter(Boolean).join(' ') ?? `ID ${est.id}`
+})
+
+/** Número de documento del estudiante (vacío si no viene en la respuesta). */
+const documentoEstudiante = computed(() => {
+  const est = estudiante.value
+  return est && typeof est === 'object' ? est.documento ?? '' : ''
 })
 
 /**

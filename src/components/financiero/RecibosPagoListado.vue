@@ -1147,7 +1147,7 @@ async function descargarPdf(recibo) {
   }
   try {
     const res = await reciboPagoService.getById(recibo.id, {
-      with: 'sede,cajero,conceptosPago,mediosPago,matricula',
+      with: 'sede,cajero,estudiante,conceptosPago,mediosPago,matricula.curso',
     })
     printRecibo.value    = res.data
     showPrintModal.value = true
