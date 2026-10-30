@@ -122,9 +122,35 @@ const libroDiarioService = {
     return data
   },
 
+  /** GET /libro-diario/movimientos/importar/plantilla — Plantilla Excel de carga masiva (blob) */
+  descargarPlantillaMovimientos() {
+    return api.get(`${BASE}/movimientos/importar/plantilla`, { responseType: 'blob' })
+  },
+
+  /**
+   * POST /libro-diario/movimientos/importar — Carga masiva al turno abierto. Todo o nada:
+   * con filas inválidas responde 422 con `errores: [{ fila, mensajes[] }]`.
+   */
+  async importarMovimientos(archivo) {
+    const fd = new FormData()
+    fd.append('archivo', archivo)
+    const { data } = await api.post(`${BASE}/movimientos/importar`, fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return data
+  },
+
   /** POST /libro-diario/movimientos/{id}/anular */
   async anularMovimiento(id, motivo) {
     const { data } = await api.post(`${BASE}/movimientos/${id}/anular`, { motivo })
+    return data
+  },
+
+  // ─── Terceros ───────────────────────────────────────────────────────────────
+
+  /** GET /libro-diario/terceros — Búsqueda por nombre o identificación. Params: search, status, per_page */
+  async buscarTerceros(params = {}, config = {}) {
+    const { data } = await api.get(`${BASE}/terceros`, { params, ...config })
     return data
   },
 

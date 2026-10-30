@@ -94,6 +94,15 @@
               v-if="can('fin_ldRegistroCrear')"
               type="button"
               class="flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              @click="mostrarImportacion = true"
+            >
+              <NavIcon name="arrow_up" class="size-4" />
+              Carga masiva
+            </button>
+            <button
+              v-if="can('fin_ldRegistroCrear')"
+              type="button"
+              class="flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
               @click="nuevaConsignacion"
             >
               <NavIcon name="account_balance" class="size-4" />
@@ -164,6 +173,8 @@
       @guardado="onGuardado('Movimiento', $event.soportesFallidos)"
     />
 
+    <ImportarMovimientosModal v-model="mostrarImportacion" @importado="onImportado" />
+
     <ConsignacionFormModal
       v-model="mostrarConsignacion"
       :consignacion="consignacionEditando"
@@ -230,6 +241,7 @@ import FormTextarea from '@/components/forms/FormTextarea.vue'
 import FormTabs from '@/components/forms/FormTabs.vue'
 import ResumenTurno from '@/components/financiero/libroDiario/ResumenTurno.vue'
 import MovimientoFormModal from '@/components/financiero/libroDiario/MovimientoFormModal.vue'
+import ImportarMovimientosModal from '@/components/financiero/libroDiario/ImportarMovimientosModal.vue'
 import ConsignacionFormModal from '@/components/financiero/libroDiario/ConsignacionFormModal.vue'
 import RegistroDetalleModal from '@/components/financiero/libroDiario/RegistroDetalleModal.vue'
 import libroDiarioService from '@/services/libroDiarioService.js'
@@ -310,6 +322,7 @@ async function recargar() {
 
 const mostrarMovimiento = ref(false)
 const movimientoEditando = ref(null)
+const mostrarImportacion = ref(false)
 const mostrarConsignacion = ref(false)
 const consignacionEditando = ref(null)
 const mostrarDetalle = ref(false)
@@ -347,6 +360,12 @@ function onGuardado(etiqueta, soportesFallidos) {
   if (soportesFallidos.length) {
     notify.warning(`No se pudieron cargar: ${soportesFallidos.join(', ')}. Cárguelos desde el detalle.`)
   }
+  recargar()
+}
+
+function onImportado(total) {
+  notify.success(`Se registraron ${total} movimientos.`)
+  pestana.value = 'movimientos'
   recargar()
 }
 

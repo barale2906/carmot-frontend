@@ -63,6 +63,23 @@ describe('libroDiarioService', () => {
     expect(api.post).toHaveBeenCalledWith(`${BASE}/consignaciones/4/anular`, { motivo: 'Error' })
   })
 
+  it('descarga la plantilla y carga movimientos masivos como multipart', async () => {
+    libroDiarioService.descargarPlantillaMovimientos()
+    expect(api.get).toHaveBeenCalledWith(`${BASE}/movimientos/importar/plantilla`, { responseType: 'blob' })
+
+    const archivo = new File(['x'], 'movimientos.xlsx')
+    await libroDiarioService.importarMovimientos(archivo)
+    const [url, fd, config] = api.post.mock.calls[0]
+    expect(url).toBe(`${BASE}/movimientos/importar`)
+    expect(fd.get('archivo')).toBe(archivo)
+    expect(config.headers['Content-Type']).toBe('multipart/form-data')
+  })
+
+  it('busca terceros con sus filtros', async () => {
+    await libroDiarioService.buscarTerceros({ search: '900', status: 1 }, { _silent: true })
+    expect(api.get).toHaveBeenCalledWith(`${BASE}/terceros`, { params: { search: '900', status: 1 }, _silent: true })
+  })
+
   it('sube soportes como multipart con el registro asociado', async () => {
     const archivo = new File(['x'], 'factura.pdf', { type: 'application/pdf' })
     await libroDiarioService.subirSoporte('movimiento', 9, 'factura', archivo)

@@ -1,8 +1,8 @@
 <template>
   <div class="flex flex-col gap-6">
     <section class="rounded-[14px] border border-black/10 bg-white p-6">
-      <FormTabs v-model="catalogo" :tabs="pestanas" @update:model-value="cargar(1)" />
-      <div class="mt-4 flex flex-wrap items-end gap-4">
+      <FormTabs v-model="catalogo" :tabs="pestanas" @update:model-value="cambiarCatalogo" />
+      <div v-if="!esTerceros" class="mt-4 flex flex-wrap items-end gap-4">
         <div class="min-w-0 flex-1 sm:max-w-xs">
           <FormInputSearch v-model="search" label="Buscar:" placeholder="Nombre..." @input="onBuscar" />
         </div>
@@ -27,7 +27,9 @@
       </div>
     </section>
 
-    <section>
+    <LdTercerosPanel v-if="esTerceros" :tipos-identificacion="tiposIdentificacion" :puede-editar="can('fin_ldCatalogoEditar')" />
+
+    <section v-else>
       <SectionHeader
         :title="esImpuesto ? 'Impuestos y retenciones' : 'Tipos de movimiento'"
         :description="esImpuesto
@@ -108,6 +110,7 @@ import FormTabs from '@/components/forms/FormTabs.vue'
 import FormInput from '@/components/forms/FormInput.vue'
 import FormSelect from '@/components/forms/FormSelect.vue'
 import FormInputSearch from '@/components/forms/FormInputSearch.vue'
+import LdTercerosPanel from '@/components/financiero/libroDiario/LdTercerosPanel.vue'
 import libroDiarioService from '@/services/libroDiarioService.js'
 import { usePermisos } from '@/composables/usePermisos.js'
 import { useNotification } from '@/composables/useNotification.js'
@@ -116,7 +119,8 @@ import { CLASE_EGRESO, CLASE_INGRESO, EFECTO_SUMA, EFECTO_RESTA } from '@/utils/
 
 /**
  * Catálogos del libro diario: tipos de movimiento (egreso / otro ingreso) e
- * impuestos y retenciones, con creación, edición, eliminación y papelera.
+ * impuestos y retenciones, con creación, edición, eliminación y papelera; y los
+ * terceros, que solo se corrigen o inactivan (LdTercerosPanel).
  */
 const { can, loadPermisos } = usePermisos()
 const notify = useNotification()
@@ -125,12 +129,20 @@ const { confirm } = useConfirm()
 const pestanas = [
   { value: 'tipos-movimiento', label: 'Tipos de movimiento' },
   { value: 'impuestos', label: 'Impuestos y retenciones' },
+  { value: 'terceros', label: 'Terceros' },
 ]
 const opcionesClase = [{ value: CLASE_EGRESO, label: 'Egreso' }, { value: CLASE_INGRESO, label: 'Otro ingreso' }]
 const opcionesEfecto = [{ value: EFECTO_SUMA, label: 'Suma (impuesto)' }, { value: EFECTO_RESTA, label: 'Resta (retención)' }]
 
 const catalogo = ref('tipos-movimiento')
 const esImpuesto = computed(() => catalogo.value === 'impuestos')
+/** Terceros tiene su propio panel: no se crean aquí ni tienen papelera */
+const esTerceros = computed(() => catalogo.value === 'terceros')
+const tiposIdentificacion = ref({})
+
+function cambiarCatalogo() {
+  if (!esTerceros.value) cargar(1)
+}
 const columnas = computed(() => (esImpuesto.value
   ? [{ key: 'nombre', label: 'Nombre' }, { key: 'porcentaje', label: 'Porcentaje' }, { key: 'efecto_text', label: 'Efecto' }, { key: 'status', label: 'Estado' }]
   : [{ key: 'nombre', label: 'Nombre' }, { key: 'clase_text', label: 'Clase' }, { key: 'descripcion', label: 'Descripción' }, { key: 'status', label: 'Estado' }]))
@@ -237,5 +249,10 @@ async function restaurar(item) {
 onMounted(async () => {
   await loadPermisos()
   cargar(1)
+  try {
+    tiposIdentificacion.value = (await libroDiarioService.getFilters()).data?.tipos_identificacion ?? {}
+  } catch {
+    tiposIdentificacion.value = {}
+  }
 })
 </script>

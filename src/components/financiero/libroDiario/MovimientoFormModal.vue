@@ -35,25 +35,10 @@
       </FormSection>
 
       <FormSection title="Tercero">
-        <FormSelect
-          v-model="form.tercero_tipo_identificacion"
-          label="Tipo de identificación"
-          required
-          :options="opcionesDe(filtros.tipos_identificacion)"
-          :error="errores.tercero_tipo_identificacion?.[0]"
-        />
-        <FormInput
-          v-model="form.tercero_identificacion"
-          label="Número de identificación"
-          required
-          :error="errores.tercero_identificacion?.[0]"
-        />
-        <FormInput
-          v-model="form.tercero_nombre"
-          label="Nombre o razón social"
-          required
-          span="full"
-          :error="errores.tercero_nombre?.[0]"
+        <TerceroBuscador
+          v-model="tercero"
+          :tipos-identificacion="filtros.tipos_identificacion ?? {}"
+          :errores="errores"
         />
       </FormSection>
 
@@ -238,6 +223,7 @@ import FormSection from '@/components/forms/FormSection.vue'
 import FormInput from '@/components/forms/FormInput.vue'
 import FormSelect from '@/components/forms/FormSelect.vue'
 import FormTextarea from '@/components/forms/FormTextarea.vue'
+import TerceroBuscador from '@/components/financiero/libroDiario/TerceroBuscador.vue'
 import libroDiarioService from '@/services/libroDiarioService.js'
 import { opcionesBanco as aOpcionesBanco } from '@/utils/formatters.js'
 import {
@@ -247,11 +233,14 @@ import {
   totalesMovimiento,
   formatCOP,
   validarArchivoSoporte,
+  terceroDeMovimiento,
+  payloadTercero,
 } from '@/utils/libroDiario.js'
 
 /**
  * Formulario para registrar o editar un movimiento del libro diario (egreso u
- * otro ingreso) con varios impuestos y retenciones.
+ * otro ingreso) con varios impuestos y retenciones. El tercero se busca en el
+ * catálogo o se registra como nuevo en el mismo guardado (TerceroBuscador).
  *
  * Autocálculo: el subtotal calcula impuestos y total; el total despeja el
  * subtotal; el valor de un impuesto se puede ajustar a mano y solo recalcula el total.
@@ -277,9 +266,6 @@ const vacio = () => ({
   tipo_movimiento_id: '',
   medio_pago: 'efectivo',
   banco_id: '',
-  tercero_tipo_identificacion: 'NIT',
-  tercero_identificacion: '',
-  tercero_nombre: '',
   documento_tipo: 'factura',
   documento_numero: '',
   subtotal: '',
@@ -289,6 +275,8 @@ const vacio = () => ({
 })
 
 const form = reactive(vacio())
+/** Tercero elegido o nuevo (ver TerceroBuscador) */
+const tercero = ref(null)
 const errores = ref({})
 const errorGeneral = ref('')
 const guardando = ref(false)
@@ -303,15 +291,13 @@ const ancla = ref('subtotal')
 watch(() => props.modelValue, (abierto) => {
   if (!abierto) return
   Object.assign(form, vacio())
+  tercero.value = props.movimiento ? terceroDeMovimiento(props.movimiento) : null
   if (props.movimiento) {
     const m = props.movimiento
     Object.assign(form, {
       tipo_movimiento_id: m.tipo_movimiento_id,
       medio_pago: m.medio_pago,
       banco_id: m.banco_id ?? '',
-      tercero_tipo_identificacion: m.tercero_tipo_identificacion,
-      tercero_identificacion: m.tercero_identificacion,
-      tercero_nombre: m.tercero_nombre,
       documento_tipo: m.documento_tipo,
       documento_numero: m.documento_numero ?? '',
       subtotal: m.subtotal,
@@ -398,6 +384,7 @@ async function guardar() {
   errorGeneral.value = ''
   const payload = {
     ...form,
+    ...payloadTercero(tercero.value),
     banco_id: requiereBanco.value ? form.banco_id : null,
     impuestos: form.impuestos.map(({ impuesto_id, porcentaje, valor }) => ({ impuesto_id, porcentaje, valor })),
   }

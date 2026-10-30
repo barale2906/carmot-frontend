@@ -13,6 +13,9 @@ import {
   filasMediosPago,
   validarMotivo,
   resumenSinEfectivo,
+  terceroNuevo,
+  terceroDeMovimiento,
+  payloadTercero,
 } from '@/utils/libroDiario.js'
 
 const IVA = { impuesto_id: 1, efecto: EFECTO_SUMA, porcentaje: 19 }
@@ -164,5 +167,26 @@ describe('resumen restringido del cajero (N26)', () => {
     const { filas, totales } = filasMediosPago(restringido, etiquetas)
     expect(filas.map((f) => f.medio)).toEqual(['transferencia'])
     expect(totales.ingresos).toBe(5000)
+  })
+})
+
+describe('terceros', () => {
+  it('envía tercero_id si se eligió del catálogo y los datos si es nuevo', () => {
+    expect(payloadTercero(null)).toEqual({})
+    expect(payloadTercero({ id: 4, nombre: 'X' })).toEqual({ tercero_id: 4 })
+    expect(payloadTercero({ ...terceroNuevo(), tipo_identificacion: 'CC', identificacion: '1010', nombre: 'Ana', telefono: '300' })).toEqual({
+      tercero_tipo_identificacion: 'CC',
+      tercero_identificacion: '1010',
+      tercero_nombre: 'Ana',
+      tercero_telefono: '300',
+      tercero_email: null,
+      tercero_direccion: null,
+    })
+  })
+
+  it('toma el tercero del movimiento o su copia si no está enlazado', () => {
+    expect(terceroDeMovimiento({ tercero: { id: 4, nombre: 'Central' } })).toEqual({ id: 4, nombre: 'Central' })
+    expect(terceroDeMovimiento({ tercero_id: null, tercero_tipo_identificacion: 'CC', tercero_identificacion: '1', tercero_nombre: 'Ana' }))
+      .toEqual({ id: null, tipo_identificacion: 'CC', identificacion: '1', nombre: 'Ana' })
   })
 })

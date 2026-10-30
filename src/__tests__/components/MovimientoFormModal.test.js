@@ -3,9 +3,10 @@ import { mount, flushPromises } from '@vue/test-utils'
 import MovimientoFormModal from '@/components/financiero/libroDiario/MovimientoFormModal.vue'
 import libroDiarioService from '@/services/libroDiarioService.js'
 import FormSelect from '@/components/forms/FormSelect.vue'
+import TerceroBuscador from '@/components/financiero/libroDiario/TerceroBuscador.vue'
 
 vi.mock('@/services/libroDiarioService.js', () => ({
-  default: { crearMovimiento: vi.fn(), actualizarMovimiento: vi.fn(), subirSoporte: vi.fn() },
+  default: { crearMovimiento: vi.fn(), actualizarMovimiento: vi.fn(), subirSoporte: vi.fn(), buscarTerceros: vi.fn() },
 }))
 
 const IMPUESTOS = [
@@ -83,6 +84,37 @@ describe('MovimientoFormModal', () => {
     expect(payload.valor_total).toBe(238000)
     expect(payload.banco_id).toBeNull()
     expect(wrapper.emitted('guardado')[0][0].movimiento.id).toBe(11)
+  })
+
+  it('envía el tercero elegido o los datos del tercero nuevo', async () => {
+    libroDiarioService.crearMovimiento.mockResolvedValue({ data: { id: 12 } })
+    const wrapper = await montar()
+    const buscador = wrapper.findComponent(TerceroBuscador)
+
+    await buscador.vm.$emit('update:modelValue', { id: 4, nombre: 'Central' })
+    await wrapper.findAll('button').find((b) => b.text() === 'Registrar').trigger('click')
+    await flushPromises()
+    expect(libroDiarioService.crearMovimiento.mock.calls[0][0]).toMatchObject({ tercero_id: 4 })
+
+    await wrapper.setProps({ modelValue: false })
+    await wrapper.setProps({ modelValue: true })
+    expect(wrapper.findComponent(TerceroBuscador).props('modelValue')).toBeNull()
+    await wrapper.findComponent(TerceroBuscador).vm.$emit('update:modelValue', { id: null, tipo_identificacion: 'CC', identificacion: '1010', nombre: 'Ana' })
+    await wrapper.findAll('button').find((b) => b.text() === 'Registrar').trigger('click')
+    await flushPromises()
+    const payload = libroDiarioService.crearMovimiento.mock.calls[1][0]
+    expect(payload).toMatchObject({ tercero_tipo_identificacion: 'CC', tercero_identificacion: '1010', tercero_nombre: 'Ana' })
+    expect(payload).not.toHaveProperty('tercero_id')
+  })
+
+  it('al editar precarga el tercero del movimiento', async () => {
+    const wrapper = await montar({
+      movimiento: { id: 3, tipo_movimiento_id: 7, medio_pago: 'efectivo', documento_tipo: 'factura', subtotal: 1, valor_total: 1, impuestos: [], tercero_id: 4, tercero: { id: 4, nombre: 'Central' } },
+    })
+    await wrapper.setProps({ modelValue: false })
+    await wrapper.setProps({ modelValue: true })
+
+    expect(wrapper.findComponent(TerceroBuscador).props('modelValue')).toEqual({ id: 4, nombre: 'Central' })
   })
 
   it('sin permiso el medio de pago queda fijo en efectivo', async () => {

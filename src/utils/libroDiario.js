@@ -187,3 +187,41 @@ export function validarMotivo(texto) {
   if (largo < MIN_MOTIVO) return `El motivo debe tener al menos ${MIN_MOTIVO} caracteres.`
   return null
 }
+
+// ─── Terceros ────────────────────────────────────────────────────────────────
+
+/** Tercero nuevo vacío (se crea en el backend al guardar el movimiento). */
+export function terceroNuevo() {
+  return { id: null, tipo_identificacion: 'NIT', identificacion: '', nombre: '', telefono: '', email: '', direccion: '' }
+}
+
+/**
+ * Tercero de un movimiento para el selector: el del catálogo, o su copia si el
+ * movimiento no quedó enlazado a uno.
+ */
+export function terceroDeMovimiento(movimiento) {
+  if (movimiento?.tercero) return { ...movimiento.tercero }
+  return {
+    id: movimiento?.tercero_id ?? null,
+    tipo_identificacion: movimiento?.tercero_tipo_identificacion ?? 'NIT',
+    identificacion: movimiento?.tercero_identificacion ?? '',
+    nombre: movimiento?.tercero_nombre ?? '',
+  }
+}
+
+/**
+ * Campos del tercero para el payload del movimiento: `tercero_id` si se eligió del
+ * catálogo; los datos del tercero si es nuevo; nada si no se ha elegido.
+ */
+export function payloadTercero(tercero) {
+  if (!tercero) return {}
+  if (tercero.id) return { tercero_id: tercero.id }
+  return {
+    tercero_tipo_identificacion: tercero.tipo_identificacion,
+    tercero_identificacion: tercero.identificacion,
+    tercero_nombre: tercero.nombre,
+    tercero_telefono: tercero.telefono || null,
+    tercero_email: tercero.email || null,
+    tercero_direccion: tercero.direccion || null,
+  }
+}
