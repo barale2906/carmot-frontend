@@ -1,20 +1,24 @@
 <template>
   <div class="flex flex-col gap-6">
     <!-- Avisos del cierre: fuera de la cadena v-if/v-else del contenido para mostrarse junto a él -->
-    <div
-      v-if="!cargando && meta.cierre_por_aprobar"
-      class="rounded-[14px] border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900"
-      role="status"
-    >
-      Su cierre de caja N.° {{ meta.cierre_por_aprobar.id }} ({{ meta.cierre_por_aprobar.fecha?.slice(0, 10) }}) está pendiente de aprobación.
-    </div>
-    <div
-      v-if="!cargando && turno && meta.cierre_rechazado"
-      class="rounded-[14px] border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
-      role="alert"
-    >
-      <strong>Su cierre fue rechazado:</strong> {{ meta.cierre_rechazado.motivo }}. Corrija lo necesario y vuelva a cerrar la caja.
-    </div>
+    <template v-if="!cargando">
+      <div
+        v-for="c in meta.cierres_por_aprobar ?? []"
+        :key="`por-aprobar-${c.id}`"
+        class="rounded-[14px] border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900"
+        role="status"
+      >
+        Su cierre de caja N.° {{ c.id }}<template v-if="c.sede"> de {{ c.sede }}</template> ({{ c.fecha?.slice(0, 10) }}) está pendiente de aprobación.
+      </div>
+      <div
+        v-for="c in meta.cierres_rechazados ?? []"
+        :key="`rechazado-${c.turno_id}`"
+        class="rounded-[14px] border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
+        role="alert"
+      >
+        <strong>Su cierre<template v-if="variasCajas && c.sede"> de {{ c.sede }}</template> fue rechazado:</strong> {{ c.motivo }}. Corrija lo necesario y vuelva a cerrar la caja.
+      </div>
+    </template>
 
     <div v-if="cargando" class="rounded-[14px] border border-black/10 bg-white py-16 text-center text-sm text-slate-500">
       Cargando turno de caja...
@@ -24,31 +28,38 @@
       <p class="text-sm text-red-700">{{ errorTurno }}</p>
     </div>
 
-    <!-- Sin turno: apertura con base inicial -->
+    <!-- Apertura con base inicial: sin turno, o una caja más en otra sede -->
     <section
-      v-else-if="!turno"
+      v-if="!cargando && !errorTurno && (!turno || mostrarApertura)"
       aria-labelledby="abrir-turno-heading"
       class="rounded-[14px] border border-black/10 bg-white p-6"
     >
       <SectionHeader
         id="abrir-turno-heading"
-        title="Abrir turno de caja"
+        :title="turno ? 'Abrir caja en otra sede' : 'Abrir turno de caja'"
         description="Registre la base inicial de efectivo antes de generar cualquier pago."
         class="mb-4"
       />
 
-      <div v-if="!meta.puede_abrir" class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+      <div v-if="!sedesParaAbrir.length" class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
         {{ meta.motivo_no_puede }}
       </div>
 
       <form v-else class="grid max-w-xl grid-cols-1 gap-4 md:grid-cols-2" @submit.prevent="abrirTurno">
+        <!-- Con una sola sede posible solo se pide la base inicial -->
         <FormSelect
+          v-if="sedesParaAbrir.length > 1"
           v-model="apertura.sede_id"
           label="Sede"
           required
-          :options="meta.sedes_disponibles.map((s) => ({ value: s.id, label: s.nombre }))"
+          :options="sedesParaAbrir.map((s) => ({ value: s.id, label: s.nombre }))"
           :error="erroresApertura.sede_id?.[0]"
         />
+        <div v-else class="flex flex-col gap-2">
+          <span class="text-sm font-medium text-slate-900">Sede</span>
+          <p class="flex h-9 items-center text-sm text-slate-700">{{ sedesParaAbrir[0].nombre }}</p>
+          <p v-if="erroresApertura.sede_id" role="alert" class="text-xs text-red-600">{{ erroresApertura.sede_id[0] }}</p>
+        </div>
         <FormInput
           v-model="apertura.base_inicial"
           type="number"
@@ -59,7 +70,18 @@
           :error="erroresApertura.base_inicial?.[0]"
         />
         <p v-if="erroresApertura.turno" class="text-sm text-red-600 md:col-span-2">{{ erroresApertura.turno[0] }}</p>
-        <div class="md:col-span-2">
+        <ul v-if="sedesBloqueadas.length" class="text-xs text-slate-500 md:col-span-2">
+          <li v-for="s in sedesBloqueadas" :key="s.id">{{ s.nombre }}: {{ s.motivo_no_puede }}</li>
+        </ul>
+        <div class="flex gap-2 md:col-span-2">
+          <button
+            v-if="turno"
+            type="button"
+            class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            @click="mostrarApertura = false"
+          >
+            Cancelar
+          </button>
           <button
             type="submit"
             :disabled="abriendo"
@@ -71,9 +93,15 @@
       </form>
     </section>
 
-    <!-- Turno abierto -->
-    <template v-else>
+    <!-- Turno abierto (con cajas en varias sedes, la elegida) -->
+    <template v-if="!cargando && !errorTurno && turno">
       <section aria-labelledby="turno-heading" class="rounded-[14px] border border-black/10 bg-white p-6">
+        <div v-if="variasCajas" class="mb-4">
+          <p class="mb-2 text-sm text-slate-600">
+            Tiene caja abierta en {{ turnos.length }} sedes. Elija desde cuál está facturando; cada caja se cierra por separado.
+          </p>
+          <FormTabs :model-value="String(turno.id)" :tabs="pestanasCajas" @update:model-value="cambiarCaja" />
+        </div>
         <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
           <SectionHeader
             id="turno-heading"
@@ -81,6 +109,15 @@
             :description="`Abierto el ${turno.abierto_at} con base de ${formatCOP(turno.base_inicial)}`"
           />
           <div class="flex flex-wrap gap-2">
+            <button
+              v-if="sedesParaAbrir.length && !mostrarApertura"
+              type="button"
+              class="flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              @click="mostrarApertura = true"
+            >
+              <NavIcon name="plus" class="size-4" />
+              Abrir caja en otra sede
+            </button>
             <button
               v-if="can('fin_ldRegistroCrear')"
               type="button"
@@ -121,7 +158,7 @@
               class="flex h-9 items-center gap-2 rounded-lg bg-red-600 px-3 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
               @click="abrirCierre"
             >
-              Cerrar caja
+              {{ variasCajas ? `Cerrar caja de ${turno.sede?.nombre ?? 'esta sede'}` : 'Cerrar caja' }}
             </button>
           </div>
         </div>
@@ -170,15 +207,17 @@
       :impuestos="impuestos"
       :bancos="bancos"
       :permitir-otros-medios="can('fin_ldMedioPagoOtros')"
+      :turno-caja-id="turno?.id ?? null"
       @guardado="onGuardado('Movimiento', $event.soportesFallidos)"
     />
 
-    <ImportarMovimientosModal v-model="mostrarImportacion" @importado="onImportado" />
+    <ImportarMovimientosModal v-model="mostrarImportacion" :turno-caja-id="turno?.id ?? null" @importado="onImportado" />
 
     <ConsignacionFormModal
       v-model="mostrarConsignacion"
       :consignacion="consignacionEditando"
       :bancos="bancos"
+      :turno-caja-id="turno?.id ?? null"
       @guardado="onGuardado('Consignación', $event.comprobanteFallido ? ['comprobante'] : [])"
     />
 
@@ -196,7 +235,11 @@
     />
 
     <!-- Cierre de caja -->
-    <ModalBase v-model="mostrarCierre" title="Cerrar caja" description="Cuente el efectivo que tiene en caja y regístrelo. El cierre quedará pendiente de aprobación y no podrá generar más pagos hoy sin autorización.">
+    <ModalBase
+      v-model="mostrarCierre"
+      :title="`Cerrar caja — ${turno?.sede?.nombre ?? ''}`"
+      description="Cuente el efectivo que tiene en la caja de esta sede y regístrelo. El cierre quedará pendiente de aprobación y no podrá volver a abrir caja hoy en esta sede sin autorización."
+    >
       <form class="flex flex-col gap-4 pb-2" @submit.prevent="cerrarCaja">
         <FormInput
           v-model="cierre.efectivo_contado"
@@ -231,7 +274,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import SectionHeader from '@/components/activos/SectionHeader.vue'
 import NavIcon from '@/components/icons/NavIcon.vue'
 import ModalBase from '@/components/ModalBase.vue'
@@ -250,14 +293,18 @@ import { useTurnoCaja } from '@/composables/useTurnoCaja.js'
 import { usePermisos } from '@/composables/usePermisos.js'
 import { useNotification } from '@/composables/useNotification.js'
 import { descargarBlob, mensajeErrorBlob } from '@/utils/descargas.js'
-import { formatCOP } from '@/utils/libroDiario.js'
+import { formatCOP, nombrePdfCierre } from '@/utils/libroDiario.js'
 
 /**
  * Mi caja: el cajero abre su turno con la base inicial, registra movimientos y
  * consignaciones y cierra la caja con conteo ciego (no ve el efectivo esperado);
  * el cierre queda pendiente de aprobación.
+ *
+ * Con una sola sede solo se pide la base. Quien factura para varias sedes puede tener
+ * una caja abierta en cada una: elige con cuál trabaja (la misma con la que factura en
+ * recibos y ventas) y cierra cada una por separado.
  */
-const { turno, meta, cargando, error: errorTurno, cargarTurno } = useTurnoCaja()
+const { turno, turnos, meta, cargando, error: errorTurno, variasCajas, seleccionarTurno, cargarTurno } = useTurnoCaja()
 const { can, loadPermisos } = usePermisos()
 const notify = useNotification()
 
@@ -279,17 +326,38 @@ async function cargarCatalogos() {
   bancos.value = b.value?.data ?? []
 }
 
+// ─── Cajas abiertas ───────────────────────────────────────────────────────────
+const pestanasCajas = computed(() => turnos.value.map((t) => ({ value: String(t.id), label: t.sede?.nombre ?? `Turno ${t.id}` })))
+
+function cambiarCaja(id) {
+  seleccionarTurno(id)
+}
+
 // ─── Apertura ─────────────────────────────────────────────────────────────────
 const apertura = reactive({ sede_id: '', base_inicial: '' })
 const erroresApertura = ref({})
 const abriendo = ref(false)
+const mostrarApertura = ref(false)
+
+/** Sedes donde puede abrir caja ahora (sin turno abierto ni cierre del día sin autorización). */
+const sedesParaAbrir = computed(() => (meta.value.sedes_disponibles ?? []).filter((s) => s.puede_abrir))
+
+/** Sedes sin caja abierta donde no puede abrir, con el motivo. */
+const sedesBloqueadas = computed(() =>
+  (meta.value.sedes_disponibles ?? []).filter((s) => !s.puede_abrir && !s.turno_abierto_id && s.motivo_no_puede)
+)
 
 async function abrirTurno() {
   abriendo.value = true
   erroresApertura.value = {}
   try {
-    await libroDiarioService.abrirTurno({ ...apertura })
+    const sedeId = sedesParaAbrir.value.length === 1 ? sedesParaAbrir.value[0].id : apertura.sede_id
+    const res = await libroDiarioService.abrirTurno({ ...apertura, sede_id: sedeId })
     notify.success('Turno de caja abierto.')
+    seleccionarTurno(res?.data?.id)
+    apertura.sede_id = ''
+    apertura.base_inicial = ''
+    mostrarApertura.value = false
     await recargar()
   } catch (e) {
     erroresApertura.value = e?.response?.data?.errors ?? { turno: [e?.response?.data?.message ?? 'No se pudo abrir el turno.'] }
@@ -305,6 +373,8 @@ const consignaciones = ref([])
 const registrosVisibles = computed(() => (pestana.value === 'movimientos' ? movimientos.value : consignaciones.value))
 
 async function cargarRegistros() {
+  movimientos.value = []
+  consignaciones.value = []
   if (!turno.value) return
   const params = { turno_caja_id: turno.value.id, per_page: 100 }
   const [m, c] = await Promise.allSettled([
@@ -388,12 +458,12 @@ async function abrirCierre() {
 async function cerrarCaja() {
   cerrando.value = true
   errorCierre.value = ''
-  const id = turno.value.id
+  const turnoActual = turno.value
   try {
-    await libroDiarioService.cerrarTurno(id, { ...cierre })
+    await libroDiarioService.cerrarTurno(turnoActual.id, { ...cierre })
     mostrarCierre.value = false
     notify.success('Cierre enviado para aprobación. Se descargará el comprobante.')
-    await descargarPdf(id)
+    await descargarPdf(turnoActual)
     await recargar()
   } catch (e) {
     erroresCierre.value = e?.response?.data?.errors ?? {}
@@ -403,16 +473,21 @@ async function cerrarCaja() {
   }
 }
 
-async function descargarPdf(id) {
+async function descargarPdf(t) {
   try {
-    const res = await libroDiarioService.pdfTurno(id)
-    descargarBlob(res.data, `cierre-caja-${id}.pdf`, 'application/pdf')
+    const res = await libroDiarioService.pdfTurno(t.id)
+    descargarBlob(res.data, nombrePdfCierre(t), 'application/pdf')
   } catch (e) {
     notify.error(await mensajeErrorBlob(e, 'No se pudo descargar el PDF.'))
   }
 }
 
-const descargarArqueo = () => descargarPdf(turno.value.id)
+const descargarArqueo = () => descargarPdf(turno.value)
+
+// Al cambiar de caja se muestran los registros de la elegida
+watch(() => turno.value?.id, (id, anterior) => {
+  if (anterior !== undefined && id !== anterior) cargarRegistros()
+})
 
 onMounted(async () => {
   await Promise.all([loadPermisos(), cargarCatalogos(), cargarTurno()])

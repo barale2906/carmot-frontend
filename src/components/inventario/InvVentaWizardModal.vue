@@ -476,6 +476,7 @@ import FormSelect           from '@/components/forms/FormSelect.vue'
 import SearchableSelect     from '@/components/forms/SearchableSelect.vue'
 import InvProductoBuscador  from '@/components/inventario/InvProductoBuscador.vue'
 import InvVentaItemEntrega  from '@/components/inventario/InvVentaItemEntrega.vue'
+import { turnoCajaActivoId } from '@/composables/useTurnoCaja.js'
 
 const emit = defineEmits(['close', 'venta-creada'])
 
@@ -884,6 +885,7 @@ async function handleSubmit() {
       const fd = new FormData()
       fd.append('estudiante_id', estudianteSeleccionado.value.id)
       fd.append('sede_id',       almacenSedeId.value ?? '')
+      if (turnoCajaActivoId()) fd.append('turno_caja_id', turnoCajaActivoId())
       fd.append('almacen_id',    Number(form.almacen_id))
       fd.append('monto_abono',   form.monto_abono)
       if (form.observaciones) fd.append('observaciones', form.observaciones)
@@ -916,6 +918,7 @@ async function handleSubmit() {
       res = await invVentaService.create({
         estudiante_id: estudianteSeleccionado.value.id,
         sede_id:       almacenSedeId.value ? Number(almacenSedeId.value) : null,
+        turno_caja_id: turnoCajaActivoId(),
         almacen_id:    Number(form.almacen_id),
         monto_abono:   Number(form.monto_abono),
         observaciones: form.observaciones || undefined,

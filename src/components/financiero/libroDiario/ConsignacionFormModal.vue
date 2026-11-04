@@ -86,6 +86,8 @@ const props = defineProps({
   modelValue: { type: Boolean, default: false },
   consignacion: { type: Object, default: null },
   bancos: { type: Array, default: () => [] },
+  /** Turno (caja) en el que se registra una consignación nueva; obligatorio con cajas abiertas en varias sedes */
+  turnoCajaId: { type: Number, default: null },
 })
 
 const emit = defineEmits(['update:modelValue', 'guardado'])
@@ -131,7 +133,7 @@ async function guardar() {
   try {
     const res = props.consignacion
       ? await libroDiarioService.actualizarConsignacion(props.consignacion.id, { ...form })
-      : await libroDiarioService.crearConsignacion({ ...form })
+      : await libroDiarioService.crearConsignacion({ ...form, turno_caja_id: props.turnoCajaId })
 
     let comprobanteFallido = false
     if (comprobante.value) {

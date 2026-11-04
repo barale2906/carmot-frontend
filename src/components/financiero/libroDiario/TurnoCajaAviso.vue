@@ -15,21 +15,43 @@
       Ir a mi caja
     </router-link>
   </div>
+
+  <!-- Cajas abiertas en varias sedes: el cajero elige desde cuál factura -->
+  <div
+    v-else-if="variasCajas"
+    class="flex flex-wrap items-end gap-3 rounded-[14px] border border-blue-200 bg-blue-50 p-4"
+  >
+    <FormSelect
+      :model-value="String(turno.id)"
+      label="Facturando desde"
+      :options="opcionesTurno"
+      class="w-full max-w-xs"
+      hint="Los pagos se registran en la caja y con la numeración de esta sede."
+      @change="seleccionarTurno"
+    />
+  </div>
+
   <p v-else-if="tieneTurno" class="text-xs text-slate-500">
     Turno de caja abierto en <strong>{{ turno.sede?.nombre }}</strong> desde {{ turno.abierto_at }}.
   </p>
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import NavIcon from '@/components/icons/NavIcon.vue'
+import FormSelect from '@/components/forms/FormSelect.vue'
 import { useTurnoCaja } from '@/composables/useTurnoCaja.js'
 
 /**
- * Aviso para las pantallas que generan recibos: indica si el usuario tiene
- * un turno de caja abierto y, si no, lo lleva a abrirlo.
+ * Aviso para las pantallas que generan recibos: indica si el usuario tiene un turno
+ * de caja abierto y, si no, lo lleva a abrirlo. Con cajas abiertas en varias sedes
+ * muestra el selector de la sede desde la que se factura (compartido con "Mi caja").
  */
-const { turno, cargando, tieneTurno, cargarTurno } = useTurnoCaja()
+const { turno, turnos, cargando, tieneTurno, variasCajas, seleccionarTurno, cargarTurno } = useTurnoCaja()
+
+const opcionesTurno = computed(() =>
+  turnos.value.map((t) => ({ value: String(t.id), label: `${t.sede?.nombre ?? 'Sede'} · turno N.° ${t.id}` }))
+)
 
 onMounted(cargarTurno)
 </script>

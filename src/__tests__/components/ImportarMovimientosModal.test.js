@@ -15,7 +15,7 @@ vi.mock('@/utils/descargas.js', () => ({
 /** ModalBase real con Teleport desactivado para poder inspeccionar el contenido. */
 async function montar() {
   const wrapper = mount(ImportarMovimientosModal, {
-    props: { modelValue: false },
+    props: { modelValue: false, turnoCajaId: 7 },
     global: { stubs: { teleport: true } },
   })
   await wrapper.setProps({ modelValue: true })
@@ -55,7 +55,8 @@ describe('ImportarMovimientosModal', () => {
     await boton(wrapper, 'Cargar movimientos').trigger('click')
     await flushPromises()
 
-    expect(libroDiarioService.importarMovimientos).toHaveBeenCalledWith(archivo)
+    // Se carga al turno (caja) elegido
+    expect(libroDiarioService.importarMovimientos).toHaveBeenCalledWith(archivo, 7)
     expect(wrapper.emitted('importado')[0]).toEqual([2])
     expect(wrapper.emitted('update:modelValue').at(-1)).toEqual([false])
   })

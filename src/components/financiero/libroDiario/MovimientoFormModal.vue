@@ -258,6 +258,8 @@ const props = defineProps({
   bancos: { type: Array, default: () => [] },
   /** Permite elegir medios distintos a efectivo (permiso fin_ldMedioPagoOtros) */
   permitirOtrosMedios: { type: Boolean, default: false },
+  /** Turno (caja) en el que se registra un movimiento nuevo; obligatorio con cajas abiertas en varias sedes */
+  turnoCajaId: { type: Number, default: null },
 })
 
 const emit = defineEmits(['update:modelValue', 'guardado'])
@@ -391,7 +393,7 @@ async function guardar() {
   try {
     const res = props.movimiento
       ? await libroDiarioService.actualizarMovimiento(props.movimiento.id, payload)
-      : await libroDiarioService.crearMovimiento(payload)
+      : await libroDiarioService.crearMovimiento({ ...payload, turno_caja_id: props.turnoCajaId })
 
     const fallidos = []
     for (const s of soportesPendientes.value) {

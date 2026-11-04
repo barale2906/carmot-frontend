@@ -225,3 +225,14 @@ export function payloadTercero(tercero) {
     tercero_direccion: tercero.direccion || null,
   }
 }
+
+/**
+ * Nombre del PDF de cierre de caja: fecha en que se abrió el turno + id.
+ * Coincide con LdTurnoCaja::nombreArchivoPdf() del backend.
+ *
+ * @param {{ id: number, fecha?: string }} turno - `fecha` en formato YYYY-MM-DD
+ * @returns {string} p. ej. "cierre-caja-2026-11-03-7.pdf"
+ */
+export function nombrePdfCierre(turno) {
+  return turno.fecha ? `cierre-caja-${turno.fecha}-${turno.id}.pdf` : `cierre-caja-${turno.id}.pdf`
+}

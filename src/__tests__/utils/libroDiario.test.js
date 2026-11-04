@@ -7,6 +7,7 @@ import {
   totalesMovimiento,
   filasResumenTurno,
   formatCOP,
+  nombrePdfCierre,
   validarArchivoSoporte,
   tipoVistaPrevia,
   MAX_SOPORTE_BYTES,
@@ -188,5 +189,15 @@ describe('terceros', () => {
     expect(terceroDeMovimiento({ tercero: { id: 4, nombre: 'Central' } })).toEqual({ id: 4, nombre: 'Central' })
     expect(terceroDeMovimiento({ tercero_id: null, tercero_tipo_identificacion: 'CC', tercero_identificacion: '1', tercero_nombre: 'Ana' }))
       .toEqual({ id: null, tipo_identificacion: 'CC', identificacion: '1', nombre: 'Ana' })
+  })
+})
+
+describe('nombrePdfCierre', () => {
+  it('usa la fecha del turno y su id', () => {
+    expect(nombrePdfCierre({ id: 7, fecha: '2026-11-03' })).toBe('cierre-caja-2026-11-03-7.pdf')
+  })
+
+  it('sin fecha conserva solo el id', () => {
+    expect(nombrePdfCierre({ id: 7 })).toBe('cierre-caja-7.pdf')
   })
 })

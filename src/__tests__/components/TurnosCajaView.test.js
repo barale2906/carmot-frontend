@@ -5,8 +5,10 @@ import libroDiarioService from '@/services/libroDiarioService.js'
 import { authService } from '@/services/authService.js'
 
 vi.mock('@/services/libroDiarioService.js', () => ({
-  default: { getFilters: vi.fn(), getTurnos: vi.fn(), getTurno: vi.fn(), aprobarTurno: vi.fn(), rechazarTurno: vi.fn() },
+  default: { getFilters: vi.fn(), getTurnos: vi.fn(), getTurno: vi.fn(), aprobarTurno: vi.fn(), rechazarTurno: vi.fn(), excelTurnos: vi.fn() },
 }))
+const descargarBlob = vi.fn()
+vi.mock('@/utils/descargas.js', () => ({ descargarBlob: (...a) => descargarBlob(...a), mensajeErrorBlob: vi.fn() }))
 vi.mock('@/services/authService.js', () => ({
   authService: {
     getUser: vi.fn(),
@@ -88,5 +90,19 @@ describe('TurnosCajaView', () => {
 
     expect(wrapper.text()).toContain('Este cierre es suyo')
     expect(wrapper.findAll('button').some((b) => b.text().includes('Aprobar cierre'))).toBe(false)
+  })
+
+  it('descarga el Excel con los filtros aplicados', async () => {
+    authService.getUser.mockResolvedValue({ id: 1 })
+    libroDiarioService.excelTurnos.mockResolvedValue('xlsx')
+    const wrapper = mount(TurnosCajaView, { global: { stubs: { teleport: true } } })
+    await flushPromises()
+
+    await wrapper.find('input[type="date"]').setValue('2026-10-01')
+    await wrapper.findAll('button').find((b) => b.text().includes('Descargar Excel')).trigger('click')
+    await flushPromises()
+
+    expect(libroDiarioService.excelTurnos).toHaveBeenCalledWith({ fecha_desde: '2026-10-01' })
+    expect(descargarBlob).toHaveBeenCalledWith('xlsx', expect.stringMatching(/^cierres-caja-\d{4}-\d{2}-\d{2}\.xlsx$/))
   })
 })

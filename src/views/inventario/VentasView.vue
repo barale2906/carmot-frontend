@@ -264,6 +264,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import invPedidoService  from '@/services/invPedidoService.js'
 import invVentaService   from '@/services/invVentaService.js'
 import TurnoCajaAviso   from '@/components/financiero/libroDiario/TurnoCajaAviso.vue'
+import { turnoCajaActivoId } from '@/composables/useTurnoCaja.js'
 import invAlmacenService from '@/services/invAlmacenService.js'
 import bancoService      from '@/services/bancoService.js'
 import { authService }   from '@/services/authService.js'
@@ -463,6 +464,7 @@ async function handleAbono() {
       monto_abono:       Number(abonoForm.monto),
       medios_pago:       [medio],
       entrega_inmediata: abonoForm.entrega_inmediata,
+      turno_caja_id:     turnoCajaActivoId(),
     })
     notifySuccess(res?.message ?? 'Abono registrado correctamente.')
     showAbono.value = false; loadPedidos(pagination.currentPage)

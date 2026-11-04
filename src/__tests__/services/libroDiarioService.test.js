@@ -50,6 +50,13 @@ describe('libroDiarioService', () => {
     expect(api.get).toHaveBeenCalledWith(`${BASE}/turnos/7/pdf`, { responseType: 'blob' })
   })
 
+  it('pide el Excel de cierres con los filtros como blob', async () => {
+    api.get.mockResolvedValue({ data: 'xlsx' })
+    const blob = await libroDiarioService.excelTurnos({ sede_id: 2, status: '1' })
+    expect(api.get).toHaveBeenCalledWith(`${BASE}/turnos/excel`, { params: { sede_id: 2, status: '1' }, responseType: 'blob' })
+    expect(blob).toBe('xlsx')
+  })
+
   it('crea, actualiza y anula movimientos y consignaciones', async () => {
     await libroDiarioService.crearMovimiento({ subtotal: 1 })
     await libroDiarioService.actualizarMovimiento(3, { subtotal: 2 })

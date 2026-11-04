@@ -715,6 +715,7 @@ import { ref, reactive, computed, watch, onMounted, toRaw, nextTick } from 'vue'
 import { useRoute, useRouter }    from 'vue-router'
 import Logo                       from '@/components/Logo.vue'
 import TurnoCajaAviso             from '@/components/financiero/libroDiario/TurnoCajaAviso.vue'
+import { turnoCajaActivoId }      from '@/composables/useTurnoCaja.js'
 import FormInputSearch             from '@/components/forms/FormInputSearch.vue'
 import FormInput                   from '@/components/forms/FormInput.vue'
 import FormSelect                  from '@/components/forms/FormSelect.vue'
@@ -1429,6 +1430,7 @@ async function onSubmit() {
     reqPayload = {
       sede_id:           sedeId,
       cajero_id:         currentUser.value?.id ?? null,
+      turno_caja_id:     turnoCajaActivoId(),
       matricula_id:      deudaSeleccionada.value.matricula_id,
       origen:            1,
       fecha_recibo:      form.fecha_recibo,
@@ -1441,6 +1443,7 @@ async function onSubmit() {
     const fd = new FormData()
     fd.append('sede_id',           sedeId ?? '')
     fd.append('cajero_id',         currentUser.value?.id ?? '')
+    if (turnoCajaActivoId()) fd.append('turno_caja_id', turnoCajaActivoId())
     fd.append('matricula_id',      deudaSeleccionada.value.matricula_id)
     fd.append('origen',            1)
     fd.append('fecha_recibo',      form.fecha_recibo)
@@ -1461,6 +1464,7 @@ async function onSubmit() {
     reqPayload = {
       sede_id:           sedeId,
       cajero_id:         currentUser.value?.id ?? null,
+      turno_caja_id:     turnoCajaActivoId(),
       matricula_id:      deudaSeleccionada.value.matricula_id,
       origen:            1,
       fecha_recibo:      form.fecha_recibo,

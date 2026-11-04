@@ -15,6 +15,18 @@
         <div class="w-full sm:w-[160px]">
           <FormInput v-model="filtros.fecha_hasta" type="date" label="Hasta:" @change="cargar(1)" />
         </div>
+        <div class="flex w-full items-end sm:w-auto">
+          <button
+            type="button"
+            :disabled="descargando"
+            title="Descarga los cierres de caja detallados con los filtros aplicados"
+            class="flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            @click="descargarExcel"
+          >
+            <NavIcon name="download" class="size-4" />
+            {{ descargando ? 'Generando...' : 'Descargar Excel' }}
+          </button>
+        </div>
       </div>
     </section>
 
@@ -220,11 +232,11 @@ import { usePermisos } from '@/composables/usePermisos.js'
 import { useNotification } from '@/composables/useNotification.js'
 import { useConfirm } from '@/composables/useConfirm.js'
 import { descargarBlob, mensajeErrorBlob } from '@/utils/descargas.js'
-import { formatCOP, validarMotivo } from '@/utils/libroDiario.js'
+import { formatCOP, nombrePdfCierre, validarMotivo } from '@/utils/libroDiario.js'
 
 /**
  * Historial de turnos de caja: detalle con arqueo y bitácora, aprobación o rechazo
- * de cierres pendientes, PDF del cierre, reversión del cierre aprobado y
+ * de cierres pendientes, PDF del cierre, Excel detallado con los filtros aplicados, reversión del cierre aprobado y
  * autorización para que un cajero abra otro turno el mismo día.
  */
 const { can, loadPermisos } = usePermisos()
@@ -257,12 +269,14 @@ const cargando = ref(false)
 const error = ref('')
 const paginacion = reactive({ currentPage: 1, lastPage: 1, total: 0, from: 0, to: 0 })
 
+/** Filtros con valor, para el listado y el Excel. */
+const paramsFiltros = () => Object.fromEntries(Object.entries(filtros).filter(([, v]) => v !== ''))
+
 async function cargar(page = 1) {
   cargando.value = true
   error.value = ''
   try {
-    const params = Object.fromEntries(Object.entries(filtros).filter(([, v]) => v !== ''))
-    const res = await libroDiarioService.getTurnos({ ...params, page })
+    const res = await libroDiarioService.getTurnos({ ...paramsFiltros(), page })
     turnos.value = res.data ?? []
     Object.assign(paginacion, {
       currentPage: res.meta?.current_page ?? 1,
@@ -379,9 +393,25 @@ async function reversar() {
 async function descargarPdf(row) {
   try {
     const res = await libroDiarioService.pdfTurno(row.id)
-    descargarBlob(res.data, `cierre-caja-${row.id}.pdf`, 'application/pdf')
+    descargarBlob(res.data, nombrePdfCierre(row), 'application/pdf')
   } catch (e) {
     notify.error(await mensajeErrorBlob(e, 'No se pudo descargar el PDF.'))
+  }
+}
+
+// ─── Excel ────────────────────────────────────────────────────────────────────
+const descargando = ref(false)
+
+/** Descarga los cierres detallados (por turno y por medio de pago) con los filtros aplicados. */
+async function descargarExcel() {
+  descargando.value = true
+  try {
+    const blob = await libroDiarioService.excelTurnos(paramsFiltros())
+    descargarBlob(blob, `cierres-caja-${hoy}.xlsx`)
+  } catch (e) {
+    notify.error(await mensajeErrorBlob(e, 'No se pudo descargar el Excel de cierres de caja.'))
+  } finally {
+    descargando.value = false
   }
 }
 

@@ -82,7 +82,7 @@ export const ETAPAS_SISTEMA = [
     descripcion: 'Todo pago se registra dentro de un turno de caja abierto.',
     requiere: ['Matrícula'],
     flujos: [
-      { nombre: 'Turno de caja', pasos: ['Abrir turno (base inicial)', 'Recibos, movimientos y consignaciones', 'Cerrar turno (conteo ciego)', 'Aprobar o rechazar (otro usuario)'] },
+      { nombre: 'Turno de caja', pasos: ['Abrir turno por sede (base inicial)', 'Elegir desde qué sede se factura (si tiene varias cajas abiertas)', 'Recibos, movimientos y consignaciones', 'Cerrar cada caja (conteo ciego)', 'Aprobar o rechazar (otro usuario)'] },
       { nombre: 'Transferencia', pasos: ['Registrar con comprobante', 'Notificar', 'Aprobar (no quien la registró)'] },
       { nombre: 'Cartera', pasos: ['Cuotas vencidas', 'Mora diaria', 'Acuerdo de pago'] }
     ]

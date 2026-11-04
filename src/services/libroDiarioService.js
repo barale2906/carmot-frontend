@@ -29,7 +29,10 @@ const libroDiarioService = {
 
   // ─── Turnos de caja ─────────────────────────────────────────────────────────
 
-  /** GET /libro-diario/turnos/actual — Turno abierto del usuario (o si puede abrir uno) */
+  /**
+   * GET /libro-diario/turnos/actual — Turnos abiertos del usuario (`data`: uno por sede) y,
+   * en `meta`, el estado de la caja en cada sede (`sedes_disponibles`), cierres por aprobar y rechazados.
+   */
   async getTurnoActual() {
     const { data } = await api.get(`${BASE}/turnos/actual`)
     return data
@@ -47,7 +50,7 @@ const libroDiarioService = {
     return data
   },
 
-  /** POST /libro-diario/turnos — Abre el turno con la base inicial */
+  /** POST /libro-diario/turnos — Abre el turno de una sede con la base inicial (sede_id opcional si el usuario tiene una sola) */
   async abrirTurno(payload) {
     const { data } = await api.post(`${BASE}/turnos`, payload)
     return data
@@ -80,6 +83,15 @@ const libroDiarioService = {
   /** GET /libro-diario/turnos/{id}/pdf — Respuesta completa con el blob del cierre */
   pdfTurno(id) {
     return api.get(`${BASE}/turnos/${id}/pdf`, { responseType: 'blob' })
+  },
+
+  /**
+   * GET /libro-diario/turnos/excel — Excel detallado de los cierres de caja con los
+   * mismos filtros del historial (sede_id, status, fecha_desde, fecha_hasta). Retorna el Blob.
+   */
+  async excelTurnos(params = {}) {
+    const response = await api.get(`${BASE}/turnos/excel`, { params, responseType: 'blob' })
+    return response.data
   },
 
   // ─── Autorizaciones ─────────────────────────────────────────────────────────
@@ -131,9 +143,10 @@ const libroDiarioService = {
    * POST /libro-diario/movimientos/importar — Carga masiva al turno abierto. Todo o nada:
    * con filas inválidas responde 422 con `errores: [{ fila, mensajes[] }]`.
    */
-  async importarMovimientos(archivo) {
+  async importarMovimientos(archivo, turnoCajaId = null) {
     const fd = new FormData()
     fd.append('archivo', archivo)
+    if (turnoCajaId) fd.append('turno_caja_id', turnoCajaId)
     const { data } = await api.post(`${BASE}/movimientos/importar`, fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })

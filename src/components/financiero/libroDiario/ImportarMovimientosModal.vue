@@ -77,6 +77,8 @@ import { descargarBlob, mensajeErrorBlob } from '@/utils/descargas.js'
  */
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
+  /** Turno (caja) al que se cargan los movimientos; obligatorio con cajas abiertas en varias sedes */
+  turnoCajaId: { type: Number, default: null },
 })
 
 const emit = defineEmits(['update:modelValue', 'importado'])
@@ -122,7 +124,7 @@ async function importar() {
   cargando.value = true
   limpiarErrores()
   try {
-    const res = await libroDiarioService.importarMovimientos(archivo.value)
+    const res = await libroDiarioService.importarMovimientos(archivo.value, props.turnoCajaId)
     emit('importado', res.meta?.total ?? res.data?.length ?? 0)
     emit('update:modelValue', false)
   } catch (e) {
