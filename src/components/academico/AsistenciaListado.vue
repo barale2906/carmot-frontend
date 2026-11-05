@@ -86,6 +86,9 @@
               En mora · $ {{ formatMoney(row.saldo_vencido) }}
             </span>
             <span v-else class="text-xs text-slate-500">Al día</span>
+            <span v-if="row.transferencias_pendientes > 0" class="mt-1 flex w-fit whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-amber-300">
+              Transferencia por aprobar · $ {{ formatMoney(row.valor_transferencias_pendientes) }}
+            </span>
           </template>
           <template v-else-if="column.key === 'observaciones'">
             {{ row.observaciones || '—' }}

@@ -83,6 +83,9 @@
                     <li v-if="enMora" class="flex items-center gap-1.5">
                       <span class="inline-flex rounded-full bg-red-600 px-2 py-0.5 text-xs font-semibold text-white">En mora: {{ enMora }}</span>
                     </li>
+                    <li v-if="conTransferencia" class="flex items-center gap-1.5">
+                      <span class="inline-flex whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-amber-300">Transferencia por aprobar: {{ conTransferencia }}</span>
+                    </li>
                   </ul>
                   <div v-if="puedeRegistrar && !claseFutura" class="flex gap-2">
                     <button
@@ -112,7 +115,7 @@
                 </p>
                 <p class="text-xs text-slate-500">
                   Quien no llegó queda <strong>Ausente</strong> aunque justifique: la justificación se marca aparte y la falla se mantiene.
-                  La columna Cartera indica quién está en mora para decidir si ingresa a la clase.
+                  La columna Cartera indica quién está en mora para decidir si ingresa a la clase y quién tiene una transferencia pendiente de aprobación (pago en revisión).
                 </p>
 
                 <div class="overflow-x-auto rounded-[14px] border border-black/10 bg-white">
@@ -161,6 +164,13 @@
                             En mora · $ {{ formatMoney(estudiantesMap[fila.estudiante_id].saldo_vencido) }}
                           </span>
                           <span v-else class="text-xs text-slate-500">Al día</span>
+                          <span
+                            v-if="estudiantesMap[fila.estudiante_id]?.transferencias_pendientes > 0"
+                            class="mt-1 flex w-fit whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-amber-300"
+                            :title="`${estudiantesMap[fila.estudiante_id].transferencias_pendientes} transferencia(s) pendiente(s) de aprobación`"
+                          >
+                            Transferencia por aprobar · $ {{ formatMoney(estudiantesMap[fila.estudiante_id].valor_transferencias_pendientes) }}
+                          </span>
                         </td>
                         <td class="px-4 py-2">
                           <div class="flex min-w-[220px] items-center gap-2">
@@ -337,6 +347,7 @@ const claseFutura    = computed(() => esClaseFutura(claseActual.value, fechaISO(
 const resumen        = computed(() => resumenPlanilla(planilla.value))
 const yaRegistrada   = computed(() => planilla.value.some(f => f.guardada))
 const enMora         = computed(() => (lista.value?.estudiantes ?? []).filter(e => e.en_mora).length)
+const conTransferencia = computed(() => (lista.value?.estudiantes ?? []).filter(e => e.transferencias_pendientes > 0).length)
 
 async function onGrupoChange() {
   lista.value    = null

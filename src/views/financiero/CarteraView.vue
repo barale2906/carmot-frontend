@@ -249,8 +249,16 @@
 
               <!-- Datos del estudiante y matrícula -->
               <div class="min-w-0 flex-1">
-                <p class="truncate text-sm font-semibold text-slate-900">
-                  {{ grupo.estudiante?.nombre ?? `Estudiante #${grupo.estudiante?.id}` }}
+                <p class="flex min-w-0 items-center gap-2 text-sm font-semibold text-slate-900">
+                  <span class="truncate">{{ grupo.estudiante?.nombre ?? `Estudiante #${grupo.estudiante?.id}` }}</span>
+                  <!-- Pago en revisión: aún no abona la cartera hasta que el validador lo apruebe -->
+                  <span
+                    v-if="grupo.transferencias_pendientes > 0"
+                    class="inline-flex whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-amber-300"
+                    :title="`${grupo.transferencias_pendientes} transferencia(s) pendiente(s) de aprobación por $ ${formatMoney(grupo.valor_transferencias_pendientes)}`"
+                  >
+                    Transferencia por aprobar · $ {{ formatMoney(grupo.valor_transferencias_pendientes) }}
+                  </span>
                 </p>
                 <p class="mt-0.5 truncate text-xs text-slate-500">
                   {{ grupo.matricula?.curso ?? `Matrícula #${grupo.matricula_id}` }}
