@@ -1,6 +1,8 @@
 <template>
   <div class="flex flex-col gap-6">
 
+    <BotonVolver class="self-start" @click="volver" />
+
     <!-- ── Encabezado institucional ──────────────────────────────────────────── -->
     <div class="flex items-center gap-4 border-b border-black/10 pb-4">
       <Logo fondo="claro" :width="140" height="auto" class="shrink-0" />
@@ -625,7 +627,7 @@
         <button
           type="button"
           class="flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          @click="onCancel"
+          @click="volver"
         >
           Cancelar
         </button>
@@ -721,6 +723,8 @@ import { ref, reactive, computed, watch, onMounted, toRaw, nextTick } from 'vue'
 import { useRoute, useRouter }    from 'vue-router'
 import Logo                       from '@/components/Logo.vue'
 import TurnoCajaAviso             from '@/components/financiero/libroDiario/TurnoCajaAviso.vue'
+import BotonVolver                from '@/components/forms/BotonVolver.vue'
+import { useVolver }              from '@/composables/useVolver.js'
 import { turnoCajaActivoId, turnoCajaActivoSedeId } from '@/composables/useTurnoCaja.js'
 import FormInputSearch             from '@/components/forms/FormInputSearch.vue'
 import FormInput                   from '@/components/forms/FormInput.vue'
@@ -1510,6 +1514,7 @@ async function onSubmit() {
     } else {
       notifySuccess(`Recibo ${res.data?.numero_recibo ?? ''} generado correctamente.`)
       await descargarEImprimir(res.data)
+      permitirSalida()
       router.push('/financiero/recibos-pago')
     }
   } catch (e) {
@@ -1537,10 +1542,6 @@ async function descargarEImprimir(recibo) {
   } catch {
     notifyWarning('No se pudo descargar el PDF del recibo. Puedes imprimirlo desde el listado.')
   }
-}
-
-function onCancel() {
-  router.back()
 }
 
 function irAListado() {
@@ -1583,6 +1584,20 @@ function resetForm() {
   })
   clearTimeout(calcularTimer)
 }
+
+// ─── Salida del formulario ────────────────────────────────────────────────────
+// Sin historial: desde una matrícula vuelve a matrículas; desde el menú, al listado
+// de recibos (o al inicio si se entró por la pestaña de Formularios).
+const { volver, permitirSalida } = useVolver({
+  respaldo: () => {
+    if (route.query.matricula_id) return '/academico/matriculas'
+    return route.name === 'NuevoReciboPago' ? '/financiero/recibos-pago' : '/dashboard'
+  },
+  // Un recibo de transferencia ya creado no se pierde al salir
+  hayCambios: () => !reciboTransferenciaCreado.value
+    && (Number(form.monto_a_pagar) > 0 || conceptosAdicionales.value.length > 0),
+  mensaje: 'El recibo aún no se ha generado. ¿Salir y descartar lo diligenciado?',
+})
 
 // ─── Inicialización ───────────────────────────────────────────────────────────
 onMounted(async () => {

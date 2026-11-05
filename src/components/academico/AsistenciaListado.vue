@@ -82,13 +82,7 @@
             <span v-if="row.justificada && row.justificacion" class="mt-0.5 block max-w-[240px] truncate text-xs text-slate-500">{{ row.justificacion }}</span>
           </template>
           <template v-else-if="column.key === 'mora'">
-            <span v-if="row.en_mora" class="inline-flex rounded-full bg-red-600 px-2 py-0.5 text-xs font-semibold text-white">
-              En mora · $ {{ formatMoney(row.saldo_vencido) }}
-            </span>
-            <span v-else class="text-xs text-slate-500">Al día</span>
-            <span v-if="row.transferencias_pendientes > 0" class="mt-1 flex w-fit whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-amber-300">
-              Transferencia por aprobar · $ {{ formatMoney(row.valor_transferencias_pendientes) }}
-            </span>
+            <CarteraEstado :estudiante="row" />
           </template>
           <template v-else-if="column.key === 'observaciones'">
             {{ row.observaciones || '—' }}
@@ -134,9 +128,9 @@ import FormInput       from '@/components/forms/FormInput.vue'
 import FormInputSearch from '@/components/forms/FormInputSearch.vue'
 import DataTable       from '@/components/activos/DataTable.vue'
 import NavIcon         from '@/components/icons/NavIcon.vue'
+import CarteraEstado   from '@/components/academico/CarteraEstado.vue'
 import { useNotification } from '@/composables/useNotification'
 import { descargarBlob, mensajeErrorBlob } from '@/utils/descargas.js'
-import { formatMoney } from '@/utils/formatters.js'
 import { formatFechaCorta } from '@/utils/calendario.js'
 import { fechaISO } from '@/utils/crm.js'
 import { ESTADOS_ASISTENCIA, paramsListado } from '@/utils/asistencia.js'

@@ -1,6 +1,7 @@
 <template>
   <div class="rounded-[14px] border border-black/10 bg-white p-6">
     <form class="space-y-6" @submit.prevent="onSubmit">
+      <BotonVolver @click="volver" />
       <div>
         <h2 class="text-lg font-medium text-[#213360]">
           Formulario de matrícula
@@ -139,7 +140,7 @@
         cancel-label="Cancelar"
         submit-label="Guardar matrícula"
         :loading="loading"
-        @cancel="onCancel"
+        @cancel="volver"
         @submit="onSubmit"
       />
     </form>
@@ -148,15 +149,16 @@
 
 <script setup>
 import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
 import FormSection from '@/components/forms/FormSection.vue'
 import FormInput from '@/components/forms/FormInput.vue'
 import FormSelect from '@/components/forms/FormSelect.vue'
 import FormTextarea from '@/components/forms/FormTextarea.vue'
 import FormFileUpload from '@/components/forms/FormFileUpload.vue'
 import FormActions from '@/components/forms/FormActions.vue'
+import BotonVolver from '@/components/forms/BotonVolver.vue'
+import { useVolver } from '@/composables/useVolver.js'
 
-const router = useRouter()
+const { volver } = useVolver({ respaldo: '/academico/matriculas' })
 const loading = ref(false)
 
 const form = reactive({
@@ -302,10 +304,6 @@ const opcionesCaracterizacion = [
   { value: 'etnica', label: 'Comunidad étnica' },
   { value: 'victima', label: 'Víctima' }
 ]
-
-function onCancel() {
-  router.back()
-}
 
 function onSubmit() {
   loading.value = true

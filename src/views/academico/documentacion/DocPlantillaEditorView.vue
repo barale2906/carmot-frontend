@@ -15,12 +15,7 @@
       <!-- Cabecera de la versión -->
       <section class="flex flex-wrap items-end gap-4 rounded-[14px] border border-black/10 bg-white p-6">
         <div class="min-w-0 flex-1">
-          <RouterLink
-            to="/academico/documentacion/plantillas"
-            class="text-xs font-medium text-slate-500 hover:text-slate-800"
-          >
-            ← Versiones de plantillas
-          </RouterLink>
+          <BotonVolver label="Versiones de plantillas" class="-ml-2" @click="volver" />
           <div class="mt-2 flex flex-wrap items-center gap-2">
             <span class="text-sm font-medium text-slate-900">{{ tipoDocumento?.nombre }}</span>
             <span class="rounded bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-600">v{{ plantilla.version }}</span>
@@ -122,13 +117,14 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRoute, onBeforeRouteLeave } from 'vue-router'
+import { useRoute }           from 'vue-router'
 import { usePlantillaEditor } from '@/composables/usePlantillaEditor.js'
 import { usePermisos }        from '@/composables/usePermisos.js'
 import { useNotification }    from '@/composables/useNotification'
-import { useConfirm }         from '@/composables/useConfirm.js'
+import { useVolver }          from '@/composables/useVolver.js'
 import { plantillaStatusText, plantillaStatusClass } from '@/utils/documentacion.js'
 import NavIcon               from '@/components/icons/NavIcon.vue'
+import BotonVolver           from '@/components/forms/BotonVolver.vue'
 import FormInput             from '@/components/forms/FormInput.vue'
 import DocRichEditor         from '@/components/documentacion/DocRichEditor.vue'
 import DocMarcadorPanel      from '@/components/documentacion/DocMarcadorPanel.vue'
@@ -137,7 +133,6 @@ import DocPrevisualizarModal from '@/components/documentacion/DocPrevisualizarMo
 
 const route = useRoute()
 const { success: notifySuccess } = useNotification()
-const { confirm } = useConfirm()
 const { can, loadPermisos } = usePermisos()
 
 const {
@@ -194,12 +189,10 @@ async function handleGuardarBloque(configuracion) {
 }
 
 // ─── Salida con cambios sin guardar ───────────────────────────────────────────
-onBeforeRouteLeave(async () => {
-  if (!puedeEditar.value || !hayCambios.value) return true
-  return confirm('Hay cambios sin guardar en esta versión. ¿Salir de todos modos?', {
-    title: 'Cambios sin guardar',
-    confirmLabel: 'Salir sin guardar',
-  })
+const { volver } = useVolver({
+  respaldo:   '/academico/documentacion/plantillas',
+  hayCambios: () => puedeEditar.value && hayCambios.value,
+  mensaje:    'Hay cambios sin guardar en esta versión. ¿Salir de todos modos?',
 })
 
 onMounted(() => {

@@ -115,7 +115,7 @@
                 </p>
                 <p class="text-xs text-slate-500">
                   Quien no llegó queda <strong>Ausente</strong> aunque justifique: la justificación se marca aparte y la falla se mantiene.
-                  La columna Cartera indica quién está en mora para decidir si ingresa a la clase y quién tiene una transferencia pendiente de aprobación (pago en revisión).
+                  La columna Cartera indica quién está en mora (despliegue el detalle para ver las cuotas vencidas, su vencimiento y días de mora) para decidir si ingresa a la clase y quién tiene una transferencia pendiente de aprobación (pago en revisión).
                 </p>
 
                 <div class="overflow-x-auto rounded-[14px] border border-black/10 bg-white">
@@ -156,21 +156,7 @@
                         </td>
                         <td class="px-4 py-2 text-slate-600">{{ estudiantesMap[fila.estudiante_id]?.documento ?? '—' }}</td>
                         <td class="px-4 py-2">
-                          <span
-                            v-if="estudiantesMap[fila.estudiante_id]?.en_mora"
-                            class="inline-flex whitespace-nowrap rounded-full bg-red-600 px-2 py-0.5 text-xs font-semibold text-white"
-                            :title="`Saldo vencido: $ ${formatMoney(estudiantesMap[fila.estudiante_id].saldo_vencido)}`"
-                          >
-                            En mora · $ {{ formatMoney(estudiantesMap[fila.estudiante_id].saldo_vencido) }}
-                          </span>
-                          <span v-else class="text-xs text-slate-500">Al día</span>
-                          <span
-                            v-if="estudiantesMap[fila.estudiante_id]?.transferencias_pendientes > 0"
-                            class="mt-1 flex w-fit whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-amber-300"
-                            :title="`${estudiantesMap[fila.estudiante_id].transferencias_pendientes} transferencia(s) pendiente(s) de aprobación`"
-                          >
-                            Transferencia por aprobar · $ {{ formatMoney(estudiantesMap[fila.estudiante_id].valor_transferencias_pendientes) }}
-                          </span>
+                          <CarteraEstado :estudiante="estudiantesMap[fila.estudiante_id]" />
                         </td>
                         <td class="px-4 py-2">
                           <div class="flex min-w-[220px] items-center gap-2">
@@ -273,10 +259,10 @@ import FormTabs          from '@/components/forms/FormTabs.vue'
 import SectionHeader     from '@/components/activos/SectionHeader.vue'
 import DataTable         from '@/components/activos/DataTable.vue'
 import AsistenciaListado from '@/components/academico/AsistenciaListado.vue'
+import CarteraEstado     from '@/components/academico/CarteraEstado.vue'
 import { usePermisos }     from '@/composables/usePermisos.js'
 import { useNotification } from '@/composables/useNotification'
 import { fechaISO } from '@/utils/crm.js'
-import { formatMoney } from '@/utils/formatters.js'
 import {
   ESTADOS_ASISTENCIA, PORCENTAJE_MINIMO_DEFECTO, admiteJustificacion, justificacionesSinMotivo,
   claseSugerida, esClaseFutura, construirPlanilla, resumenPlanilla, payloadPlanilla, etiquetaClase

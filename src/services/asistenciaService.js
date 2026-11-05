@@ -24,7 +24,7 @@ const asistenciaService = {
 
   /**
    * Listado paginado con filtros: grupo_id, sede_id, curso_id, estudiante (nombre o documento),
-   * fecha (un día de clase) o fecha_desde/fecha_hasta, estado, justificada. Cada registro trae `en_mora`.
+   * fecha (un día de clase) o fecha_desde/fecha_hasta, estado, justificada. Cada registro trae la mora del estudiante (`en_mora`, `saldo_vencido`, `dias_mora`, `mora_detalle`).
    */
   async listar(params = {}) {
     const { data } = await api.get(BASE, { params })
