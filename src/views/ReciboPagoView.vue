@@ -520,15 +520,21 @@
                 </p>
 
                 <div class="grid gap-3 sm:grid-cols-2">
-                  <!-- Banco origen -->
+                  <!-- Cuenta del instituto a la que se hizo el pago (solo las de la sede del recibo) -->
                   <div>
-                    <label class="mb-1 block text-xs font-medium text-slate-700">Banco origen <span class="text-red-500">*</span></label>
+                    <label class="mb-1 block text-xs font-medium text-slate-700">Cuenta destino <span class="text-red-500">*</span></label>
                     <SearchableSelect
-                      v-model="mp.banco_id"
-                      :options="bancoOptions"
-                      placeholder="-- Seleccionar banco --"
+                      v-model="mp.cuenta_bancaria_id"
+                      :options="cuentaOptions"
+                      placeholder="-- Seleccionar cuenta --"
                       variant="outline"
                     />
+                    <p v-if="cuentasCargadas && !cuentaOptions.length" class="mt-1 text-[11px] text-red-600">
+                      La sede desde la que facturas no tiene cuentas bancarias activas. Regístralas en Configuración → Cuentas bancarias.
+                    </p>
+                    <p v-else-if="fieldErrors['medios_pago.0.cuenta_bancaria_id']" class="mt-1 text-[11px] text-red-600">
+                      {{ fieldErrors['medios_pago.0.cuenta_bancaria_id'][0] }}
+                    </p>
                   </div>
 
                   <!-- Número de transacción -->
@@ -645,7 +651,7 @@
           type="button"
           :disabled="guardando || !puedeCalcular || !transferenciaCompleta"
           class="flex items-center gap-2 rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-800 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-amber-500"
-          :title="!transferenciaCompleta ? 'Completa el banco y el número de transacción' : ''"
+          :title="!transferenciaCompleta ? 'Completa la cuenta destino y el número de transacción' : ''"
           @click="onSubmit"
         >
           <svg v-if="guardando" class="size-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -715,7 +721,7 @@ import { ref, reactive, computed, watch, onMounted, toRaw, nextTick } from 'vue'
 import { useRoute, useRouter }    from 'vue-router'
 import Logo                       from '@/components/Logo.vue'
 import TurnoCajaAviso             from '@/components/financiero/libroDiario/TurnoCajaAviso.vue'
-import { turnoCajaActivoId }      from '@/composables/useTurnoCaja.js'
+import { turnoCajaActivoId, turnoCajaActivoSedeId } from '@/composables/useTurnoCaja.js'
 import FormInputSearch             from '@/components/forms/FormInputSearch.vue'
 import FormInput                   from '@/components/forms/FormInput.vue'
 import FormSelect                  from '@/components/forms/FormSelect.vue'
@@ -728,9 +734,9 @@ import conceptoPagoService         from '@/services/conceptoPagoService.js'
 import reciboPagoService           from '@/services/reciboPagoService.js'
 import { authService }             from '@/services/authService.js'
 import { useNotification }         from '@/composables/useNotification'
-import { opcionesBanco }           from '@/utils/formatters.js'
+import { opcionesCuenta }          from '@/utils/formatters.js'
 import { descargarBlob, imprimirPdf } from '@/utils/descargas.js'
-import bancoService                from '@/services/bancoService.js'
+import cuentaBancariaService       from '@/services/cuentaBancariaService.js'
 
 const route  = useRoute()
 const router = useRouter()
@@ -788,23 +794,43 @@ const reciboTransferenciaCreado = ref(null)
 const bloqueEsperaRef           = ref(null)
 const notificando               = ref(false)
 
-// ─── Bancos activos (para selector inline de transferencia) ───────────────────
-const bancosActivos = ref([])
-const bancoOptions  = computed(() => opcionesBanco(bancosActivos.value))
+// ─── Sedes: la de la matrícula (se envía en el recibo) y la de cobro ──────────
+const sedeMatricula = computed(() => historialCuotas.value[0]?.sede_id
+  ?? detalleInfo.value?.vencidas?.[0]?.sede_id
+  ?? detalleInfo.value?.proximas?.[0]?.sede_id
+  ?? null)
 
-async function cargarBancosActivos() {
-  if (bancosActivos.value.length) return
+// El pago se recibe en la sede del turno de caja ("Facturando desde") y el recibo
+// queda en ella aunque la matrícula sea de otra sede: sus cuentas son las válidas
+const sedeRecibo = computed(() => turnoCajaActivoSedeId() ?? sedeMatricula.value)
+
+// ─── Cuentas del instituto que aplican a la sede de cobro (selector de transferencia) ──
+const cuentasSede     = ref([])
+const cuentasCargadas = ref(false)
+const cuentaOptions   = computed(() => opcionesCuenta(cuentasSede.value))
+let   cuentasSedeId   = null
+
+/** Carga las cuentas activas de la sede del recibo (una vez por sede). */
+async function cargarCuentasSede() {
+  const sedeId = sedeRecibo.value
+  if (!sedeId || sedeId === cuentasSedeId) return
+  cuentasSedeId         = sedeId
+  cuentasCargadas.value = false
   try {
-    const res = await bancoService.getActivos()
-    bancosActivos.value = res.data ?? []
-  } catch { /* no bloquea */ }
+    const res = await cuentaBancariaService.getActivas(sedeId)
+    cuentasSede.value = res.data ?? []
+  } catch {
+    cuentasSede.value = []
+  } finally {
+    cuentasCargadas.value = true
+  }
 }
 
 /** True cuando los campos obligatorios de la transferencia están completos */
 const transferenciaCompleta = computed(() => {
   if (!hayTransferencia.value) return true
   const mp = mediosPago.value.find(m => m.medio_pago === 'transferencia')
-  return !!(mp?.banco_id && mp?.numero_transaccion?.trim())
+  return !!(mp?.cuenta_bancaria_id && mp?.numero_transaccion?.trim())
 })
 
 // ─── Modales de pago ─────────────────────────────────────────────────────────
@@ -826,8 +852,7 @@ function nuevoMedioPago() {
     valor:             0,
     tipo_tarjeta:      null,
     referencia:        null,
-    banco_id:               null,
-    banco_nombre:           null,
+    cuenta_bancaria_id:     null,
     numero_transaccion:     null,
     comprobante_file:       null,
     comprobante_preview_url: null,
@@ -924,6 +949,13 @@ const totalSobrecargo = computed(() =>
 const hayTransferencia = computed(() =>
   !esCostoCero.value && mediosPago.value.some(mp => mp.medio_pago === 'transferencia')
 )
+
+// Al cambiar la caja desde la que se factura (o la obligación, sin caja resuelta) la
+// cuenta elegida deja de ser válida: se recargan las cuentas y se limpia la selección
+watch(sedeRecibo, () => {
+  mediosPago.value.forEach(mp => { mp.cuenta_bancaria_id = null })
+  if (hayTransferencia.value) cargarCuentasSede()
+})
 
 // Cuando hay exactamente un medio de pago, sincronizar su valor con el monto total
 watch(() => form.monto_a_pagar, (monto) => {
@@ -1297,8 +1329,7 @@ function onMedioPagoEntradaChange(idx) {
   mp.total_sobrecargo  = 0
   mp.tipo_tarjeta      = null
   mp.referencia        = null
-  mp.banco_id                = null
-  mp.banco_nombre            = null
+  mp.cuenta_bancaria_id      = null
   mp.numero_transaccion      = null
   if (mp.comprobante_preview_url) {
     URL.revokeObjectURL(mp.comprobante_preview_url)
@@ -1306,7 +1337,7 @@ function onMedioPagoEntradaChange(idx) {
   }
   mp.comprobante_file        = null
   if (esTarjeta && mp.valor > 0) calcularSobrecargoEntrada(idx)
-  if (mp.medio_pago === 'transferencia') cargarBancosActivos()
+  if (mp.medio_pago === 'transferencia') cargarCuentasSede()
 }
 
 async function calcularSobrecargoEntrada(idx) {
@@ -1362,15 +1393,6 @@ function onConfirmarConsignacion(payload) {
   if (mp) mp.referencia = payload.referencia ?? null
 }
 
-function onConfirmarTransferencia(payload) {
-  const mp = mediosPago.value[modalTargetIndex.value]
-  if (!mp) return
-  mp.banco_id           = payload.banco_id          ?? null
-  mp.banco_nombre       = payload.banco_nombre       ?? null
-  mp.numero_transaccion = payload.numero_transaccion ?? null
-  mp.comprobante_file   = payload.comprobante_file   ?? null
-}
-
 // ─── Envío del recibo ─────────────────────────────────────────────────────────
 async function onSubmit() {
   formError.value   = ''
@@ -1389,10 +1411,7 @@ async function onSubmit() {
     return
   }
 
-  const sedeId = historialCuotas.value[0]?.sede_id
-    ?? detalleInfo.value?.vencidas?.[0]?.sede_id
-    ?? detalleInfo.value?.proximas?.[0]?.sede_id
-    ?? null
+  const sedeId = sedeMatricula.value
 
   // Construir medios_pago y sobrecargos desde la lista dinámica.
   // mp.valor es siempre el monto base; el sobrecargo lo calcula el backend sobre ese valor.
@@ -1411,7 +1430,7 @@ async function onSubmit() {
       ...(mp.referencia   ? { referencia:   mp.referencia   } : {}),
     }
     if (mp.medio_pago === 'transferencia') {
-      if (mp.banco_id)          entry.banco_id          = mp.banco_id
+      if (mp.cuenta_bancaria_id) entry.cuenta_bancaria_id = mp.cuenta_bancaria_id
       if (mp.numero_transaccion) entry.numero_transaccion = mp.numero_transaccion
     }
     return entry
@@ -1569,7 +1588,6 @@ function resetForm() {
 onMounted(async () => {
   try { currentUser.value = await authService.getUser() } catch { /* no bloquea */ }
   cargarConceptos()
-  cargarBancosActivos()
 
   const qMatricula  = route.query.matricula_id  ? Number(route.query.matricula_id)  : null
   const qEstudiante = route.query.estudiante_id ? Number(route.query.estudiante_id) : null

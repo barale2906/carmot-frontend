@@ -432,7 +432,8 @@
                 <td class="px-3 py-2 text-slate-800 capitalize">{{ mp.medio_pago?.replace(/_/g, ' ') }}</td>
                 <td class="px-3 py-2 text-slate-600">
                   <template v-if="mp.medio_pago === 'transferencia'">
-                    <div v-if="mp.banco_nombre" class="font-medium text-slate-800">{{ mp.banco_nombre }}</div>
+                    <div v-if="mp.cuenta_bancaria" class="font-medium text-slate-800">Cuenta: {{ mp.cuenta_bancaria.etiqueta }}</div>
+                    <div v-else-if="mp.banco_nombre" class="font-medium text-slate-800">{{ mp.banco_nombre }}</div>
                     <div v-if="mp.numero_transaccion" class="text-xs text-slate-500">Trans: {{ mp.numero_transaccion }}</div>
                     <template v-if="mp.comprobante_url">
                       <a
@@ -629,14 +630,18 @@
     <div class="space-y-4 pb-2">
       <div v-if="actionError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ actionError }}</div>
 
-      <!-- Banco -->
+      <!-- Cuenta del instituto a la que se hizo el pago (solo las de la sede del recibo) -->
       <div>
-        <label class="mb-1 block text-sm font-medium text-slate-700">Banco origen <span class="text-red-500">*</span></label>
+        <label class="mb-1 block text-sm font-medium text-slate-700">Cuenta destino <span class="text-red-500">*</span></label>
         <SearchableSelect
-          v-model="reenviarForm.banco_id"
-          :options="bancoReenvioOptions"
+          v-model="reenviarForm.cuenta_bancaria_id"
+          :options="cuentaReenvioOptions"
+          placeholder="-- Seleccionar cuenta --"
           variant="outline"
         />
+        <p v-if="cuentasReenvioCargadas && !cuentasReenvio.length" class="mt-1 text-xs text-red-600">
+          La sede del recibo no tiene cuentas bancarias activas. Regístralas en Configuración → Cuentas bancarias.
+        </p>
       </div>
 
       <!-- Número de transacción -->
@@ -731,9 +736,9 @@ import InvReciboPrintModal     from '@/components/inventario/InvReciboPrintModal
 import reciboPagoService       from '@/services/reciboPagoService.js'
 import invVentaService         from '@/services/invVentaService.js'
 import invPedidoService        from '@/services/invPedidoService.js'
-import bancoService            from '@/services/bancoService.js'
+import cuentaBancariaService   from '@/services/cuentaBancariaService.js'
 import { useNotification }     from '@/composables/useNotification'
-import { opcionesBanco }       from '@/utils/formatters.js'
+import { opcionesCuenta }      from '@/utils/formatters.js'
 
 /**
  * Listado de recibos de pago académicos y/o de inventario.
@@ -769,12 +774,10 @@ const canCreate = ref(true)
 const canAnular = ref(true)
 const canPdf    = ref(true)
 
-// ─── Bancos activos (para modal reenviar) ─────────────────────────────────────
-const bancosActivos = ref([])
-const bancoReenvioOptions = computed(() => [
-  { value: null, label: '-- Sin cambio --' },
-  ...opcionesBanco(bancosActivos.value)
-])
+// ─── Cuentas de la sede del recibo (para modal reenviar) ──────────────────────
+const cuentasReenvio         = ref([])
+const cuentasReenvioCargadas = ref(false)
+const cuentaReenvioOptions   = computed(() => opcionesCuenta(cuentasReenvio.value))
 
 // ─── Columnas de la tabla ─────────────────────────────────────────────────────
 const tableColumns = computed(() => [
@@ -948,7 +951,7 @@ async function openDetail(recibo) {
   showDetailModal.value = true
   detailLoading.value   = true
   try {
-    const res = await reciboPagoService.getById(recibo.id, { with: 'sede,cajero,estudiante,conceptosPago,mediosPago,sobrecargos,matricula,pedidoLinks' })
+    const res = await reciboPagoService.getById(recibo.id, { with: 'sede,cajero,estudiante,conceptosPago,mediosPago.banco,mediosPago.cuentaBancaria.banco,sobrecargos,matricula,pedidoLinks' })
     detailRecibo.value = res.data
   } catch {
     // Mantiene los datos del listado
@@ -1012,9 +1015,9 @@ async function notificarTransferencia(recibo) {
 
 // Modal reenviar
 const showReenviarModal  = ref(false)
-const reenviarForm       = reactive({ banco_id: null, numero_transaccion: '', comprobante_file: null })
+const reenviarForm       = reactive({ cuenta_bancaria_id: null, numero_transaccion: '', comprobante_file: null })
 const reenviarCompleto   = computed(() =>
-  reenviarForm.banco_id !== null &&
+  !!reenviarForm.cuenta_bancaria_id &&
   reenviarForm.numero_transaccion.trim() !== '' &&
   reenviarForm.comprobante_file !== null
 )
@@ -1025,17 +1028,19 @@ function onReenviarFileChange(e) {
 
 async function openReenviar(recibo) {
   targetRecibo.value       = recibo
-  reenviarForm.banco_id          = null
+  reenviarForm.cuenta_bancaria_id = null
   reenviarForm.numero_transaccion = ''
   reenviarForm.comprobante_file  = null
   actionError.value        = ''
-  if (!bancosActivos.value.length) {
-    try {
-      const res = await bancoService.getActivos()
-      bancosActivos.value = res.data ?? []
-    } catch { /* no bloquea */ }
-  }
+  cuentasReenvio.value         = []
+  cuentasReenvioCargadas.value = false
   showReenviarModal.value = true
+  try {
+    const res = await cuentaBancariaService.getActivas(recibo.sede_id)
+    cuentasReenvio.value = res.data ?? []
+  } catch { /* no bloquea: el selector queda vacío */ } finally {
+    cuentasReenvioCargadas.value = true
+  }
 }
 
 async function confirmReenviar() {
@@ -1045,14 +1050,14 @@ async function confirmReenviar() {
     let payload, config
     if (reenviarForm.comprobante_file) {
       const fd = new FormData()
-      if (reenviarForm.banco_id)          fd.append('banco_id', reenviarForm.banco_id)
+      if (reenviarForm.cuenta_bancaria_id) fd.append('cuenta_bancaria_id', reenviarForm.cuenta_bancaria_id)
       if (reenviarForm.numero_transaccion) fd.append('numero_transaccion', reenviarForm.numero_transaccion)
       fd.append('comprobante', reenviarForm.comprobante_file)
       payload = fd
       config  = {}
     } else {
       payload = {}
-      if (reenviarForm.banco_id)          payload.banco_id          = reenviarForm.banco_id
+      if (reenviarForm.cuenta_bancaria_id) payload.cuenta_bancaria_id = reenviarForm.cuenta_bancaria_id
       if (reenviarForm.numero_transaccion) payload.numero_transaccion = reenviarForm.numero_transaccion
       config = {}
     }

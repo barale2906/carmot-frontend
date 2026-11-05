@@ -174,7 +174,7 @@
         :pasos="[
           { titulo: 'Cajero registra la venta', texto: 'Con medio «Transferencia» y el comprobante (foto o PDF).', tono: 'marca', icono: 'receipt' },
           { titulo: 'Pendiente de aprobación', texto: 'El recibo queda en espera. El cajero pulsa notificar.', tono: 'ambar', icono: 'mail' },
-          { titulo: 'Validador revisa', texto: 'En «Transferencias» compara el comprobante con el banco.', tono: 'azul', icono: 'eye' },
+          { titulo: 'Validador revisa', texto: 'En «Transferencias» compara el comprobante con la cuenta destino.', tono: 'azul', icono: 'eye' },
           { titulo: 'Aprobada o rechazada', texto: 'Si se aprueba, el pago queda en firme.', tono: 'verde', icono: 'check' }
         ]"
       />
@@ -267,7 +267,7 @@
         :preguntas="[
           { pregunta: 'Un producto no aparece al buscarlo en la venta.', respuesta: 'Verifique que esté activo y que tenga precio en una lista de precios activa y vigente.' },
           { pregunta: 'El estudiante pagó pero no se llevó el producto.', respuesta: 'Quedó pendiente en «Entregas». Despáchelo desde allí cuando lo recoja.' },
-          { pregunta: 'No aparece el banco al pagar con transferencia.', respuesta: 'El banco debe estar activo en Configuración → Bancos.' },
+          { pregunta: 'No aparece la cuenta al pagar con transferencia.', respuesta: 'La cuenta debe estar activa y asignada a la sede del almacén en Configuración → Cuentas bancarias.' },
           { pregunta: 'Las existencias del sistema no coinciden con las reales.', respuesta: 'Haga un conteo físico y registre un movimiento de «Ajuste» (positivo o negativo) con el motivo.' },
           { pregunta: '¿Cómo paso productos de una sede a otra?', respuesta: 'Registre un movimiento de «Traslado» indicando el almacén de origen y el de destino.' },
           { pregunta: '¿Dónde reimprimo un recibo?', respuesta: 'En «Facturación de inventario → Recibos de pago», o desde el detalle del pedido en «Caja / Ventas».' }

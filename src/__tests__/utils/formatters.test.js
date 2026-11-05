@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { nombreCompleto, formatMoney } from '@/utils/formatters.js'
+import { nombreCompleto, formatMoney, opcionesCuenta } from '@/utils/formatters.js'
 
 describe('nombreCompleto', () => {
   it('retorna cadena vacía para valor nulo', () => {
@@ -55,5 +55,22 @@ describe('formatMoney (F07)', () => {
     expect(formatMoney(999.6)).toBe('1.000')
     expect(formatMoney(-30000)).toBe('-30.000')
     expect(formatMoney(null)).toBe('0')
+  })
+})
+
+describe('opcionesCuenta', () => {
+  it('usa la etiqueta de la cuenta y agrega la descripción cuando existe', () => {
+    const cuentas = [
+      { id: 1, etiqueta: 'Bancolombia · Ahorros · 123', descripcion: null },
+      { id: 2, etiqueta: 'Nequi · Billetera digital · 300', descripcion: 'Recaudo' },
+    ]
+    expect(opcionesCuenta(cuentas)).toEqual([
+      { value: 1, label: 'Bancolombia · Ahorros · 123' },
+      { value: 2, label: 'Nequi · Billetera digital · 300 — Recaudo' },
+    ])
+  })
+
+  it('retorna lista vacía sin cuentas', () => {
+    expect(opcionesCuenta(null)).toEqual([])
   })
 })

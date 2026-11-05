@@ -42,7 +42,7 @@
                   <th class="px-4 py-3">Estudiante</th>
                   <th class="px-4 py-3">Fecha</th>
                   <th class="px-4 py-3">Cajero</th>
-                  <th class="px-4 py-3">Banco</th>
+                  <th class="px-4 py-3">Cuenta destino</th>
                   <th class="px-4 py-3">N.° Transacción</th>
                   <th class="px-4 py-3 text-right">Valor</th>
                   <th class="px-4 py-3"></th>
@@ -159,7 +159,7 @@
                 <dd class="text-sm text-slate-700">{{ selectedRecibo.fecha_recibo }}</dd>
               </div>
               <div class="flex justify-between border-b border-black/5 pb-3">
-                <dt class="text-xs font-medium text-slate-500">Banco</dt>
+                <dt class="text-xs font-medium text-slate-500">Cuenta destino</dt>
                 <dd class="text-sm font-semibold text-slate-900">{{ bancoNombre(selectedMp) ?? '—' }}</dd>
               </div>
               <div class="flex justify-between border-b border-black/5 pb-3">
@@ -302,8 +302,12 @@ function isImageUrl(url) {
 }
 
 
+/**
+ * Cuenta del instituto a la que entró la transferencia; los recibos anteriores a las
+ * cuentas por sede solo tienen el banco de origen.
+ */
 function bancoNombre(mp) {
-  return mp?.banco_nombre ?? mp?.banco?.nombre ?? null
+  return mp?.cuenta_bancaria?.etiqueta ?? mp?.banco_nombre ?? mp?.banco?.nombre ?? null
 }
 
 function getTransferenciaMp(recibo) {

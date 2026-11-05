@@ -170,7 +170,7 @@ const reciboPagoService = {
   /**
    * POST /financiero/recibos-pago/{id}/reenviar-transferencia
    * Corrige un recibo rechazado (status 5) y lo reenvía a aprobación.
-   * Payload (multipart/form-data): banco_id?, numero_transaccion?, comprobante?
+   * Payload (multipart/form-data): cuenta_bancaria_id?, numero_transaccion?, comprobante?
    */
   async reenviarTransferencia(id, payload, config = {}) {
     const { data } = await api.post(`${BASE}/${id}/reenviar-transferencia`, payload, config)

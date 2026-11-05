@@ -96,7 +96,7 @@ const invVentaService = {
    * Reenvía una transferencia rechazada corrigiendo datos o comprobante.
    * Usar FormData si se adjunta nuevo comprobante.
    * @param {number} reciboPagoId
-   * @param {Object|FormData} payload - { banco_id?, numero_transaccion?, comprobante? }
+   * @param {Object|FormData} payload - { cuenta_bancaria_id?, numero_transaccion?, comprobante? }
    */
   async reenviarTransferencia(reciboPagoId, payload, config = {}) {
     const { data } = await api.post(`${BASE}/${reciboPagoId}/reenviar-transferencia`, payload, config)

@@ -48,6 +48,15 @@ export function turnoCajaActivoId() {
 }
 
 /**
+ * Sede del turno con el que se factura: es donde se recibe el pago y donde queda el
+ * recibo (aunque la matrícula o el pedido sean de otra sede). Reactiva: úsese dentro de
+ * computed/watch para reaccionar al cambiar de caja.
+ */
+export function turnoCajaActivoSedeId() {
+  return turno.value?.sede_id ?? null
+}
+
+/**
  * Turnos de caja abiertos del usuario autenticado (uno por sede).
  *
  * Los recibos y registros del libro diario solo se generan con un turno abierto. Quien

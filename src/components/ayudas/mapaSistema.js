@@ -14,7 +14,7 @@ export const ETAPAS_SISTEMA = [
       { nombre: 'Accesos', pasos: ['Roles y permisos', 'Usuarios (rol y sedes asignadas)'] },
       { nombre: 'Sedes', pasos: ['Área', 'Sede (ciudad, áreas y horario de atención)', 'Horarios de la sede (se generan solos)'] },
       { nombre: 'Calendario', pasos: ['Festivos del año', 'Vacaciones colectivas', 'Días institucionales por sede'] },
-      { nombre: 'Catálogos', pasos: ['Poblaciones (precargadas)', 'EPS (una a una o por CSV)', 'Bancos'] }
+      { nombre: 'Catálogos', pasos: ['Poblaciones (precargadas)', 'EPS (una a una o por CSV)', 'Bancos', 'Cuentas bancarias por sede (destino de las transferencias)'] }
     ]
   },
   {

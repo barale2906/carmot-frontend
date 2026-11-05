@@ -174,7 +174,7 @@
         <FormInput v-model="abonoForm.monto" label="Monto del abono" type="number" min="1" :max="abonoDisponible" required :error="abonoErrors.monto_abono?.[0]" />
         <FormSelect v-model="abonoForm.medio_pago" label="Medio de pago" :options="mediosPagoOptions" :error="abonoErrors['medios_pago.0.medio_pago']?.[0]" />
         <template v-if="abonoForm.medio_pago === 'transferencia'">
-          <FormSelect v-model="abonoForm.banco_id" label="Banco" placeholder="Selecciona..." :options="bancoOptions" :error="abonoErrors['medios_pago.0.banco_id']?.[0]" />
+          <FormSelect v-model="abonoForm.cuenta_bancaria_id" label="Cuenta destino" placeholder="Selecciona la cuenta..." required :options="cuentaOptions" :hint="cuentasAbonoCargadas && !cuentaOptions.length ? 'La sede desde la que facturas no tiene cuentas bancarias activas.' : ''" :error="abonoErrors['medios_pago.0.cuenta_bancaria_id']?.[0]" />
           <FormInput v-model="abonoForm.referencia" label="Referencia de la transferencia" placeholder="Ej: REF-2024-001" :error="abonoErrors['medios_pago.0.referencia']?.[0]" />
         </template>
         <p v-if="abonoForm.medio_pago === 'transferencia'" class="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-800">
@@ -264,9 +264,10 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import invPedidoService  from '@/services/invPedidoService.js'
 import invVentaService   from '@/services/invVentaService.js'
 import TurnoCajaAviso   from '@/components/financiero/libroDiario/TurnoCajaAviso.vue'
-import { turnoCajaActivoId } from '@/composables/useTurnoCaja.js'
+import { turnoCajaActivoId, turnoCajaActivoSedeId } from '@/composables/useTurnoCaja.js'
 import invAlmacenService from '@/services/invAlmacenService.js'
-import bancoService      from '@/services/bancoService.js'
+import cuentaBancariaService from '@/services/cuentaBancariaService.js'
+import { opcionesCuenta } from '@/utils/formatters.js'
 import { authService }   from '@/services/authService.js'
 import { useNotification } from '@/composables/useNotification'
 import SectionHeader    from '@/components/activos/SectionHeader.vue'
@@ -309,7 +310,6 @@ const pagination = reactive({ currentPage: 1, lastPage: 1, total: 0, from: 0, to
 const filters    = reactive({ status: '', almacen_id: '' })
 const almacenOptions    = ref([{ value: '', label: 'Todos los almacenes' }])
 const almacenesActivos  = ref([])
-const bancoOptions      = ref([])
 
 const statusOptions = [
   { value: '', label: 'Todos los estados' },
@@ -337,10 +337,9 @@ const tableColumns = [
 
 async function loadSelectores() {
   try {
-    const [almacenes, bancos] = await Promise.all([invAlmacenService.getActivos(), bancoService.getActivos()])
+    const almacenes = await invAlmacenService.getActivos()
     almacenesActivos.value = almacenes.data ?? almacenes ?? []
     almacenOptions.value   = [{ value: '', label: 'Todos los almacenes' }, ...almacenesActivos.value.map(a => ({ value: a.id, label: a.nombre }))]
-    bancoOptions.value     = (bancos.data ?? bancos ?? []).map(b => ({ value: b.id, label: b.nombre }))
   } catch { /* no bloquea */ }
 }
 
@@ -443,7 +442,24 @@ const abonoTarget = ref(null)
 const savingAbono = ref(false)
 const abonoError  = ref('')
 const abonoErrors = ref({})
-const abonoForm   = reactive({ monto: '', medio_pago: 'efectivo', banco_id: '', referencia: '', entrega_inmediata: true })
+const abonoForm   = reactive({ monto: '', medio_pago: 'efectivo', cuenta_bancaria_id: '', referencia: '', entrega_inmediata: true })
+
+// Cuentas del instituto que aplican a la sede donde se recibe el pago: la del turno de
+// caja con que se factura (o la del pedido si aún no hay caja resuelta)
+const cuentaOptions        = ref([])
+const cuentasAbonoCargadas = ref(false)
+
+async function loadCuentasAbono(sedeId) {
+  cuentaOptions.value        = []
+  cuentasAbonoCargadas.value = false
+  if (!sedeId) return
+  try {
+    const res = await cuentaBancariaService.getActivas(sedeId)
+    cuentaOptions.value = opcionesCuenta(res.data ?? [])
+  } catch { /* el selector queda vacío */ } finally {
+    cuentasAbonoCargadas.value = true
+  }
+}
 
 // Las transferencias por aprobar no descuentan el saldo, pero sí reservan ese monto
 const abonoPendienteAprobacion = computed(() => Number(abonoTarget.value?.abono_pendiente_aprobacion ?? 0))
@@ -451,14 +467,15 @@ const abonoDisponible = computed(() => Math.max(0, Number(abonoTarget.value?.sal
 
 function openAbono(row) {
   abonoTarget.value = row
-  Object.assign(abonoForm, { monto: Math.max(0, Number(row.saldo ?? 0) - Number(row.abono_pendiente_aprobacion ?? 0)), medio_pago: 'efectivo', banco_id: '', referencia: '', entrega_inmediata: true })
+  Object.assign(abonoForm, { monto: Math.max(0, Number(row.saldo ?? 0) - Number(row.abono_pendiente_aprobacion ?? 0)), medio_pago: 'efectivo', cuenta_bancaria_id: '', referencia: '', entrega_inmediata: true })
   abonoError.value = ''; abonoErrors.value = {}; showAbono.value = true
+  loadCuentasAbono(turnoCajaActivoSedeId() ?? row.sede?.id ?? row.sede_id ?? null)
 }
 
 async function handleAbono() {
   abonoError.value = ''; abonoErrors.value = {}; savingAbono.value = true
   const medio = { medio_pago: abonoForm.medio_pago, valor: Number(abonoForm.monto) }
-  if (abonoForm.medio_pago === 'transferencia') { medio.banco_id = abonoForm.banco_id; medio.referencia = abonoForm.referencia }
+  if (abonoForm.medio_pago === 'transferencia') { medio.cuenta_bancaria_id = abonoForm.cuenta_bancaria_id; medio.referencia = abonoForm.referencia }
   try {
     const res = await invVentaService.abonar(abonoTarget.value.id, {
       monto_abono:       Number(abonoForm.monto),

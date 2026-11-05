@@ -310,13 +310,16 @@
                   <!-- Campos extra para transferencia -->
                   <div v-if="mp.medio_pago === 'transferencia'" class="mt-3 grid grid-cols-2 gap-3">
                     <div>
-                      <label class="mb-1 block text-xs font-medium text-slate-600">Banco</label>
+                      <label class="mb-1 block text-xs font-medium text-slate-600">Cuenta destino <span class="text-red-500">*</span></label>
                       <SearchableSelect
-                        v-model="mp.banco_id"
-                        :options="bancoOptions"
-                        placeholder="Selecciona..."
+                        v-model="mp.cuenta_bancaria_id"
+                        :options="cuentaOptions"
+                        placeholder="Selecciona la cuenta..."
                         variant="outline"
                       />
+                      <p v-if="!cuentaOptions.length" class="mt-1 text-[11px] text-red-600">
+                        La sede desde la que facturas no tiene cuentas bancarias activas.
+                      </p>
                     </div>
                     <div>
                       <label class="mb-1 block text-xs font-medium text-slate-600">Referencia</label>
@@ -458,10 +461,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, toRef } from 'vue'
+import { ref, reactive, computed, onMounted, toRef, watch } from 'vue'
 import invVentaService        from '@/services/invVentaService.js'
 import invAlmacenService      from '@/services/invAlmacenService.js'
-import bancoService           from '@/services/bancoService.js'
+import cuentaBancariaService  from '@/services/cuentaBancariaService.js'
+import { opcionesCuenta }     from '@/utils/formatters.js'
 import estudianteService      from '@/services/estudianteService.js'
 import { authService }        from '@/services/authService.js'
 import { useNotification }    from '@/composables/useNotification'
@@ -476,7 +480,7 @@ import FormSelect           from '@/components/forms/FormSelect.vue'
 import SearchableSelect     from '@/components/forms/SearchableSelect.vue'
 import InvProductoBuscador  from '@/components/inventario/InvProductoBuscador.vue'
 import InvVentaItemEntrega  from '@/components/inventario/InvVentaItemEntrega.vue'
-import { turnoCajaActivoId } from '@/composables/useTurnoCaja.js'
+import { turnoCajaActivoId, turnoCajaActivoSedeId } from '@/composables/useTurnoCaja.js'
 
 const emit = defineEmits(['close', 'venta-creada'])
 
@@ -708,8 +712,10 @@ const mediosPagoOptions = [
   { value: 'cheque',         label: 'Cheque' },
 ]
 
-const mediosPago   = ref([{ medio_pago: 'efectivo', valor: 0, banco_id: null, referencia: '', numero_transaccion: '', tipo_tarjeta: '' }])
-const bancoOptions = ref([])
+const mediosPago   = ref([{ medio_pago: 'efectivo', valor: 0, cuenta_bancaria_id: null, referencia: '', numero_transaccion: '', tipo_tarjeta: '' }])
+// Cuentas del instituto que aplican a la sede donde se recibe el pago: la del turno de
+// caja con que se factura (o la del almacén si aún no hay caja resuelta)
+const cuentaOptions = ref([])
 const TIPOS_TARJETA = [
   { value: 'visa',       label: 'Visa' },
   { value: 'mastercard', label: 'Mastercard' },
@@ -732,7 +738,7 @@ const pagoCompleto = computed(() => !tieneTransferencia.value && Number(form.mon
 const excedeTotal  = computed(() => Number(form.monto_abono) > totalItems.value)
 
 function addMedioPago() {
-  mediosPago.value.push({ medio_pago: 'efectivo', valor: 0, banco_id: null, referencia: '', numero_transaccion: '', tipo_tarjeta: '' })
+  mediosPago.value.push({ medio_pago: 'efectivo', valor: 0, cuenta_bancaria_id: null, referencia: '', numero_transaccion: '', tipo_tarjeta: '' })
 }
 
 function removeMedioPago(idx) {
@@ -742,7 +748,7 @@ function removeMedioPago(idx) {
 
 function onMedioPagoChange(idx) {
   const mp = mediosPago.value[idx]
-  mp.banco_id          = null
+  mp.cuenta_bancaria_id = null
   mp.referencia        = ''
   mp.numero_transaccion = ''
   mp.tipo_tarjeta      = ''
@@ -777,12 +783,17 @@ async function recalcularSobrecargos() {
   }, 600)
 }
 
-async function loadBancos() {
+/** Carga las cuentas activas de la sede donde se recibe el pago. */
+async function loadCuentas(sedeId) {
+  mediosPago.value.forEach(m => { m.cuenta_bancaria_id = null })
+  if (!sedeId) { cuentaOptions.value = []; return }
   try {
-    const res = await bancoService.getActivos()
-    bancoOptions.value = (res.data ?? res ?? []).map(b => ({ value: b.id, label: b.nombre }))
-  } catch { bancoOptions.value = [] }
+    const res = await cuentaBancariaService.getActivas(sedeId)
+    cuentaOptions.value = opcionesCuenta(res.data ?? [])
+  } catch { cuentaOptions.value = [] }
 }
+
+watch(() => turnoCajaActivoSedeId() ?? almacenSedeId.value, loadCuentas, { immediate: true })
 
 // ─── Navegación ───────────────────────────────────────────────────────────────
 const canAdvance = computed(() => {
@@ -795,6 +806,8 @@ const canSubmit = computed(() => {
   if (mediosPago.value.length === 0) return false
   if (form.monto_abono <= 0) return false
   if (excedeTotal.value) return false
+  // La transferencia exige la cuenta del instituto a la que entró el dinero
+  if (mediosPago.value.some(m => m.medio_pago === 'transferencia' && !m.cuenta_bancaria_id)) return false
   return Math.abs(totalMedios.value - form.monto_abono) < 1
 })
 
@@ -855,7 +868,7 @@ async function handleSubmit() {
     .filter(m => Number(m.valor) > 0)
     .map(m => {
       const mp = { medio_pago: m.medio_pago, valor: Number(m.valor) }
-      if (m.banco_id)           mp.banco_id            = m.banco_id
+      if (m.cuenta_bancaria_id) mp.cuenta_bancaria_id  = m.cuenta_bancaria_id
       if (m.referencia)         mp.referencia          = m.referencia
       if (m.numero_transaccion) mp.numero_transaccion  = m.numero_transaccion
       if (m.tipo_tarjeta)       mp.tipo_tarjeta        = m.tipo_tarjeta
@@ -964,7 +977,7 @@ function resetWizard() {
   productoSinPrecio.value      = ''
   listaSedeVigente.value       = false
   preciosSede.value            = new Map()
-  mediosPago.value             = [{ medio_pago: 'efectivo', valor: 0, banco_id: null, referencia: '', numero_transaccion: '', tipo_tarjeta: '' }]
+  mediosPago.value             = [{ medio_pago: 'efectivo', valor: 0, cuenta_bancaria_id: null, referencia: '', numero_transaccion: '', tipo_tarjeta: '' }]
   comprobante.value            = null
   sobrecargos.value            = []
   aplicarSobrecargos.value     = false
@@ -975,5 +988,5 @@ function resetWizard() {
 
 function close() { emit('close') }
 
-onMounted(() => { resetWizard(); loadUserContext(); loadAlmacenes(); loadBancos(); loadDescuentos() })
+onMounted(() => { resetWizard(); loadUserContext(); loadAlmacenes(); loadDescuentos() })
 </script>

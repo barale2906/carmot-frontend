@@ -348,7 +348,7 @@ describe('invVentaService', () => {
     api.post.mockResolvedValue(ok({ saldo: 0 }))
     const payload = {
       monto_abono: 50000,
-      medios_pago: [{ medio_pago: 'transferencia', valor: 50000, banco_id: 2, referencia: 'REF-001' }],
+      medios_pago: [{ medio_pago: 'transferencia', valor: 50000, cuenta_bancaria_id: 2, referencia: 'REF-001' }],
     }
     await invVentaService.abonar(10, payload)
     expect(api.post).toHaveBeenCalledWith(`${BASE}/10/abonar`, payload, {})

@@ -48,6 +48,7 @@ import LibroDiarioView from './views/financiero/LibroDiarioView.vue'
 import TurnosCajaView from './views/financiero/TurnosCajaView.vue'
 import LdCatalogosView from './views/financiero/LdCatalogosView.vue'
 import BancosView from './views/configuracion/BancosView.vue'
+import CuentasBancariasView from './views/configuracion/CuentasBancariasView.vue'
 import MatriculaView from './views/academico/MatriculaView.vue'
 import DocumentacionLayout    from './layouts/DocumentacionLayout.vue'
 import DocDocumentosView      from './views/academico/documentacion/DocDocumentosView.vue'
@@ -421,6 +422,12 @@ const routes = [
             name: 'Bancos',
             meta: { permission: 'co_bancos' },
             component: BancosView
+          },
+          {
+            path: 'cuentas-bancarias',
+            name: 'CuentasBancarias',
+            meta: { permission: 'co_cuentasBancarias' },
+            component: CuentasBancariasView
           },
           {
             path: 'dias-no-laborables',

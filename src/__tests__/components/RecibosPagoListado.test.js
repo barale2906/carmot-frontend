@@ -9,7 +9,7 @@ vi.mock('@/services/reciboPagoService.js', () => ({
 }))
 vi.mock('@/services/invVentaService.js', () => ({ default: {} }))
 vi.mock('@/services/invPedidoService.js', () => ({ default: { getById: vi.fn() } }))
-vi.mock('@/services/bancoService.js', () => ({ default: { getActivos: vi.fn() } }))
+vi.mock('@/services/cuentaBancariaService.js', () => ({ default: { getActivas: vi.fn() } }))
 
 const respuesta = (data = []) => ({ data, meta: { current_page: 1, last_page: 1, total: data.length, from: 1, to: data.length } })
 

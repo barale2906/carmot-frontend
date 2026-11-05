@@ -35,6 +35,17 @@ export function opcionesBanco(bancos) {
 }
 
 /**
+ * Opciones para <FormSelect> a partir de las cuentas bancarias del instituto
+ * (respuesta de cuentaBancariaService.getActivas): "Banco · Tipo · Número — alias".
+ */
+export function opcionesCuenta(cuentas) {
+  return (cuentas ?? []).map((c) => ({
+    value: c.id,
+    label: c.descripcion ? `${c.etiqueta} — ${c.descripcion}` : c.etiqueta
+  }))
+}
+
+/**
  * Valor en pesos con el formato colombiano, sin decimales: 720000 → "720.000".
  * Única fuente para todas las pantallas (antes había listados con "720,000.00", F07).
  *
