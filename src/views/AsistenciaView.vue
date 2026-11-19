@@ -3,8 +3,13 @@
     <template #tomar>
       <div class="flex flex-col gap-6">
 
-        <!-- Selección de grupo y clase -->
-        <section aria-labelledby="asistencia-seleccion-heading" class="rounded-[14px] border border-black/10 bg-white p-6">
+        <!-- Clases de hoy en la sede, búsqueda de estudiante e historial -->
+        <AsistenciaClasesDelDia :puede-registrar="puedeRegistrar" @abrir-planilla="abrirPlanilla" />
+
+        <!-- Selección manual de grupo y clase (otros grupos o fechas) -->
+        <details class="group rounded-[14px] border border-black/10 bg-white" :open="!!grupoId">
+        <summary class="cursor-pointer select-none px-6 py-4 text-sm font-medium text-slate-700">Otros grupos o fechas</summary>
+        <section aria-labelledby="asistencia-seleccion-heading" class="px-6 pb-6">
           <h2 id="asistencia-seleccion-heading" class="sr-only">Grupo y clase</h2>
           <div class="flex flex-wrap items-end gap-4">
             <div class="w-full sm:w-[320px]">
@@ -37,6 +42,7 @@
             No hay grupos con ciclos vigentes{{ soloMisGrupos ? ' asignados a ti' : '' }}.
           </p>
         </section>
+        </details>
 
         <div v-if="cargandoLista" class="flex items-center justify-center rounded-[14px] border border-black/10 bg-white py-16">
           <span class="text-sm text-slate-500">Cargando lista del grupo...</span>
@@ -258,6 +264,7 @@ import FormSelect        from '@/components/forms/FormSelect.vue'
 import FormTabs          from '@/components/forms/FormTabs.vue'
 import SectionHeader     from '@/components/activos/SectionHeader.vue'
 import DataTable         from '@/components/activos/DataTable.vue'
+import AsistenciaClasesDelDia from '@/components/academico/AsistenciaClasesDelDia.vue'
 import AsistenciaListado from '@/components/academico/AsistenciaListado.vue'
 import CarteraEstado     from '@/components/academico/CarteraEstado.vue'
 import { usePermisos }     from '@/composables/usePermisos.js'
@@ -364,6 +371,15 @@ async function onClaseChange() {
   } catch (e) {
     notifyError(e?.response?.data?.message ?? 'No se pudo cargar la asistencia de la clase.')
   }
+}
+
+/** Abre la planilla completa del grupo, ya en la clase elegida en las tarjetas de hoy. */
+async function abrirPlanilla(clase) {
+  grupoId.value = clase.grupo.id
+  await onGrupoChange()
+  claseId.value = clase.id
+  await onClaseChange()
+  tab.value = 'toma'
 }
 
 function marcarTodos(estado) {

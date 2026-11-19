@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   ESTADOS_ASISTENCIA, admiteJustificacion, justificacionesSinMotivo, paramsListado,
-  claseSugerida, esClaseFutura, construirPlanilla, resumenPlanilla, payloadPlanilla, etiquetaClase
+  claseSugerida, esClaseFutura, rangoHoras, buscarEstudiantesEnClases, construirPlanilla, resumenPlanilla, payloadPlanilla, etiquetaClase
 } from '@/utils/asistencia.js'
 
 const clases = [
@@ -106,5 +106,39 @@ describe('esClaseFutura', () => {
     expect(esClaseFutura({ fecha_clase: '2026-10-14' }, '2026-10-13')).toBe(true)
     expect(esClaseFutura({ fecha_clase: '2026-10-13' }, '2026-10-13')).toBe(false)
     expect(esClaseFutura(null, '2026-10-13')).toBe(false)
+  })
+})
+
+describe('rangoHoras', () => {
+  it('recorta los segundos', () => {
+    expect(rangoHoras({ hora_inicio: '08:00:00', hora_fin: '10:30:00' })).toBe('08:00–10:30')
+  })
+  it('sin clase devuelve vacío', () => {
+    expect(rangoHoras(null)).toBe('')
+  })
+})
+
+describe('buscarEstudiantesEnClases', () => {
+  const maria = { id: 1, name: 'María Pérez', documento: '1001' }
+  const juan  = { id: 2, name: 'Juan Gómez', documento: '2002' }
+  const clasesDia = [
+    { id: 10, estudiantes: [maria, juan] },
+    { id: 11, estudiantes: [maria] }
+  ]
+
+  it('ignora tildes y mayúsculas y agrupa las clases del estudiante', () => {
+    const r = buscarEstudiantesEnClases(clasesDia, 'maria PEREZ')
+    expect(r).toHaveLength(1)
+    expect(r[0].estudiante.id).toBe(1)
+    expect(r[0].clases.map(c => c.id)).toEqual([10, 11])
+  })
+
+  it('busca por documento', () => {
+    expect(buscarEstudiantesEnClases(clasesDia, '2002')[0].estudiante.id).toBe(2)
+  })
+
+  it('sin consulta o sin coincidencias devuelve vacío', () => {
+    expect(buscarEstudiantesEnClases(clasesDia, '  ')).toEqual([])
+    expect(buscarEstudiantesEnClases(clasesDia, 'zzz')).toEqual([])
   })
 })

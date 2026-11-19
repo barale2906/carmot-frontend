@@ -4,6 +4,8 @@
  * una ausencia (o tardanza) justificada sigue contando como falla.
  */
 
+import { normalizarTexto } from '@/utils/busqueda.js'
+
 export const ESTADOS_ASISTENCIA = [
   { value: 'presente', label: 'Presente', corto: 'P', clase: 'bg-green-600 text-white', claseInactiva: 'text-green-700 hover:bg-green-50', claseBadge: 'bg-green-100 text-green-800' },
   { value: 'tardanza', label: 'Tardanza', corto: 'T', clase: 'bg-amber-500 text-white', claseInactiva: 'text-amber-700 hover:bg-amber-50', claseBadge: 'bg-amber-100 text-amber-800' },
@@ -102,6 +104,35 @@ export function etiquetaClase(clase) {
   const [y, m, d] = String(clase.fecha_clase).split('-')
   const horas = `${String(clase.hora_inicio).slice(0, 5)}–${String(clase.hora_fin).slice(0, 5)}`
   return `${d}/${m}/${y} · ${horas} (${clase.estado_text ?? clase.estado})`
+}
+
+/** "08:00–10:00" a partir de las horas de una clase ("08:00:00"). */
+export function rangoHoras(clase) {
+  if (!clase) return ''
+  return `${String(clase.hora_inicio).slice(0, 5)}–${String(clase.hora_fin).slice(0, 5)}`
+}
+
+/**
+ * Busca estudiantes por nombre o documento (sin tildes ni mayúsculas, palabras en cualquier orden)
+ * entre las clases del día y los agrupa: un estudiante con dos clases hoy aparece una vez con ambas.
+ *
+ * @param {Array<{ id: number, estudiantes: Array<{ id: number, name: string, documento?: string|null }> }>} clases
+ * @param {string} consulta
+ * @returns {Array<{ estudiante: object, clases: Array }>} ordenado por nombre
+ */
+export function buscarEstudiantesEnClases(clases, consulta) {
+  const palabras = normalizarTexto(consulta).split(/\s+/).filter(Boolean)
+  if (!palabras.length) return []
+  const porEstudiante = new Map()
+  for (const clase of clases ?? []) {
+    for (const estudiante of clase.estudiantes ?? []) {
+      const texto = `${normalizarTexto(estudiante.name)} ${normalizarTexto(estudiante.documento)}`
+      if (!palabras.every(p => texto.includes(p))) continue
+      if (!porEstudiante.has(estudiante.id)) porEstudiante.set(estudiante.id, { estudiante, clases: [] })
+      porEstudiante.get(estudiante.id).clases.push(clase)
+    }
+  }
+  return [...porEstudiante.values()].sort((a, b) => a.estudiante.name.localeCompare(b.estudiante.name, 'es'))
 }
 
 /**

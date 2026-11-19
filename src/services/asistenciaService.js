@@ -10,6 +10,15 @@ const asistenciaService = {
     return data
   },
 
+  /**
+   * Clases con asistencia por tomar en un día (por defecto hoy) en las sedes del usuario, cada una con
+   * su lista de estudiantes. Retorna `{ data: { sedes, clases } }`. Params: fecha, sede_id.
+   */
+  async clasesDelDia(params = {}) {
+    const { data } = await api.get(`${BASE}/clases-del-dia`, { params })
+    return data
+  },
+
   /** Asistencias ya registradas en una clase. */
   async getByClase(claseProgramadaId) {
     const { data } = await api.get(BASE, { params: { clase_programada_id: claseProgramadaId, per_page: 500 } })

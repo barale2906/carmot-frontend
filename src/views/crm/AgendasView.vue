@@ -103,7 +103,7 @@
               type="button"
               class="rounded p-1.5 text-green-700 transition-colors hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-500"
               :title="textoEstadoAgenda(ESTADOS_AGENDA.REALIZADA, row.tipo)"
-              @click="marcar(row, ESTADOS_AGENDA.REALIZADA)"
+              @click="openResultado(row, ESTADOS_AGENDA.REALIZADA)"
             >
               <NavIcon name="check" class="size-4" />
             </button>
@@ -111,7 +111,7 @@
               type="button"
               class="rounded p-1.5 text-red-600 transition-colors hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500"
               :title="textoEstadoAgenda(ESTADOS_AGENDA.NO_REALIZADA, row.tipo)"
-              @click="marcar(row, ESTADOS_AGENDA.NO_REALIZADA)"
+              @click="openResultado(row, ESTADOS_AGENDA.NO_REALIZADA)"
             >
               <NavIcon name="ban" class="size-4" />
             </button>
@@ -127,7 +127,7 @@
               type="button"
               class="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               title="Cancelar"
-              @click="marcar(row, ESTADOS_AGENDA.CANCELO)"
+              @click="openResultado(row, ESTADOS_AGENDA.CANCELO)"
             >
               <NavIcon name="close" class="size-4" />
             </button>
@@ -171,6 +171,47 @@
         </div>
       </div>
     </section>
+
+    <!-- Modal: resultado de la acción + seguimiento del lead -->
+    <ModalBase
+      v-model="showResultado"
+      :title="resultado ? textoEstadoAgenda(resultado.status, resultado.cita.tipo) : ''"
+      :description="resultado ? `${resultado.cita.tipo_text} con ${resultado.cita.referido?.nombre || resultado.cita.referido?.celular} · ${fechaCorta(resultado.cita.fecha)}` : ''"
+    >
+      <form class="flex flex-col gap-4 pb-2" @submit.prevent="handleResultado">
+        <SeguimientoForm
+          v-model:texto="formResultado.seguimiento"
+          v-model:estado="formResultado.estado"
+          v-model:proxima="formResultado.proxima"
+          label="¿Qué se hizo? (queda en la bitácora del lead)"
+          texto-requerido
+          :permitir-matricular="can('aca_matriculaCrear') && puedeConvertirse(resultado?.cita.referido)"
+          :permitir-agendar="can('crm_agendaCrear')"
+          :errores="resultadoErrors"
+        />
+        <div v-if="resultadoError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <p class="text-sm text-red-700">{{ resultadoError }}</p>
+        </div>
+      </form>
+
+      <template #footer>
+        <button
+          type="button"
+          class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          @click="showResultado = false"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          :disabled="savingResultado || !formResultado.seguimiento.trim()"
+          class="rounded-lg bg-[#213360] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+          @click="handleResultado"
+        >
+          {{ savingResultado ? 'Guardando...' : 'Registrar' }}
+        </button>
+      </template>
+    </ModalBase>
 
     <!-- Modal: programar acción / reprogramar -->
     <ModalBase
@@ -229,14 +270,20 @@ import FormInputSearch from '@/components/forms/FormInputSearch.vue'
 import FormInput       from '@/components/forms/FormInput.vue'
 import FormSelect      from '@/components/forms/FormSelect.vue'
 import ModalBase       from '@/components/ModalBase.vue'
+import SeguimientoForm from '@/components/crm/SeguimientoForm.vue'
+import seguimientoService from '@/services/seguimientoService.js'
+import { authService }    from '@/services/authService.js'
+import { useRouter }      from 'vue-router'
 import { usePermisos }     from '@/composables/usePermisos.js'
 import { useConfirm }      from '@/composables/useConfirm.js'
 import { useNotification } from '@/composables/useNotification'
 import {
   OPCIONES_TIPO_AGENDA, ESTADOS_AGENDA, opcionesEstadoAgenda, textoEstadoAgenda, claseEstadoAgenda, citaAbierta,
-  jornadaDeHora, horaCorta, fechaISO, fechaCorta, rangoProximosDias
+  jornadaDeHora, horaCorta, fechaISO, fechaCorta, rangoProximosDias,
+  puedeConvertirse, resolverEstadoSeguimiento, proximaAccionVacia, proximaAccionPayload
 } from '@/utils/crm.js'
 
+const router = useRouter()
 const { can, loadPermisos } = usePermisos()
 const { confirm } = useConfirm()
 const { success: notifySuccess, error: notifyError } = useNotification()
@@ -319,13 +366,59 @@ function clearFilters() {
 }
 
 // ─── Resultado de la acción ─────────────────────────────────────────────────────
-async function marcar(row, status) {
+const showResultado    = ref(false)
+const resultado        = ref(null)
+const savingResultado  = ref(false)
+const resultadoError   = ref('')
+const resultadoErrors  = ref({})
+const formResultado    = reactive({ seguimiento: '', estado: '', proxima: proximaAccionVacia() })
+
+function openResultado(cita, status) {
+  const estadoLead = cita.referido?.status
+  resultado.value      = { cita, status }
+  resultadoError.value = ''
+  resultadoErrors.value = {}
+  Object.assign(formResultado, {
+    seguimiento: '',
+    estado:      estadoLead === undefined ? '' : String(estadoLead),
+    proxima:     proximaAccionVacia()
+  })
+  showResultado.value = true
+}
+
+/**
+ * Marca el resultado de la acción y registra de inmediato el seguimiento del lead, con el
+ * estado y la próxima acción elegidos. Matriculado abre el asistente de matrícula.
+ */
+async function handleResultado() {
+  savingResultado.value = true
+  resultadoError.value  = ''
+  resultadoErrors.value = {}
+  const { cita, status } = resultado.value
+  const { estado, convertir } = resolverEstadoSeguimiento(formResultado.estado, cita.referido?.status ?? null)
   try {
-    await agendaService.update(row.id, { status })
-    notifySuccess('Agenda actualizada.')
+    await agendaService.update(cita.id, { status })
+    const user = await authService.getUser()
+    await seguimientoService.create({
+      referido_id:     cita.referido_id,
+      seguidor_id:     user?.id,
+      fecha:           hoy,
+      seguimiento:     formResultado.seguimiento.trim(),
+      estado_referido: estado,
+      proxima_accion:  proximaAccionPayload(formResultado.proxima)
+    })
+    notifySuccess('Resultado y seguimiento registrados.')
+    showResultado.value = false
+    if (convertir) {
+      router.push({ path: '/academico/matriculas', query: { referido: cita.referido_id } })
+      return
+    }
     loadAgendas(pagination.currentPage)
   } catch (e) {
-    notifyError(e?.response?.data?.message ?? 'No se pudo actualizar la agenda.')
+    if (e?.response?.status === 422) resultadoErrors.value = e.response.data?.errors ?? {}
+    resultadoError.value = e?.response?.data?.message ?? 'No se pudo registrar el seguimiento.'
+  } finally {
+    savingResultado.value = false
   }
 }
 
