@@ -435,6 +435,7 @@
                     <div v-if="mp.cuenta_bancaria" class="font-medium text-slate-800">Cuenta: {{ mp.cuenta_bancaria.etiqueta }}</div>
                     <div v-else-if="mp.banco_nombre" class="font-medium text-slate-800">{{ mp.banco_nombre }}</div>
                     <div v-if="mp.numero_transaccion" class="text-xs text-slate-500">Trans: {{ mp.numero_transaccion }}</div>
+                    <div v-if="mp.fecha_transferencia" class="text-xs text-slate-500">Fecha transf.: {{ mp.fecha_transferencia }}</div>
                     <template v-if="mp.comprobante_url">
                       <a
                         v-if="isImageUrl(mp.comprobante_url)"
@@ -652,6 +653,17 @@
           type="text"
           placeholder="Nuevo número de transacción"
           class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        />
+      </div>
+
+      <!-- Fecha de la transferencia -->
+      <div>
+        <label class="mb-1 block text-sm font-medium text-slate-700">Fecha de la transferencia <span class="text-red-500">*</span></label>
+        <input
+          v-model="reenviarForm.fecha_transferencia"
+          type="date"
+          :max="hoyLocal()"
+          class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
       </div>
 
@@ -1015,10 +1027,13 @@ async function notificarTransferencia(recibo) {
 
 // Modal reenviar
 const showReenviarModal  = ref(false)
-const reenviarForm       = reactive({ cuenta_bancaria_id: null, numero_transaccion: '', comprobante_file: null })
+// Fecha local (no UTC): la fecha de la transferencia no puede ser posterior a hoy
+const hoyLocal = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
+const reenviarForm       = reactive({ cuenta_bancaria_id: null, numero_transaccion: '', fecha_transferencia: '', comprobante_file: null })
 const reenviarCompleto   = computed(() =>
   !!reenviarForm.cuenta_bancaria_id &&
   reenviarForm.numero_transaccion.trim() !== '' &&
+  !!reenviarForm.fecha_transferencia &&
   reenviarForm.comprobante_file !== null
 )
 
@@ -1030,6 +1045,7 @@ async function openReenviar(recibo) {
   targetRecibo.value       = recibo
   reenviarForm.cuenta_bancaria_id = null
   reenviarForm.numero_transaccion = ''
+  reenviarForm.fecha_transferencia = ''
   reenviarForm.comprobante_file  = null
   actionError.value        = ''
   cuentasReenvio.value         = []
@@ -1052,6 +1068,7 @@ async function confirmReenviar() {
       const fd = new FormData()
       if (reenviarForm.cuenta_bancaria_id) fd.append('cuenta_bancaria_id', reenviarForm.cuenta_bancaria_id)
       if (reenviarForm.numero_transaccion) fd.append('numero_transaccion', reenviarForm.numero_transaccion)
+      if (reenviarForm.fecha_transferencia) fd.append('fecha_transferencia', reenviarForm.fecha_transferencia)
       fd.append('comprobante', reenviarForm.comprobante_file)
       payload = fd
       config  = {}
@@ -1059,6 +1076,7 @@ async function confirmReenviar() {
       payload = {}
       if (reenviarForm.cuenta_bancaria_id) payload.cuenta_bancaria_id = reenviarForm.cuenta_bancaria_id
       if (reenviarForm.numero_transaccion) payload.numero_transaccion = reenviarForm.numero_transaccion
+      if (reenviarForm.fecha_transferencia) payload.fecha_transferencia = reenviarForm.fecha_transferencia
       config = {}
     }
     const servicio = esInventario(targetRecibo.value) ? invVentaService : reciboPagoService

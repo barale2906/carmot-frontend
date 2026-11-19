@@ -166,6 +166,10 @@
                 <dt class="text-xs font-medium text-slate-500">N.° Transacción</dt>
                 <dd class="font-mono text-sm text-slate-900">{{ selectedMp?.numero_transaccion ?? '—' }}</dd>
               </div>
+              <div class="flex justify-between border-b border-black/5 pb-3">
+                <dt class="text-xs font-medium text-slate-500">Fecha de la transferencia</dt>
+                <dd class="text-sm text-slate-900">{{ selectedMp?.fecha_transferencia ?? '—' }}</dd>
+              </div>
               <div class="flex items-baseline justify-between pt-1">
                 <dt class="text-xs font-medium text-slate-500">Valor total</dt>
                 <dd class="font-mono text-2xl font-bold text-[#213360]">$ {{ formatMoney(selectedRecibo.valor_total) }}</dd>

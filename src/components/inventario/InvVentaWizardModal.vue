@@ -329,6 +329,10 @@
                       <label class="mb-1 block text-xs font-medium text-slate-600">N.° Transacción</label>
                       <input v-model="mp.numero_transaccion" type="text" placeholder="Ej: XYZ-9912" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
                     </div>
+                    <div>
+                      <label class="mb-1 block text-xs font-medium text-slate-600">Fecha de la transferencia <span class="text-red-500">*</span></label>
+                      <input v-model="mp.fecha_transferencia" type="date" :max="hoyLocal()" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                    </div>
                     <div v-if="idx === 0">
                       <label class="mb-1 block text-xs font-medium text-slate-600">Comprobante (imagen/PDF)</label>
                       <input
@@ -712,7 +716,9 @@ const mediosPagoOptions = [
   { value: 'cheque',         label: 'Cheque' },
 ]
 
-const mediosPago   = ref([{ medio_pago: 'efectivo', valor: 0, cuenta_bancaria_id: null, referencia: '', numero_transaccion: '', tipo_tarjeta: '' }])
+// Fecha local (no UTC): la fecha de la transferencia no puede ser posterior a hoy
+const hoyLocal = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
+const mediosPago   = ref([{ medio_pago: 'efectivo', valor: 0, cuenta_bancaria_id: null, referencia: '', numero_transaccion: '', fecha_transferencia: '', tipo_tarjeta: '' }])
 // Cuentas del instituto que aplican a la sede donde se recibe el pago: la del turno de
 // caja con que se factura (o la del almacén si aún no hay caja resuelta)
 const cuentaOptions = ref([])
@@ -738,7 +744,7 @@ const pagoCompleto = computed(() => !tieneTransferencia.value && Number(form.mon
 const excedeTotal  = computed(() => Number(form.monto_abono) > totalItems.value)
 
 function addMedioPago() {
-  mediosPago.value.push({ medio_pago: 'efectivo', valor: 0, cuenta_bancaria_id: null, referencia: '', numero_transaccion: '', tipo_tarjeta: '' })
+  mediosPago.value.push({ medio_pago: 'efectivo', valor: 0, cuenta_bancaria_id: null, referencia: '', numero_transaccion: '', fecha_transferencia: '', tipo_tarjeta: '' })
 }
 
 function removeMedioPago(idx) {
@@ -751,6 +757,7 @@ function onMedioPagoChange(idx) {
   mp.cuenta_bancaria_id = null
   mp.referencia        = ''
   mp.numero_transaccion = ''
+  mp.fecha_transferencia = ''
   mp.tipo_tarjeta      = ''
   recalcularSobrecargos()
 }
@@ -807,7 +814,7 @@ const canSubmit = computed(() => {
   if (form.monto_abono <= 0) return false
   if (excedeTotal.value) return false
   // La transferencia exige la cuenta del instituto a la que entró el dinero
-  if (mediosPago.value.some(m => m.medio_pago === 'transferencia' && !m.cuenta_bancaria_id)) return false
+  if (mediosPago.value.some(m => m.medio_pago === 'transferencia' && (!m.cuenta_bancaria_id || !m.fecha_transferencia))) return false
   return Math.abs(totalMedios.value - form.monto_abono) < 1
 })
 
@@ -871,6 +878,7 @@ async function handleSubmit() {
       if (m.cuenta_bancaria_id) mp.cuenta_bancaria_id  = m.cuenta_bancaria_id
       if (m.referencia)         mp.referencia          = m.referencia
       if (m.numero_transaccion) mp.numero_transaccion  = m.numero_transaccion
+      if (m.fecha_transferencia) mp.fecha_transferencia = m.fecha_transferencia
       if (m.tipo_tarjeta)       mp.tipo_tarjeta        = m.tipo_tarjeta
       return mp
     })
@@ -977,7 +985,7 @@ function resetWizard() {
   productoSinPrecio.value      = ''
   listaSedeVigente.value       = false
   preciosSede.value            = new Map()
-  mediosPago.value             = [{ medio_pago: 'efectivo', valor: 0, cuenta_bancaria_id: null, referencia: '', numero_transaccion: '', tipo_tarjeta: '' }]
+  mediosPago.value             = [{ medio_pago: 'efectivo', valor: 0, cuenta_bancaria_id: null, referencia: '', numero_transaccion: '', fecha_transferencia: '', tipo_tarjeta: '' }]
   comprobante.value            = null
   sobrecargos.value            = []
   aplicarSobrecargos.value     = false

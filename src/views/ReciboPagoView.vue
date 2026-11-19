@@ -422,8 +422,9 @@
             v-model="form.fecha_recibo"
             label="Fecha de pago"
             type="date"
-            help="Día en que se recibe el dinero."
+            :help="esSuperusuario ? 'Día en que se recibe el dinero.' : 'Siempre es la fecha de hoy; solo el superusuario puede modificarla.'"
             :error="fieldErrors.fecha_recibo?.[0]"
+            :disabled="!esSuperusuario"
             required
           />
         </div>
@@ -549,6 +550,20 @@
                       maxlength="100"
                       class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
+                  </div>
+
+                  <!-- Fecha de la transferencia -->
+                  <div>
+                    <label class="mb-1 block text-xs font-medium text-slate-700">Fecha de la transferencia <span class="text-red-500">*</span></label>
+                    <input
+                      v-model="mp.fecha_transferencia"
+                      type="date"
+                      :max="hoyLocal()"
+                      class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <p v-if="fieldErrors['medios_pago.0.fecha_transferencia']" class="mt-1 text-[11px] text-red-600">
+                      {{ fieldErrors['medios_pago.0.fecha_transferencia'][0] }}
+                    </p>
                   </div>
                 </div>
 
@@ -747,9 +762,13 @@ const router = useRouter()
 const { success: notifySuccess, warning: notifyWarning } = useNotification()
 
 const today = () => new Date().toISOString().substring(0, 10)
+// Fecha local (no UTC): la fecha de la transferencia no puede ser posterior a hoy
+const hoyLocal = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
 
 // ─── Usuario actual ───────────────────────────────────────────────────────────
 const currentUser = ref(null)
+// La fecha del recibo solo la modifica el superusuario (el backend también lo exige)
+const esSuperusuario = computed(() => (currentUser.value?.roles || []).some((r) => (typeof r === 'string' ? r : r?.name) === 'superusuario'))
 
 // ─── Búsqueda de estudiante ───────────────────────────────────────────────────
 const busqueda           = ref('')
@@ -834,7 +853,7 @@ async function cargarCuentasSede() {
 const transferenciaCompleta = computed(() => {
   if (!hayTransferencia.value) return true
   const mp = mediosPago.value.find(m => m.medio_pago === 'transferencia')
-  return !!(mp?.cuenta_bancaria_id && mp?.numero_transaccion?.trim())
+  return !!(mp?.cuenta_bancaria_id && mp?.numero_transaccion?.trim() && mp?.fecha_transferencia)
 })
 
 // ─── Modales de pago ─────────────────────────────────────────────────────────
@@ -858,6 +877,7 @@ function nuevoMedioPago() {
     referencia:        null,
     cuenta_bancaria_id:     null,
     numero_transaccion:     null,
+    fecha_transferencia:    null,
     comprobante_file:       null,
     comprobante_preview_url: null,
     sobrecargos:       [],
@@ -1335,6 +1355,7 @@ function onMedioPagoEntradaChange(idx) {
   mp.referencia        = null
   mp.cuenta_bancaria_id      = null
   mp.numero_transaccion      = null
+  mp.fecha_transferencia     = null
   if (mp.comprobante_preview_url) {
     URL.revokeObjectURL(mp.comprobante_preview_url)
     mp.comprobante_preview_url = null
@@ -1436,6 +1457,7 @@ async function onSubmit() {
     if (mp.medio_pago === 'transferencia') {
       if (mp.cuenta_bancaria_id) entry.cuenta_bancaria_id = mp.cuenta_bancaria_id
       if (mp.numero_transaccion) entry.numero_transaccion = mp.numero_transaccion
+      if (mp.fecha_transferencia) entry.fecha_transferencia = mp.fecha_transferencia
     }
     return entry
   })
