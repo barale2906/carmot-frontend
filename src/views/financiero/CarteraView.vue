@@ -4,7 +4,7 @@
     <!-- ── Estadísticas ─────────────────────────────────────────────────────── -->
     <section v-if="!apiError" aria-labelledby="stats-cartera-heading">
       <h2 id="stats-cartera-heading" class="sr-only">Resumen de cartera</h2>
-      <ul class="grid grid-cols-2 gap-4 sm:grid-cols-5" role="list">
+      <ul class="grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] gap-4" role="list">
         <li role="listitem">
           <StatCard title="Total cuotas"  :value="stats.total"     description="Cuotas registradas"      icon="cartera"       icon-variant="blue" />
         </li>
@@ -41,7 +41,7 @@
         <div class="flex flex-wrap items-end gap-4">
 
           <!-- Búsqueda de estudiante por nombre o documento -->
-          <div class="min-w-0 flex-1 sm:max-w-xs">
+          <div class="min-w-0 flex-1 sm:min-w-[16rem] sm:max-w-xs">
             <div class="flex flex-col gap-2">
               <span class="flex items-center gap-1 text-sm font-medium text-slate-900">
                 Estudiante:
@@ -159,7 +159,7 @@
             />
           </div>
 
-          <div class="flex w-full items-end gap-2 sm:w-auto">
+          <div class="flex w-full flex-wrap items-end gap-2 sm:w-auto">
             <button
               type="button"
               title="Muestra únicamente cuotas con saldo pendiente de pago (estado Activa o Abonada)."
@@ -185,6 +185,18 @@
             </button>
 
             <button
+              type="button"
+              title="Muestra únicamente los estudiantes que tienen una transferencia pendiente de validar."
+              class="flex h-9 items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+              :class="filters.con_transferencia_pendiente
+                ? 'border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100'
+                : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'"
+              @click="filters.con_transferencia_pendiente = !filters.con_transferencia_pendiente"
+            >
+              Transferencias por validar
+            </button>
+
+            <button
               v-if="hayFiltros"
               type="button"
               class="flex h-9 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -198,7 +210,7 @@
 
       <!-- ── Grupos de matrículas ───────────────────────────────────────────── -->
       <section aria-labelledby="listado-cartera-heading">
-        <div class="mb-4 flex items-end justify-between gap-4">
+        <div class="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between lg:gap-4">
           <SectionHeader
             id="listado-cartera-heading"
             title="Cartera — cuentas por cobrar"
@@ -206,9 +218,19 @@
           />
 
           <!-- Resumen filtrado -->
-          <div v-if="totalSaldoFiltrado !== null" class="shrink-0 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-right">
-            <p class="text-xs font-medium text-amber-700">Total por cobrar (filtros)</p>
-            <p class="text-base font-bold text-amber-900">$ {{ formatMoney(totalSaldoFiltrado) }}</p>
+          <div v-if="totalSaldoFiltrado !== null" class="grid w-full grid-cols-1 gap-2 min-[480px]:grid-cols-3 lg:flex lg:w-auto lg:shrink-0 lg:flex-wrap lg:items-stretch">
+            <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 sm:text-right">
+              <p class="text-[11px] font-medium text-slate-500">Transferencias por aprobar</p>
+              <p class="text-sm font-semibold text-slate-600">$ {{ formatMoney(totalTransferenciasPendientes) }}</p>
+            </div>
+            <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 sm:px-4 sm:text-right">
+              <p class="text-xs font-medium text-amber-700">Total por cobrar (filtros)</p>
+              <p class="text-base font-bold text-amber-900">$ {{ formatMoney(totalSaldoFiltrado) }}</p>
+            </div>
+            <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 sm:px-4 sm:text-right">
+              <p class="text-xs font-medium text-emerald-700">Cartera</p>
+              <p class="text-base font-bold text-emerald-900">$ {{ formatMoney(totalCarteraNeta) }}</p>
+            </div>
           </div>
         </div>
 
@@ -234,13 +256,13 @@
             <!-- Cabecera del grupo -->
             <button
               type="button"
-              class="flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+              class="flex w-full flex-wrap items-start gap-x-3 gap-y-3 px-4 py-4 text-left sm:flex-nowrap sm:items-center sm:gap-4 sm:px-5 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
               :aria-expanded="expandedGroups.has(grupo.matricula_id)"
               :aria-controls="`cuotas-${grupo.matricula_id}`"
               @click="toggleGrupo(grupo.matricula_id)"
             >
               <!-- Ícono expandir -->
-              <span class="shrink-0 text-slate-400" aria-hidden="true">
+              <span class="mt-0.5 shrink-0 text-slate-400 sm:mt-0" aria-hidden="true">
                 <NavIcon
                   :name="expandedGroups.has(grupo.matricula_id) ? 'expand_less' : 'expand_more'"
                   class="size-5"
@@ -249,8 +271,8 @@
 
               <!-- Datos del estudiante y matrícula -->
               <div class="min-w-0 flex-1">
-                <p class="flex min-w-0 items-center gap-2 text-sm font-semibold text-slate-900">
-                  <span class="truncate">{{ grupo.estudiante?.nombre ?? `Estudiante #${grupo.estudiante?.id}` }}</span>
+                <p class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold text-slate-900">
+                  <span class="break-words sm:truncate">{{ grupo.estudiante?.nombre ?? `Estudiante #${grupo.estudiante?.id}` }}</span>
                   <!-- Pago en revisión: aún no abona la cartera hasta que el validador lo apruebe -->
                   <span
                     v-if="grupo.transferencias_pendientes > 0"
@@ -260,7 +282,7 @@
                     Transferencia por aprobar · $ {{ formatMoney(grupo.valor_transferencias_pendientes) }}
                   </span>
                 </p>
-                <p class="mt-0.5 truncate text-xs text-slate-500">
+                <p class="mt-0.5 break-words text-xs text-slate-500 sm:truncate">
                   {{ grupo.matricula?.curso ?? `Matrícula #${grupo.matricula_id}` }}
                   <span v-if="grupo.sede?.nombre"> · {{ grupo.sede.nombre }}</span>
                   <span v-if="grupo.matricula?.fecha_matricula"> · Matric. {{ grupo.matricula.fecha_matricula }}</span>
@@ -268,25 +290,25 @@
               </div>
 
               <!-- Totales del grupo -->
-              <div class="hidden shrink-0 items-center gap-6 sm:flex" @click.stop>
-                <div class="text-right">
+              <div class="grid w-full grid-cols-2 gap-x-4 gap-y-2 border-t border-slate-100 pt-3 min-[420px]:grid-cols-3 sm:flex sm:w-auto sm:shrink-0 sm:items-center sm:gap-6 sm:border-0 sm:pt-0" @click.stop>
+                <div class="sm:text-right">
                   <p class="text-xs text-slate-500">Cuotas</p>
                   <p class="text-sm font-medium text-slate-700">{{ grupo.carteras?.length ?? 0 }}</p>
                 </div>
-                <div class="text-right">
+                <div class="sm:text-right">
                   <p class="text-xs text-slate-500">Valor total</p>
                   <p class="font-mono text-sm font-medium text-slate-700">$ {{ formatMoney(grupo.total_valor) }}</p>
                 </div>
-                <div class="text-right">
+                <div class="sm:text-right">
                   <p class="text-xs text-slate-500">Abonado</p>
                   <p class="font-mono text-sm font-medium text-green-700">$ {{ formatMoney(grupo.total_abono) }}</p>
                 </div>
                 <!-- Valor total = abonado + descuento + saldo (F16) -->
-                <div class="text-right">
+                <div class="sm:text-right">
                   <p class="text-xs text-slate-500">Descuento</p>
                   <p class="font-mono text-sm font-medium text-emerald-700">$ {{ formatMoney(grupo.total_descuento ?? 0) }}</p>
                 </div>
-                <div class="text-right">
+                <div class="sm:text-right">
                   <p class="text-xs text-slate-500">Saldo</p>
                   <p
                     class="font-mono text-sm font-semibold"
@@ -303,7 +325,51 @@
               :id="`cuotas-${grupo.matricula_id}`"
               v-show="expandedGroups.has(grupo.matricula_id)"
             >
-              <div class="border-t border-slate-100 overflow-x-auto">
+              <!-- Cuotas en tarjetas (móvil) -->
+              <ul class="divide-y divide-slate-100 border-t border-slate-100 sm:hidden" role="list">
+                <li v-for="cuota in grupo.carteras" :key="cuota.id" class="flex flex-col gap-2 px-4 py-3">
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
+                      {{ cuota.numero_cuota === 0 ? 'Matrícula' : `Cuota ${cuota.numero_cuota}` }}
+                    </span>
+                    <div class="flex items-center gap-2">
+                      <StatusBadge :label="cuota.status_text ?? '—'" :variant="statusBadgeVariant(cuota.status)" />
+                      <button
+                        type="button"
+                        class="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        title="Ver detalle de cuota"
+                        @click="openDetail(cuota)"
+                      >
+                        <NavIcon name="eye" class="size-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <p class="text-xs" :class="esVencida(cuota) ? 'font-medium text-red-600' : 'text-slate-500'">
+                    Vence: {{ cuota.fecha_vencimiento ?? '—' }}<span v-if="esVencida(cuota)"> (vencida)</span>
+                  </p>
+                  <dl class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs min-[420px]:grid-cols-4">
+                    <div>
+                      <dt class="text-slate-500">Valor</dt>
+                      <dd class="font-mono text-slate-900">$ {{ formatMoney(cuota.valor) }}</dd>
+                    </div>
+                    <div>
+                      <dt class="text-slate-500">Abonado</dt>
+                      <dd class="font-mono text-green-700">$ {{ formatMoney(cuota.abono) }}</dd>
+                    </div>
+                    <div>
+                      <dt class="text-slate-500">Descuento</dt>
+                      <dd class="font-mono text-emerald-700">$ {{ formatMoney(cuota.descuento ?? 0) }}</dd>
+                    </div>
+                    <div>
+                      <dt class="text-slate-500">Saldo</dt>
+                      <dd class="font-mono" :class="Number(cuota.saldo) > 0 ? 'font-semibold text-amber-700' : 'text-slate-400'">$ {{ formatMoney(cuota.saldo) }}</dd>
+                    </div>
+                  </dl>
+                </li>
+              </ul>
+
+              <!-- Cuotas en tabla (sm en adelante) -->
+              <div class="hidden overflow-x-auto border-t border-slate-100 sm:block">
                 <table class="w-full min-w-[640px] text-left text-sm">
                   <thead class="bg-slate-50/80">
                     <tr>
@@ -495,6 +561,8 @@ const loading            = ref(false)
 const error              = ref('')
 const apiError           = ref('')
 const totalSaldoFiltrado = ref(null)
+const totalTransferenciasPendientes = ref(0)
+const totalCarteraNeta = ref(0)
 
 const expandedGroups = ref(new Set())
 
@@ -511,6 +579,7 @@ const filters = reactive({
   fecha_hasta:     '',
   solo_pendientes: false,
   solo_vencidas:   false,
+  con_transferencia_pendiente: false,
 })
 
 const statusFilterOptions = [
@@ -560,7 +629,7 @@ const hayFiltros = computed(() =>
   filters.estudiante_id || filters.status !== '' || filters.concepto ||
   filters.curso_id || filters.ciclo_id ||
   filters.fecha_desde || filters.fecha_hasta ||
-  filters.solo_pendientes || filters.solo_vencidas
+  filters.solo_pendientes || filters.solo_vencidas || filters.con_transferencia_pendiente
 )
 
 function statusBadgeVariant(status) {
@@ -604,6 +673,7 @@ async function loadCartera(page = 1) {
     if (filters.fecha_hasta)     params.fecha_hasta      = filters.fecha_hasta
     if (filters.solo_pendientes) params.solo_pendientes  = true
     if (filters.solo_vencidas)   params.solo_vencidas    = true
+    if (filters.con_transferencia_pendiente) params.con_transferencia_pendiente = true
 
     const res = await carteraService.getAll(params)
     grupos.value = res.data ?? []
@@ -615,6 +685,8 @@ async function loadCartera(page = 1) {
       pagination.from        = res.meta.from ?? 0
       pagination.to          = res.meta.to   ?? 0
       totalSaldoFiltrado.value = res.meta.total_saldo_filtrado ?? null
+      totalTransferenciasPendientes.value = res.meta.total_transferencias_pendientes ?? 0
+      totalCarteraNeta.value = res.meta.total_cartera_neta ?? 0
     }
   } catch (e) {
     const status = e?.response?.status
@@ -724,6 +796,7 @@ function limpiarFiltros() {
   filters.fecha_hasta          = ''
   filters.solo_pendientes      = false
   filters.solo_vencidas        = false
+  filters.con_transferencia_pendiente = false
 }
 
 function goToPage(page) {
@@ -735,6 +808,7 @@ watch(() => filters.concepto,        () => loadCartera(1))
 watch(() => filters.ciclo_id,        () => loadCartera(1))
 watch(() => filters.solo_pendientes, () => loadCartera(1))
 watch(() => filters.solo_vencidas,   () => loadCartera(1))
+watch(() => filters.con_transferencia_pendiente, () => loadCartera(1))
 
 watch(() => filters.curso_id, async (val) => {
   filters.ciclo_id = ''

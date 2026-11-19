@@ -1,6 +1,6 @@
 <template>
   <article
-    class="flex flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+    class="flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
     :aria-labelledby="titleId"
   >
     <div class="flex items-start justify-between gap-3">
@@ -15,7 +15,7 @@
         <NavIcon :name="icon" class="size-5 text-white" />
       </span>
     </div>
-    <p class="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
+    <p class="mt-2 break-words text-2xl font-bold text-slate-900 sm:text-3xl">
       {{ value }}
     </p>
     <p class="mt-1 text-sm text-slate-500">
