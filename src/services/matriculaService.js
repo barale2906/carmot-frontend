@@ -69,6 +69,15 @@ const matriculaService = {
     return data
   },
 
+  /**
+   * Valida la matrícula (y el bloque `estudiante` cuando es nuevo) sin guardar nada.
+   * Responde 422 con los errores por campo; `estudiante.*` corresponde al estudiante nuevo.
+   */
+  async validar(payload, config = {}) {
+    const { data } = await api.post(`${BASE}/validar`, payload, config)
+    return data
+  },
+
   /** Cambia el estado académico (aplazado, desertado, retirado, graduado…) con fecha y motivo. */
   async cambiarEstadoAcademico(id, payload) {
     const { data } = await api.post(`${BASE}/${id}/estado-academico`, payload)

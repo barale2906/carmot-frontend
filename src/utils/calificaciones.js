@@ -117,5 +117,5 @@ export function paramsConsolidado(filtros) {
 /** ¿Hay algún filtro que defina el alcance de la consulta? */
 export function tieneAlcance(filtros) {
   return ['ciclo_id', 'grupo_id', 'profesor_id', 'estudiante_id'].some(k => !!filtros?.[k])
-    || String(filtros?.buscar ?? '').trim().length >= 3
+    || String(filtros?.buscar ?? '').trim().length >= 2
 }

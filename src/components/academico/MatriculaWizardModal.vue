@@ -691,7 +691,8 @@
                     v-model="detalles.fecha_matricula"
                     label="Fecha de matrícula"
                     type="date"
-                    help="Día en que se formaliza el registro."
+                    help="Día en que se formaliza el registro. No se puede modificar."
+                    readonly tabindex="-1" class="cursor-not-allowed text-slate-600"
                     :error="fieldErrors.fecha_matricula?.[0]"
                     required
                   />
@@ -699,8 +700,8 @@
                     v-model="detalles.fecha_inicio"
                     label="Inicio de clases"
                     type="date"
-                    :min="detalles.fecha_matricula"
-                    help="Primer día de clases. No puede ser anterior a la fecha de matrícula."
+                    help="Primer día de clases, definido por la programación. No se puede modificar."
+                    readonly tabindex="-1" class="cursor-not-allowed text-slate-600"
                     :error="fieldErrors.fecha_inicio?.[0] ?? fechaInicioError"
                     required
                   />
@@ -736,8 +737,9 @@
                     label="Monto acordado"
                     type="number" step="0.01" min="0"
                     help="Valor total acordado para esta matrícula."
+                    readonly tabindex="-1" class="cursor-not-allowed text-slate-600"
                     :error="fieldErrors.monto?.[0]"
-                    hint="Pre-cargado desde el precio seleccionado. Puedes ajustarlo."
+                    hint="Definido por el precio seleccionado."
                     required
                   />
                   <FormInput
@@ -746,6 +748,7 @@
                     label="Valor por cuota"
                     type="number" step="0.01" min="0"
                     help="Valor de cada cuota si el pago es financiado."
+                    readonly tabindex="-1" class="cursor-not-allowed text-slate-600"
                     :error="fieldErrors.valor_cuota?.[0]"
                     hint="Aplica solo en modalidad financiada."
                   />

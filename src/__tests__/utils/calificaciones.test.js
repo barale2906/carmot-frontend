@@ -82,8 +82,8 @@ describe('consulta de notas', () => {
 
   it('exige un filtro de alcance antes de consultar', () => {
     expect(tieneAlcance({ estado: 'aprobado' })).toBe(false)
-    expect(tieneAlcance({ buscar: 'an' })).toBe(false)
-    expect(tieneAlcance({ buscar: 'ana' })).toBe(true)
+    expect(tieneAlcance({ buscar: 'a' })).toBe(false)
+    expect(tieneAlcance({ buscar: 'an' })).toBe(true)
     expect(tieneAlcance({ profesor_id: '4' })).toBe(true)
   })
 })

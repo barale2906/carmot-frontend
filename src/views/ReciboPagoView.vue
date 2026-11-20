@@ -30,7 +30,7 @@
         <div class="flex items-end">
           <button
             type="button"
-            :disabled="buscando || busqueda.length < 3"
+            :disabled="buscando || busqueda.length < 2"
             class="flex h-9 items-center gap-2 rounded-lg bg-[#213360] px-4 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
             @click="buscarEstudiante"
           >
@@ -1039,12 +1039,12 @@ function onBusquedaInput() {
   clearTimeout(searchTimer)
   sinResultados.value      = false
   resultadosBusqueda.value = []
-  if (busqueda.value.length < 3) return
+  if (busqueda.value.length < 2) return
   searchTimer = setTimeout(buscarEstudiante, 400)
 }
 
 async function buscarEstudiante() {
-  if (busqueda.value.length < 3) return
+  if (busqueda.value.length < 2) return
   buscando.value           = true
   sinResultados.value      = false
   resultadosBusqueda.value = []

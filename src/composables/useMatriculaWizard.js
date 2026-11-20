@@ -211,12 +211,24 @@ const FIELD_STEP_MAP = {
   programacion_id: 1,
   // Paso 3 — estudiante (matrícula duplicada detectada por el backend)
   estudiante_id: 3,
+  primer_nombre: 3, segundo_nombre: 3, primer_apellido: 3, segundo_apellido: 3,
+  email: 3, documento: 3, password: 3, password_confirmation: 3,
   // Paso 5 — detalles de matrícula
   comercial_id: 5, matriculado_por_id: 5, fecha_matricula: 5, fecha_inicio: 5,
   monto: 5, valor_cuota: 5, status: 5, observaciones: 5,
   como_entero_curso: 5, talla_overol: 5, talla_botas: 5, multiculturalidad: 5,
   nombre_contacto: 5, telefono_contacto: 5, correo_contacto: 5,
   conocimiento_curso: 5, aprueba_uso_imagen: 5
+}
+
+/**
+ * Los errores del estudiante nuevo llegan como `estudiante.email`, `estudiante.documento`...
+ * (endpoint de validación previa); se exponen con el nombre simple que usa el formulario.
+ */
+export function normalizarErroresEstudiante(errors) {
+  return Object.fromEntries(
+    Object.entries(errors).map(([campo, mensajes]) => [campo.replace(/^estudiante\./, ''), mensajes])
+  )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1018,15 +1030,19 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     apiError.value    = ''
     fieldErrors.value = {}
 
+    // Solo se usa FormData (multipart) cuando hay una foto nueva que subir;
+    // el resto de los casos conserva el envío como JSON plano.
+    const fotoFile = datosPersonales.foto instanceof File ? datosPersonales.foto : null
+    const enviable = (fields) => (fotoFile ? toFormData(fields, fotoFile) : fields)
+
+    // Se valida todo antes de escribir en la BD: si algo falla no se crea el estudiante.
+    if (!await _validarAntesDeCrear(enviable)) { saving.value = false; return }
+
     const estudianteId = await _resolveEstudiante()
     if (!estudianteId) { saving.value = false; return }
 
     try {
-      const fields = _buildPayload(estudianteId)
-      // Solo se usa FormData (multipart) cuando hay una foto nueva que subir;
-      // el resto de los casos conserva el envío como JSON plano.
-      const fotoFile = datosPersonales.foto instanceof File ? datosPersonales.foto : null
-      const payload  = fotoFile ? toFormData(fields, fotoFile) : fields
+      const payload = enviable(_buildPayload(estudianteId))
 
       const matricula = await matriculaService.create(payload)
       // Se pasa estudianteId explícito porque en la ruta de nuevo estudiante
@@ -1040,6 +1056,26 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     }
   }
 
+  /**
+   * Valida en el backend la matrícula y, si el estudiante es nuevo, sus datos de registro,
+   * sin crear nada. Si hay errores los deja en el formulario y lleva al paso correspondiente.
+   * @param {(fields: Object) => Object|FormData} enviable Convierte el payload al formato de envío.
+   * @returns {Promise<boolean>} true si todo es válido.
+   */
+  async function _validarAntesDeCrear(enviable) {
+    const esNuevo = estudianteEstado.value === 'not_found'
+    const fields  = esNuevo
+      ? { ..._buildPayload(null), estudiante: _buildEstudiantePayload() }
+      : _buildPayload(estudianteEncontrado.value?.id)
+    try {
+      await matriculaService.validar(enviable(fields), { _silent: true })
+      return true
+    } catch (e) {
+      _handleApiError(e)
+      return false
+    }
+  }
+
   async function _resolveEstudiante() {
     if (estudianteEstado.value === 'not_found') {
       return await _crearEstudiante()
@@ -1050,9 +1086,9 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     return estudianteEncontrado.value?.id ?? null
   }
 
-  async function _crearEstudiante() {
+  function _buildEstudiantePayload() {
     const cicloSedeId = cicloSeleccionado.value?.sede_id ?? cicloSeleccionado.value?.sede?.id
-    const payload = {
+    return {
       primer_nombre:         estudianteForm.primer_nombre,
       primer_apellido:       estudianteForm.primer_apellido,
       email:                 estudianteForm.email,
@@ -1064,6 +1100,10 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
       ...(estudianteForm.segundo_apellido ? { segundo_apellido: estudianteForm.segundo_apellido } : {}),
       ...(cicloSedeId ? { sedes: [cicloSedeId] } : {})
     }
+  }
+
+  async function _crearEstudiante() {
+    const payload = _buildEstudiantePayload()
     try {
       const res = await estudianteService.create(payload, { _silent: true })
       return res.data?.id ?? res?.id ?? null
@@ -1106,7 +1146,8 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
       curso_id:           Number(cursoId.value),
       ciclo_id:           Number(cicloId.value),
       programacion_id:    num(programacionId.value),
-      estudiante_id:      Number(estudianteId),
+      // Ausente al validar una matrícula de estudiante aún no creado
+      estudiante_id:      num(estudianteId),
       matriculado_por_id: Number(detalles.matriculado_por_id),
       comercial_id:       Number(detalles.comercial_id),
       fecha_matricula:    detalles.fecha_matricula,
@@ -1261,7 +1302,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
    */
   function _handleApiError(e, forceStep = null) {
     if (e?.response?.status === 422) {
-      const errors = e.response.data?.errors ?? {}
+      const errors = normalizarErroresEstudiante(e.response.data?.errors ?? {})
       fieldErrors.value = errors
       apiError.value    = e.response.data?.message ?? 'Revisa los datos ingresados.'
 
@@ -1436,13 +1477,17 @@ export function documentoDesdeBusqueda(texto) {
  * no está marcada) se envían como cadena vacía, que Laravel convierte de nuevo en
  * null: `String(null)` mandaba el texto "null" y el backend lo rechazaba como tipo
  * de discapacidad inválido solo cuando la matrícula llevaba foto.
+ * Los objetos y arrays anidados (p. ej. `estudiante`) usan la notación `clave[campo]`.
  */
 export function toFormData(fields, fotoFile) {
   const fd = new FormData()
-  Object.entries(fields).forEach(([key, value]) => {
+  const agregar = (key, value) => {
     if (value === null) fd.append(key, '')
+    else if (Array.isArray(value)) value.forEach((v, i) => agregar(`${key}[${i}]`, v))
+    else if (typeof value === 'object') Object.entries(value).forEach(([k, v]) => agregar(`${key}[${k}]`, v))
     else fd.append(key, typeof value === 'boolean' ? (value ? '1' : '0') : String(value))
-  })
+  }
+  Object.entries(fields).forEach(([key, value]) => agregar(key, value))
   fd.append('foto', fotoFile)
   return fd
 }

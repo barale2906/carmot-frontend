@@ -45,7 +45,7 @@
             <div class="flex flex-col gap-2">
               <span class="flex items-center gap-1 text-sm font-medium text-slate-900">
                 Estudiante:
-                <FormFieldHelp text="Busca por nombre completo o número de documento. Escribe al menos 3 caracteres para ver sugerencias." />
+                <FormFieldHelp text="Busca por nombre completo o número de documento. Escribe al menos 2 caracteres para ver sugerencias." />
               </span>
 
               <!-- Estudiante seleccionado -->
@@ -729,12 +729,12 @@ function onBusquedaEstInput() {
   clearTimeout(searchTimerEst)
   sinResultadosEst.value = false
   resultadosEst.value    = []
-  if (busquedaEst.value.length < 3) return
+  if (busquedaEst.value.length < 2) return
   searchTimerEst = setTimeout(ejecutarBusquedaEst, 400)
 }
 
 async function ejecutarBusquedaEst() {
-  if (busquedaEst.value.length < 3) return
+  if (busquedaEst.value.length < 2) return
   buscandoEst.value      = true
   resultadosEst.value    = []
   sinResultadosEst.value = false

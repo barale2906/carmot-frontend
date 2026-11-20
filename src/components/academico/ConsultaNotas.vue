@@ -19,7 +19,7 @@
         <FormInputSearch
           v-model="filtros.buscar"
           label="Estudiante:"
-          placeholder="Nombre o documento (mín. 3 letras)..."
+          placeholder="Nombre o documento (mín. 2 letras)..."
           @input="onBusquedaInput"
         />
         <FormSelect v-model="filtros.estado" label="Resultado:" placeholder="Todos" :options="opcionesEstado" clearable @change="cargar(1)" />

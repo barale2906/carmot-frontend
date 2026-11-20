@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { ESTADOS_ACADEMICOS, esEstadoFinal, efectoDelCambio, claseEstadoAcademico, esEstadoDeCierre, opcionesPermitidas } from '@/utils/estadoAcademico.js'
 
-const { ACTIVO, APLAZADO, DESERTADO, RETIRADO, GRADUADO, REPROBADO } = ESTADOS_ACADEMICOS
+const { ACTIVO, APLAZADO, DESERTADO, RETIRADO, GRADUADO, REPROBADO, PENDIENTE_INICIO } = ESTADOS_ACADEMICOS
 
 describe('utils/estadoAcademico', () => {
   it('reconoce los estados que cierran la formación', () => {
@@ -37,5 +37,11 @@ describe('utils/estadoAcademico', () => {
   it('solo se gradúa o reprueba desde Activo', () => {
     expect(opcionesPermitidas(ACTIVO).map(o => o.value)).toEqual([APLAZADO, DESERTADO, RETIRADO, GRADUADO, REPROBADO])
     expect(opcionesPermitidas(RETIRADO).map(o => o.value)).toEqual([ACTIVO, APLAZADO, DESERTADO])
+  })
+
+  it('Pendiente por iniciar no se elige a mano ni se gradúa desde él', () => {
+    expect(opcionesPermitidas(ACTIVO).map(o => o.value)).not.toContain(PENDIENTE_INICIO)
+    expect(opcionesPermitidas(PENDIENTE_INICIO).map(o => o.value)).toEqual([ACTIVO, APLAZADO, DESERTADO, RETIRADO])
+    expect(claseEstadoAcademico(PENDIENTE_INICIO)).toMatch(/sky/)
   })
 })

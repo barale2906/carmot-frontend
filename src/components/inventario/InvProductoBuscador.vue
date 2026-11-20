@@ -10,9 +10,9 @@
       :loading="buscando"
       :clearable="!clearOnSelect"
       remote
-      :min-chars="3"
+      :min-chars="2"
       :placeholder="placeholder"
-      search-placeholder="Buscar por nombre o código (mín. 3 letras)..."
+      search-placeholder="Buscar por nombre o código (mín. 2 letras)..."
       empty-text="Sin resultados para esta búsqueda."
       variant="outline"
       @search="buscar"
@@ -25,7 +25,7 @@
 <script setup>
 /**
  * Buscador de productos de inventario (GET /inventarios/productos/buscar) sobre el
- * componente universal `SearchableSelect` en modo remoto: mínimo 3 letras, con debounce,
+ * componente universal `SearchableSelect` en modo remoto: mínimo 2 letras, con debounce,
  * navegación con flechas/Tab, Enter o clic para elegir.
  *
  * Modos:

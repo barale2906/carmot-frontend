@@ -4,7 +4,7 @@ vi.mock('@/services/api.js', () => ({
   default: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
 }))
 
-import { toFormData, documentoDesdeBusqueda } from '@/composables/useMatriculaWizard.js'
+import { toFormData, documentoDesdeBusqueda, normalizarErroresEstudiante } from '@/composables/useMatriculaWizard.js'
 
 // ─── toFormData (envío multipart cuando la matrícula lleva foto) ──────────────
 
@@ -27,11 +27,34 @@ describe('toFormData', () => {
     expect(fd.get('tipo_discapacidad')).toBe('fisica')
   })
 
+  it('aplana objetos y arrays anidados con notación de corchetes', () => {
+    const fd = toFormData({ estudiante: { email: 'a@b.co', sedes: [3] } }, foto)
+
+    expect(fd.get('estudiante[email]')).toBe('a@b.co')
+    expect(fd.get('estudiante[sedes][0]')).toBe('3')
+  })
+
   it('adjunta la foto', () => {
     const fd = toFormData({}, foto)
 
     expect(fd.get('foto')).toBeInstanceOf(File)
     expect(fd.get('foto').name).toBe('foto.png')
+  })
+})
+
+// ─── normalizarErroresEstudiante (validación previa de estudiante nuevo) ──────
+
+describe('normalizarErroresEstudiante', () => {
+  it('quita el prefijo estudiante. y conserva el resto de campos', () => {
+    const errores = normalizarErroresEstudiante({
+      'estudiante.email': ['Ya existe un usuario con este correo.'],
+      fecha_inicio: ['Fecha inválida.']
+    })
+
+    expect(errores).toEqual({
+      email: ['Ya existe un usuario con este correo.'],
+      fecha_inicio: ['Fecha inválida.']
+    })
   })
 })
 

@@ -113,18 +113,18 @@ describe('SearchableSelect', () => {
 
   it('remote: no filtra local, pide desde minChars y muestra lo que entrega el padre', async () => {
     const buscadas = []
-    montar({ remote: true, minChars: 3, debounce: 0, onSearch: (t) => buscadas.push(t) })
+    montar({ remote: true, minChars: 2, debounce: 0, onSearch: (t) => buscadas.push(t) })
     await wrapper.find('button').trigger('click')
     expect(opciones()).toHaveLength(0)
-    expect(panel().textContent).toContain('al menos 3 letras')
-    buscador().value = 'ca'
+    expect(panel().textContent).toContain('al menos 2 letras')
+    buscador().value = 'c'
     buscador().dispatchEvent(new Event('input'))
     await new Promise((r) => setTimeout(r, 5))
     expect(buscadas).toEqual([])
-    buscador().value = 'cal'
+    buscador().value = 'ca'
     buscador().dispatchEvent(new Event('input'))
     await new Promise((r) => setTimeout(r, 5))
-    expect(buscadas).toEqual(['cal'])
+    expect(buscadas).toEqual(['ca'])
     expect(opciones()).toHaveLength(4)
   })
 
