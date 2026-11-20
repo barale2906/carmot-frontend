@@ -83,7 +83,7 @@
             @click="showImport = true"
           >
             <NavIcon name="upload" class="size-4" />
-            Importar CSV
+            Importar archivo
           </button>
           <button
             v-if="canInactivar"
@@ -356,8 +356,8 @@
     <!-- Modal: Importar CSV -->
     <ModalBase
       v-model="showImport"
-      title="Importar EPS desde CSV"
-      description="Carga masiva de EPS a partir de un archivo CSV."
+      title="Importar EPS desde archivo"
+      description="Carga masiva de EPS a partir de un archivo Excel o CSV."
     >
       <template #icon>
         <span class="flex size-5 shrink-0 items-center justify-center text-[#213360]">
@@ -382,11 +382,11 @@
 
         <div>
           <label class="mb-1.5 block text-sm font-medium text-slate-700">
-            Archivo CSV
+            Archivo Excel o CSV
           </label>
           <input
             type="file"
-            accept=".csv"
+            accept=".csv,.xlsx,.xls,.txt"
             class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 file:mr-3 file:rounded file:border-0 file:bg-slate-100 file:px-2 file:py-1 file:text-sm file:font-medium file:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
             @change="onFileChange"
           />

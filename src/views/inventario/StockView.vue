@@ -109,7 +109,7 @@
     </section>
 
     <!-- Modal: Importar stock inicial -->
-    <ModalBase v-model="showImportar" title="Cargar stock inicial" description="Importa el inventario inicial desde un archivo Excel (XLSX)">
+    <ModalBase v-model="showImportar" title="Cargar stock inicial" description="Importa el inventario inicial desde un archivo Excel o CSV">
       <div class="flex flex-col gap-4 pb-2">
         <p class="text-sm text-slate-600">
           Descarga la plantilla Excel. La segunda hoja contiene el catálogo de productos disponibles con sus códigos.
@@ -127,8 +127,8 @@
         />
         <FormFileUpload
           v-model="importFile"
-          label="Archivo Excel (XLSX)"
-          accept=".xlsx"
+          label="Archivo Excel o CSV"
+          accept=".xlsx,.xls,.csv,.txt"
           help="Columnas requeridas: codigo_producto, cantidad"
           :error="importError"
         />
@@ -160,6 +160,7 @@ import FormSelect      from '@/components/forms/FormSelect.vue'
 import FormInputSearch from '@/components/forms/FormInputSearch.vue'
 import FormFileUpload  from '@/components/forms/FormFileUpload.vue'
 import ModalBase       from '@/components/ModalBase.vue'
+import { descargarBlob, mensajeErrorBlob } from '@/utils/descargas.js'
 
 const { success: notifySuccess } = useNotification()
 
@@ -258,17 +259,13 @@ function openImportar() {
 
 async function downloadPlantilla() {
   downloadingPlantilla.value = true
+  importError.value = ''
   try {
     const res = await invStockService.getPlantilla()
-    const url = URL.createObjectURL(
-      new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-    )
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'plantilla_stock_inicial.xlsx'
-    a.click()
-    URL.revokeObjectURL(url)
-  } catch { /* silencioso */ } finally { downloadingPlantilla.value = false }
+    descargarBlob(res.data, 'plantilla_stock_inicial.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+  } catch (e) {
+    importError.value = await mensajeErrorBlob(e, 'No se pudo descargar la plantilla.')
+  } finally { downloadingPlantilla.value = false }
 }
 
 async function handleImportar() {

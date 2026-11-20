@@ -40,6 +40,9 @@
           <button v-if="canCreate" type="button" class="flex h-9 items-center gap-2 rounded-lg bg-[#213360] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" @click="showWizard = true">
             <NavIcon name="plus" class="size-4" /> Nuevo producto
           </button>
+          <button v-if="canImportar" type="button" class="flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" @click="showImportacion = true">
+            <NavIcon name="arrow_up" class="size-4" /> Carga masiva
+          </button>
           <button v-if="canInactivar" type="button" class="flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" @click="openTrashed">
             <NavIcon name="trash" class="size-4" /> Papelera
           </button>
@@ -124,6 +127,8 @@
         <button type="button" class="ml-auto text-sm font-medium text-red-700 underline" @click="actionError = ''">Cerrar</button>
       </div>
     </section>
+
+    <ImportarProductosModal v-model="showImportacion" @importado="onImportado" />
 
     <!-- Wizard: Crear producto -->
     <InvProductoWizardModal
@@ -321,6 +326,7 @@ import FormTextarea    from '@/components/forms/FormTextarea.vue'
 import FormSelect      from '@/components/forms/FormSelect.vue'
 import ModalBase       from '@/components/ModalBase.vue'
 import InvProductoWizardModal from '@/components/inventario/InvProductoWizardModal.vue'
+import ImportarProductosModal from '@/components/inventario/ImportarProductosModal.vue'
 import { useConfirm } from '@/composables/useConfirm.js'
 
 const { confirm } = useConfirm()
@@ -333,6 +339,7 @@ const hasPermission = (p) => userPermissions.value.includes(p)
 const canCreate    = computed(() => hasPermission('inv_productosCrear'))
 const canEditar    = computed(() => hasPermission('inv_productosEditar'))
 const canInactivar = computed(() => hasPermission('inv_productosInactivar'))
+const canImportar  = computed(() => hasPermission('inv_productosImportar'))
 
 async function loadPermissions() {
   try { const user = await authService.getUser(); userPermissions.value = user?.permissions ?? user?.all_permissions ?? [] }
@@ -423,6 +430,13 @@ async function handleDelete(row) {
 
 // ─── Wizard de creación ───────────────────────────────────────────────────────
 const showWizard = ref(false)
+const showImportacion = ref(false)
+
+function onImportado() {
+  loadProductos(pagination.currentPage)
+  loadStatistics()
+  loadCatalogos()
+}
 
 function onProductoCreado() {
   showWizard.value = false

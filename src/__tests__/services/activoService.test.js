@@ -65,4 +65,16 @@ describe('activoService', () => {
     expect(api.delete).toHaveBeenCalledWith('/activos/categorias/3')
     expect(api.post).toHaveBeenCalledWith('/activos/categorias/3/restore')
   })
+
+  it('descarga la plantilla como blob y sube el archivo de la carga masiva como multipart', async () => {
+    api.get.mockResolvedValue({ data: new Blob(['x']) })
+    api.post.mockResolvedValue({ data: { data: [], meta: { total: 0 } } })
+    const archivo = new File(['x'], 'activos.xlsx')
+    await activoService.descargarPlantilla()
+    await activoService.importar(archivo)
+    expect(api.get).toHaveBeenCalledWith('/activos/activos/importar/plantilla', { responseType: 'blob' })
+    const [url, cuerpo] = api.post.mock.calls[0]
+    expect(url).toBe('/activos/activos/importar')
+    expect(cuerpo.get('archivo')).toBe(archivo)
+  })
 })

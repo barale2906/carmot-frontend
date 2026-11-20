@@ -31,6 +31,24 @@ const activoService = {
     return data
   },
 
+  /** GET /activos/activos/importar/plantilla — Plantilla Excel de carga masiva (blob). */
+  descargarPlantilla() {
+    return api.get(`${ACTIVOS}/importar/plantilla`, { responseType: 'blob' })
+  },
+
+  /**
+   * POST /activos/activos/importar — Carga masiva. Todo o nada: con filas inválidas
+   * responde 422 con `errores: [{ fila, mensajes[] }]`.
+   */
+  async importar(archivo) {
+    const fd = new FormData()
+    fd.append('archivo', archivo)
+    const { data } = await api.post(`${ACTIVOS}/importar`, fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return data
+  },
+
   /** Carga o reemplaza la imagen del activo (multipart). */
   async subirImagen(id, archivo) {
     const fd = new FormData()

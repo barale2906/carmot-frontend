@@ -33,7 +33,15 @@
               @input="onSearchInput"
             />
           </div>
-          <div v-if="can('act_activoCrear')" class="w-full sm:w-auto">
+          <div v-if="can('act_activoCrear')" class="flex w-full gap-2 sm:w-auto">
+            <button
+              type="button"
+              class="flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              @click="showImportacion = true"
+            >
+              <NavIcon name="arrow_up" class="size-4" />
+              Carga masiva
+            </button>
             <button
               type="button"
               class="flex h-9 items-center gap-2 rounded-lg bg-[#213360] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
@@ -199,6 +207,7 @@
       :sede-id="filters.sede_id"
       @saved="refrescar"
     />
+    <ImportarActivosModal v-model="showImportacion" @importado="onImportado" />
     <ActivoMovimientoModal
       v-model="showMovimiento"
       :activo="activoSeleccionado"
@@ -217,6 +226,7 @@ import AreaDistributionCard  from '@/components/activos/AreaDistributionCard.vue
 import StatusBadge           from '@/components/activos/StatusBadge.vue'
 import DataTable             from '@/components/activos/DataTable.vue'
 import ActivoFormModal       from '@/components/activos/ActivoFormModal.vue'
+import ImportarActivosModal  from '@/components/activos/ImportarActivosModal.vue'
 import ActivoMovimientoModal from '@/components/activos/ActivoMovimientoModal.vue'
 import ActivoFichaModal      from '@/components/activos/ActivoFichaModal.vue'
 import FormSelect            from '@/components/forms/FormSelect.vue'
@@ -310,6 +320,11 @@ function refrescar() {
   loadStatistics()
 }
 
+function onImportado(total) {
+  notifySuccess(`Se registraron ${total} activos.`)
+  refrescar()
+}
+
 function onSedeChange() {
   filters.area_id = ''
   loadActivos(1)
@@ -325,6 +340,7 @@ function onSearchInput() {
 // ─── Acciones ─────────────────────────────────────────────────────────────────
 const activoSeleccionado = ref(null)
 const showForm       = ref(false)
+const showImportacion = ref(false)
 const showMovimiento = ref(false)
 const showFicha      = ref(false)
 const modoMovimiento = ref('traslado')
