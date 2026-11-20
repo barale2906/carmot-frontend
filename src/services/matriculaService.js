@@ -58,6 +58,17 @@ const matriculaService = {
     return data
   },
 
+  /**
+   * Vista previa de los descuentos que se activan al matricular: total del curso, descuentos
+   * que aplican con su detalle y descuentos de pronto pago aplicables después. No guarda nada.
+   * @param {{ sede_id: number, curso_id: number, ciclo_id: number, programacion_id?: number|null,
+   *           lp_precio_producto_id?: number|null, fecha_matricula?: string }} payload
+   */
+  async precalcularDescuentos(payload, config = {}) {
+    const { data } = await api.post(`${BASE}/precalcular-descuentos`, payload, config)
+    return data
+  },
+
   /** Cambia el estado académico (aplazado, desertado, retirado, graduado…) con fecha y motivo. */
   async cambiarEstadoAcademico(id, payload) {
     const { data } = await api.post(`${BASE}/${id}/estado-academico`, payload)

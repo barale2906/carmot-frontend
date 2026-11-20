@@ -437,6 +437,19 @@
                 {{ formatCOP(selected.monto) }}
               </dd>
             </div>
+            <div v-if="selected.descuentos_congelados?.length" class="col-span-2">
+              <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">
+                Descuentos pactados al matricular
+              </dt>
+              <dd class="mt-0.5 space-y-0.5 text-slate-800">
+                <p v-for="d in selected.descuentos_congelados" :key="d.id">
+                  {{ d.nombre }}
+                  <span class="text-xs text-slate-500">
+                    ({{ d.tipo === 'porcentual' ? `${d.valor} %` : formatCOP(d.valor) }} sobre la {{ d.aplicacion === 'matricula' ? 'matrícula' : d.aplicacion }})
+                  </span>
+                </p>
+              </dd>
+            </div>
             <div>
               <dt class="text-xs font-medium uppercase tracking-wide text-slate-400">
                 Fecha de matrícula
@@ -537,6 +550,15 @@
             :error="fieldErrors.ciclo_id?.[0]"
           />
           <FormSelect
+            v-if="programacionesOpciones.length || programacionesLoading"
+            v-model="form.programacion_id"
+            label="Programación (jornada)"
+            help="Jornada elegida; algunos descuentos aplican solo a ciertas jornadas."
+            :options="[{ value: '', label: 'Sin programación' }, ...programacionesOpciones]"
+            :disabled="programacionesLoading"
+            :error="fieldErrors.programacion_id?.[0]"
+          />
+          <FormSelect
             v-model="form.estudiante_id"
             label="Estudiante"
             help="Persona matriculada."
@@ -592,6 +614,27 @@
             ]"
             :error="fieldErrors.status?.[0]"
           />
+        </div>
+
+        <!-- Cambio de curso, ciclo o programación: el usuario decide si se recalculan los descuentos -->
+        <div v-if="cambioAfectaDescuentos" class="space-y-3 rounded-lg border border-amber-200 bg-amber-50/50 p-4">
+          <DescuentosMatriculaPanel :preview="descuentosPreview" :loading="descuentosLoading" />
+          <label class="flex cursor-pointer items-start gap-3 text-sm text-slate-700">
+            <input
+              v-model="form.recalcular_descuentos"
+              type="checkbox"
+              class="mt-0.5 size-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span>
+              <span class="font-medium">Recalcular los descuentos con estos datos</span>
+              <span class="block text-xs text-slate-500">
+                Si no lo marcas, se conservan los descuentos pactados al matricular.
+              </span>
+            </span>
+          </label>
+          <p v-if="fieldErrors.recalcular_descuentos?.[0]" class="text-xs text-red-600">
+            {{ fieldErrors.recalcular_descuentos[0] }}
+          </p>
         </div>
 
         <FormTextarea
@@ -790,6 +833,7 @@ import MatriculaPrintModal  from '@/components/academico/MatriculaPrintModal.vue
 import MatriculaDocumentosModal from '@/components/academico/MatriculaDocumentosModal.vue'
 import { buildPrintDataFromRecord, fetchAllPoblaciones } from '@/composables/useMatriculaWizard.js'
 
+import DescuentosMatriculaPanel from '@/components/academico/DescuentosMatriculaPanel.vue'
 import matriculaService from '@/services/matriculaService.js'
 import cicloService     from '@/services/cicloService.js'
 import sedeService      from '@/services/sedeService.js'
@@ -797,6 +841,7 @@ import estudianteService from '@/services/estudianteService.js'
 import referidoService  from '@/services/referidoService.js'
 import { useNotification } from '@/composables/useNotification'
 import { usePermisos } from '@/composables/usePermisos.js'
+import { useDescuentosMatricula } from '@/composables/useDescuentosMatricula.js'
 import { nombreCompleto } from '@/utils/formatters.js'
 
 const route = useRoute()
@@ -895,6 +940,7 @@ async function ensurePrintLookups() {
 const EMPTY_FORM = () => ({
   curso_id:           '',
   ciclo_id:           '',
+  programacion_id:    '',
   estudiante_id:      '',
   matriculado_por_id: '',
   comercial_id:       '',
@@ -902,12 +948,58 @@ const EMPTY_FORM = () => ({
   fecha_inicio:       '',
   monto:              '',
   observaciones:      '',
-  status:             '1'
+  status:             '1',
+  recalcular_descuentos: false
 })
 
 const form        = reactive(EMPTY_FORM())
 const fieldErrors = ref({})
 const editCiclosOptions = ref([])
+
+// Programaciones del curso y vista previa de descuentos para la edición
+const {
+  programacionesOpciones, programacionesLoading, cargarProgramaciones,
+  preview: descuentosPreview, previewLoading: descuentosLoading, consultarDescuentos, limpiarDescuentos
+} = useDescuentosMatricula()
+
+/** Curso, ciclo y programación con los que se guardó la matrícula, para detectar cambios que afecten descuentos. */
+const editOriginal = ref(null)
+
+const cambioAfectaDescuentos = computed(() => {
+  const o = editOriginal.value
+  return !!o && (
+    form.curso_id !== o.curso_id ||
+    form.ciclo_id !== o.ciclo_id ||
+    form.programacion_id !== o.programacion_id
+  )
+})
+
+// Al cambiar el curso en la edición se recargan sus programaciones y se descarta la elegida si ya no aplica
+watch(() => form.curso_id, async (curso, anterior) => {
+  if (!modals.edit || !selected.value || curso === anterior) return
+  await cargarProgramaciones(selected.value.sede_id, curso)
+  if (!programacionesOpciones.value.some(o => o.value === form.programacion_id)) form.programacion_id = ''
+})
+
+// Con un cambio relevante se consulta qué descuentos aplicarían; si no, se apaga la opción de recalcular
+watch(
+  [cambioAfectaDescuentos, () => form.curso_id, () => form.ciclo_id, () => form.programacion_id, () => form.fecha_matricula],
+  () => {
+    if (!cambioAfectaDescuentos.value) {
+      form.recalcular_descuentos = false
+      limpiarDescuentos()
+      return
+    }
+    consultarDescuentos({
+      sedeId:         selected.value?.sede_id,
+      cursoId:        form.curso_id,
+      cicloId:        form.ciclo_id,
+      programacionId: form.programacion_id,
+      precioId:       selected.value?.lp_precio_producto_id,
+      fecha:          form.fecha_matricula
+    })
+  }
+)
 
 // ─── Computed: opciones de selectores ────────────────────────────────────────
 const cursosOptions = computed(() =>
@@ -1162,7 +1254,7 @@ async function openDetail(row) {
   modals.detail     = true
   try {
     const res = await matriculaService.getById(row.id, {
-      with: 'curso,ciclo,estudiante,matriculadoPor,comercial,recibosPago'
+      with: 'curso,ciclo,estudiante,matriculadoPor,comercial,recibosPago,descuentosCongelados'
     })
     selected.value = res.data
   } catch { /* usar datos del listado si falla */ }
@@ -1176,6 +1268,8 @@ async function openEdit(row) {
   Object.assign(form, {
     curso_id:           String(row.curso_id          ?? ''),
     ciclo_id:           String(row.ciclo_id           ?? ''),
+    programacion_id:    String(row.programacion_id    ?? ''),
+    recalcular_descuentos: false,
     estudiante_id:      String(row.estudiante_id      ?? ''),
     matriculado_por_id: String(row.matriculado_por_id ?? ''),
     comercial_id:       String(row.comercial_id       ?? ''),
@@ -1197,6 +1291,14 @@ async function openEdit(row) {
     } catch { /* silencioso */ }
   }
 
+  editOriginal.value = {
+    curso_id:        form.curso_id,
+    ciclo_id:        form.ciclo_id,
+    programacion_id: form.programacion_id
+  }
+  limpiarDescuentos()
+  await cargarProgramaciones(row.sede_id, form.curso_id)
+
   modals.edit = true
 }
 
@@ -1212,6 +1314,8 @@ async function submitEdit() {
     const payload = {}
     if (form.curso_id)           payload.curso_id            = Number(form.curso_id)
     if (form.ciclo_id)           payload.ciclo_id            = Number(form.ciclo_id)
+    payload.programacion_id = form.programacion_id ? Number(form.programacion_id) : null
+    if (cambioAfectaDescuentos.value) payload.recalcular_descuentos = form.recalcular_descuentos
     if (form.estudiante_id)      payload.estudiante_id       = Number(form.estudiante_id)
     if (form.matriculado_por_id) payload.matriculado_por_id  = Number(form.matriculado_por_id)
     if (form.comercial_id)       payload.comercial_id        = Number(form.comercial_id)

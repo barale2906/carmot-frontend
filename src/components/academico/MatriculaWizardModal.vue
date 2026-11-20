@@ -136,6 +136,18 @@
                 />
               </div>
 
+              <!-- Programación (jornada): define los descuentos que aplican -->
+              <FormSelect
+                v-if="programacionesOpciones.length || programacionesLoading"
+                v-model="programacionId"
+                label="Programación (jornada)"
+                :placeholder="programacionesLoading ? 'Cargando programaciones...' : 'Sin programación'"
+                help="Jornada elegida por el estudiante. Algunos descuentos aplican solo a ciertas jornadas."
+                :options="[{ value: '', label: 'Sin programación' }, ...programacionesOpciones]"
+                :disabled="programacionesLoading"
+                :error="fieldErrors.programacion_id?.[0]"
+              />
+
               <Transition
                 enter-active-class="transition-all duration-200"
                 enter-from-class="opacity-0 -translate-y-1"
@@ -298,6 +310,13 @@
                     </span>
                   </div>
                 </Transition>
+
+                <!-- Descuentos que se activan según sede, curso y jornada -->
+                <DescuentosMatriculaPanel
+                  v-if="precioSeleccionado"
+                  :preview="descuentosPreview"
+                  :loading="descuentosLoading"
+                />
               </template>
             </div>
 
@@ -855,7 +874,22 @@
                   </div>
                   <InfoItem v-if="precioSeleccionado?.precio_total" label="Total financiado" :value="formatCOP(precioSeleccionado.precio_total)" />
                   <InfoItem v-if="precioSeleccionado?.lista_precio" label="Lista de precios" :value="precioSeleccionado.lista_precio.nombre" />
+                  <InfoItem v-if="programacionId" label="Programación" :value="programacionResumen" />
                 </dl>
+                <!-- Descuentos que quedarán congelados en la matrícula -->
+                <div v-if="descuentosPreview?.descuentos?.length" class="mt-3 border-t border-slate-100 pt-3 text-sm">
+                  <p class="text-xs text-slate-400">Descuentos aplicados</p>
+                  <ul class="mt-1 space-y-0.5">
+                    <li v-for="d in descuentosPreview.descuentos" :key="d.id" class="flex justify-between text-emerald-700">
+                      <span>{{ d.nombre }}</span>
+                      <span class="font-medium">− {{ formatCOP(d.valor_descuento) }}</span>
+                    </li>
+                  </ul>
+                  <p class="mt-1 flex justify-between font-semibold text-slate-800">
+                    <span>Total del curso con descuento</span>
+                    <span>{{ formatCOP(descuentosPreview.total_curso_con_descuento) }}</span>
+                  </p>
+                </div>
               </SummaryCard>
 
               <SummaryCard title="Detalles de matrícula">
@@ -928,6 +962,7 @@ import FormInput      from '@/components/forms/FormInput.vue'
 import FormSelect     from '@/components/forms/FormSelect.vue'
 import FormTextarea   from '@/components/forms/FormTextarea.vue'
 import FormFileUpload from '@/components/forms/FormFileUpload.vue'
+import DescuentosMatriculaPanel from '@/components/academico/DescuentosMatriculaPanel.vue'
 
 import { useMatriculaWizard, WIZARD_STEPS, formatDate, formatCOP } from '@/composables/useMatriculaWizard.js'
 import { useNotification } from '@/composables/useNotification.js'
@@ -956,10 +991,12 @@ const {
   cursoId, cicloId, ciclosDisponibles, ciclosLoading, cicloSeleccionado,
   cursosOpciones, cursosMap, ciclosOpciones,
   onCursoChange, onCicloChange,
+  programacionId, programacionesOpciones, programacionesLoading,
 
   // Paso 2 — Precio
   preciosDisponibles, precioSeleccionado, precioLoading, sinPrecioConfigurado,
   seleccionarPrecio,
+  descuentosPreview, descuentosLoading,
 
   // Paso 3 — Estudiante
   documentoBusqueda, estudianteBuscando, estudianteEstado,
@@ -986,6 +1023,11 @@ const {
   sedes:       computed(() => props.sedes),
   comerciales: computed(() => props.comerciales)
 })
+
+/** Nombre de la programación elegida para la tarjeta de confirmación. */
+const programacionResumen = computed(() =>
+  programacionesOpciones.value.find((o) => o.value === String(programacionId.value))?.label ?? ''
+)
 
 // ─── Handlers ──────────────────────────────────────────────────────────────────
 function handleClose() {

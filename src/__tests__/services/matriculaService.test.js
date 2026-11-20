@@ -169,4 +169,15 @@ describe('matriculaService — estado académico', () => {
     await matriculaService.historialEstados(3)
     expect(api.get).toHaveBeenCalledWith('/academico/matriculas/3/historial-estados')
   })
+  describe('precalcularDescuentos', () => {
+    it('llama a POST precalcular-descuentos con el contexto y retorna data', async () => {
+      const payload = { sede_id: 1, curso_id: 2, ciclo_id: 3, programacion_id: 4, lp_precio_producto_id: 5 }
+      api.post.mockResolvedValue({ data: { data: { total_curso: 1000000, descuentos: [] } } })
+
+      const result = await matriculaService.precalcularDescuentos(payload, { _silent: true })
+
+      expect(api.post).toHaveBeenCalledWith(`${BASE}/precalcular-descuentos`, payload, { _silent: true })
+      expect(result.data.total_curso).toBe(1000000)
+    })
+  })
 })

@@ -1311,15 +1311,19 @@ async function calcular() {
       }
 
       // Descuento de matrícula automático (cuota numero_cuota = 0)
+      // Una línea por cada descuento congelado al matricular (pueden ser varios acumulables)
       const descMat = desc?.descuento_matricula
       if (descMat?.aplica) {
-        items.push({
+        const detalle = descMat.descuentos?.length
+          ? descMat.descuentos
+          : [{ nombre: descMat.descuento?.nombre, valor_descuento: descMat.valor }]
+        detalle.forEach(d => items.push({
           tipo:   'descuento',
-          label:  descMat.descuento?.nombre ?? 'Descuento matrícula',
-          motivo: descMat.motivo ?? '',
-          valor:  descMat.valor,
+          label:  d.nombre ?? 'Descuento matrícula',
+          motivo: d.tipo === 'porcentual' ? `${d.valor} %` : '',
+          valor:  d.valor_descuento,
           pagado: 0,
-        })
+        }))
       }
     } catch { /* no bloquea el flujo */ }
   }

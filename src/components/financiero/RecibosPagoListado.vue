@@ -376,6 +376,33 @@
         </p>
       </div>
 
+      <!-- Descuentos aplicados: a cuánto equivale cada uno y sobre qué rubro -->
+      <div v-if="detailRecibo.descuentos?.length">
+        <h3 class="mb-2 text-sm font-semibold text-slate-700">Descuentos aplicados</h3>
+        <div class="overflow-auto rounded-lg border border-black/10">
+          <table class="w-full text-xs">
+            <thead class="bg-slate-50">
+              <tr>
+                <th class="px-3 py-2 text-left font-medium text-slate-500">Descuento</th>
+                <th class="px-3 py-2 text-left font-medium text-slate-500">Rubro</th>
+                <th class="px-3 py-2 text-right font-medium text-slate-500">Valor original</th>
+                <th class="px-3 py-2 text-right font-medium text-slate-500">Descuento</th>
+                <th class="px-3 py-2 text-right font-medium text-slate-500">Valor final</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-black/5">
+              <tr v-for="(d, i) in detailRecibo.descuentos" :key="`${d.id}-${d.cartera_id}-${i}`" class="hover:bg-slate-50">
+                <td class="px-3 py-2 font-medium text-slate-800">{{ d.nombre }}</td>
+                <td class="px-3 py-2 text-slate-600">{{ d.rubro === 'matricula' ? 'Matrícula' : d.rubro === 'cuota' ? 'Cuota' : '—' }}</td>
+                <td class="px-3 py-2 text-right font-mono text-slate-800">$ {{ formatMoney(d.valor_original) }}</td>
+                <td class="px-3 py-2 text-right font-mono font-medium text-emerald-700">− $ {{ formatMoney(d.valor_descuento) }}</td>
+                <td class="px-3 py-2 text-right font-mono text-slate-900">$ {{ formatMoney(d.valor_final) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Conceptos de pago -->
       <div v-if="detailRecibo.conceptos_pago?.length">
         <h3 class="mb-2 text-sm font-semibold text-slate-700">Conceptos de pago</h3>
@@ -964,7 +991,7 @@ async function openDetail(recibo) {
   showDetailModal.value = true
   detailLoading.value   = true
   try {
-    const res = await reciboPagoService.getById(recibo.id, { with: 'sede,cajero,estudiante,conceptosPago,mediosPago.banco,mediosPago.cuentaBancaria.banco,sobrecargos,matricula,pedidoLinks' })
+    const res = await reciboPagoService.getById(recibo.id, { with: 'sede,cajero,estudiante,conceptosPago,descuentos,mediosPago.banco,mediosPago.cuentaBancaria.banco,sobrecargos,matricula,pedidoLinks' })
     detailRecibo.value = res.data
   } catch {
     // Mantiene los datos del listado

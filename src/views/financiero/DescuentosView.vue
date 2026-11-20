@@ -334,6 +334,33 @@
         <label for="permite_acumulacion" class="text-sm text-slate-700">Permite acumulación con otros descuentos</label>
       </div>
 
+      <!-- Alcance: sedes, cursos y jornadas (sin selección = aplica a todos) -->
+      <div v-if="createForm.tipo_movimiento === 'descuento'" class="space-y-4 rounded-lg border border-slate-200 p-4">
+        <div>
+          <h4 class="text-sm font-semibold text-slate-800">Aplica a</h4>
+          <p class="text-xs text-slate-500">
+            Si eliges varias opciones deben cumplirse todas (sede, curso y jornada). Sin selección en un grupo, aplica a todos.
+          </p>
+        </div>
+        <FormCheckboxGroup
+          v-model="createForm.sedes"
+          label="Sedes"
+          search-placeholder="Buscar sede..."
+          :options="sedesOpciones"
+        />
+        <FormCheckboxGroup
+          v-model="createForm.cursos"
+          label="Cursos"
+          search-placeholder="Buscar curso..."
+          :options="cursosOpciones"
+        />
+        <FormCheckboxGroup
+          v-model="createForm.jornadas"
+          label="Jornadas"
+          :options="jornadasOpciones"
+        />
+      </div>
+
       <!-- Rango de vigencia -->
       <div class="grid gap-4 sm:grid-cols-2">
         <FormInput
@@ -439,6 +466,18 @@
         <div v-if="detailItem.marca_tarjeta?.length">
           <dt class="font-medium text-slate-500">Marcas</dt>
           <dd class="mt-0.5 text-slate-900">{{ detailItem.marca_tarjeta.join(', ') }}</dd>
+        </div>
+        <div v-if="detailItem.sedes?.length" class="col-span-2">
+          <dt class="font-medium text-slate-500">Sedes</dt>
+          <dd class="mt-0.5 text-slate-900">{{ detailItem.sedes.map((x) => x.nombre).join(', ') }}</dd>
+        </div>
+        <div v-if="detailItem.cursos?.length" class="col-span-2">
+          <dt class="font-medium text-slate-500">Cursos</dt>
+          <dd class="mt-0.5 text-slate-900">{{ detailItem.cursos.map((x) => x.nombre).join(', ') }}</dd>
+        </div>
+        <div v-if="detailItem.jornadas?.length" class="col-span-2">
+          <dt class="font-medium text-slate-500">Jornadas</dt>
+          <dd class="mt-0.5 text-slate-900">{{ detailItem.jornadas.map(jornadaLabel).join(', ') }}</dd>
         </div>
         <div>
           <dt class="font-medium text-slate-500">Acumulable</dt>
@@ -577,9 +616,13 @@ import StatusBadge     from '@/components/activos/StatusBadge.vue'
 import FormInput       from '@/components/forms/FormInput.vue'
 import FormInputSearch from '@/components/forms/FormInputSearch.vue'
 import FormSelect      from '@/components/forms/FormSelect.vue'
+import FormCheckboxGroup from '@/components/forms/FormCheckboxGroup.vue'
 import NavIcon         from '@/components/icons/NavIcon.vue'
 import ModalBase       from '@/components/ModalBase.vue'
 import descuentoService from '@/services/descuentoService.js'
+import sedeService      from '@/services/sedeService.js'
+import cursoService     from '@/services/cursoService.js'
+import { JORNADAS, jornadaLabel } from '@/utils/jornadas.js'
 import { useNotification } from '@/composables/useNotification'
 
 const { success: notifySuccess, error: notifyError } = useNotification()
@@ -780,7 +823,29 @@ const createForm = reactive({
   medios_pago:         [],
   marca_tarjeta:       [],
   marca_tarjeta_input: '',
+  // alcance (vacío = todos)
+  sedes:               [],
+  cursos:              [],
+  jornadas:            [],
 })
+
+// ─── Alcance: catálogos de sedes, cursos y jornadas ───────────────────────────
+const sedesOpciones    = ref([])
+const cursosOpciones   = ref([])
+const jornadasOpciones = JORNADAS
+
+/** Carga una sola vez las sedes y cursos activos para el selector de alcance. */
+async function cargarAlcance() {
+  if (sedesOpciones.value.length || cursosOpciones.value.length) return
+  try {
+    const [sedesRes, cursosRes] = await Promise.all([
+      sedeService.getAll({ status: 1, per_page: 200 }),
+      cursoService.getAll({ status: 1, per_page: 200 }),
+    ])
+    sedesOpciones.value  = (sedesRes.data  ?? []).map((x) => ({ value: x.id, label: x.nombre }))
+    cursosOpciones.value = (cursosRes.data ?? []).map((x) => ({ value: x.id, label: x.nombre }))
+  } catch { /* el alcance es opcional: sin catálogos el descuento aplica a todos */ }
+}
 
 function resetCreateForm() {
   Object.assign(createForm, {
@@ -798,6 +863,9 @@ function resetCreateForm() {
     medios_pago:         [],
     marca_tarjeta:       [],
     marca_tarjeta_input: '',
+    sedes:               [],
+    cursos:              [],
+    jornadas:            [],
   })
   createError.value = ''
 }
@@ -814,6 +882,7 @@ watch(() => createForm.tipo_movimiento, (val) => {
 
 function openCreate() {
   resetCreateForm()
+  cargarAlcance()
   showCreateModal.value = true
 }
 
@@ -863,6 +932,11 @@ async function submitCreate() {
   }
 
   if (createForm.tipo_movimiento === 'descuento') {
+    // El alcance solo se envía con selección; vacío significa que aplica a todos
+    if (createForm.sedes.length)    payload.sedes    = createForm.sedes
+    if (createForm.cursos.length)   payload.cursos   = createForm.cursos
+    if (createForm.jornadas.length) payload.jornadas = createForm.jornadas
+
     if (createForm.tipo_activacion === 'pago_anticipado' && createForm.dias_anticipacion) {
       payload.dias_anticipacion = createForm.dias_anticipacion
     }

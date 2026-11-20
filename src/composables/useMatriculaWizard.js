@@ -17,6 +17,7 @@ import poblacionService      from '@/services/poblacionService.js'
 import epsService            from '@/services/epsService.js'
 import { nombreCompleto }    from '@/utils/formatters.js'
 import { authService }       from '@/services/authService.js'
+import { useDescuentosMatricula } from '@/composables/useDescuentosMatricula.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Utilidades puras (exportadas para uso en el template)
@@ -206,6 +207,8 @@ const FIELD_STEP_MAP = {
   direccion: 4, lugar_origen_id: 4, celular: 4, telefono: 4,
   nivel_educacion: 4, ocupacion: 4, empresa: 4, estrato: 4, regimen_salud: 4, eps_id: 4,
   enfermedad_prioritaria: 4, enfermedad_detalle: 4, discapacidad: 4, tipo_discapacidad: 4, foto: 4,
+  // Paso 1 — programación elegida (jornada)
+  programacion_id: 1,
   // Paso 3 — estudiante (matrícula duplicada detectada por el backend)
   estudiante_id: 3,
   // Paso 5 — detalles de matrícula
@@ -240,6 +243,13 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
   const ciclosDisponibles   = ref([])
   const ciclosLoading       = ref(false)
   const cicloSeleccionado   = ref(null)
+  const programacionId      = ref('')   // programación elegida: de ella sale la jornada que define los descuentos
+
+  // Programaciones del curso y vista previa de descuentos (consultas informativas)
+  const {
+    programaciones, programacionesLoading, programacionesOpciones, cargarProgramaciones, limpiarProgramaciones,
+    preview: descuentosPreview, previewLoading: descuentosLoading, consultarDescuentos, limpiarDescuentos
+  } = useDescuentosMatricula()
 
   // ── Paso 2: Precio ──────────────────────────────────────────────────────────
   const preciosDisponibles  = ref([])   // array de opciones devuelto por el endpoint
@@ -530,6 +540,8 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     cicloSeleccionado.value    = null
     ciclosDisponibles.value    = []
     cursosEnSede.value         = []
+    programacionId.value       = ''
+    limpiarProgramaciones()
     preciosDisponibles.value   = []
     precioSeleccionado.value   = null
     sinPrecioConfigurado.value = false
@@ -572,6 +584,8 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     cicloId.value              = ''
     cicloSeleccionado.value    = null
     ciclosDisponibles.value    = []
+    programacionId.value       = ''
+    limpiarProgramaciones()
     preciosDisponibles.value   = []
     precioSeleccionado.value   = null
     sinPrecioConfigurado.value = false
@@ -617,6 +631,13 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     } finally {
       ciclosLoading.value = false
     }
+    await _cargarProgramaciones()
+  }
+
+  /** Carga las programaciones del curso en la sede; si solo hay una, la preselecciona. */
+  async function _cargarProgramaciones() {
+    await cargarProgramaciones(sedeId.value, cursoId.value)
+    if (programaciones.value.length === 1) programacionId.value = String(programaciones.value[0].id)
   }
 
   // ── Paso 3: búsqueda de estudiante ───────────────────────────────────────────
@@ -965,6 +986,27 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     }
   }
 
+  // ── Vista previa de descuentos ────────────────────────────────────────────────
+
+  /**
+   * Cada vez que cambia el curso/ciclo/programación/precio o la fecha, consulta qué descuentos
+   * se activan. Sin precio elegido no hay base de cálculo y se limpia la vista previa.
+   */
+  watch(
+    [programacionId, precioSeleccionado, cicloId, () => detalles.fecha_matricula],
+    () => {
+      if (!precioSeleccionado.value) { limpiarDescuentos(); return }
+      consultarDescuentos({
+        sedeId:         sedeDelCiclo.value?.id ?? cicloSeleccionado.value?.sede_id,
+        cursoId:        cursoId.value,
+        cicloId:        cicloId.value,
+        programacionId: programacionId.value,
+        precioId:       precioSeleccionado.value.id,
+        fecha:          detalles.fecha_matricula
+      })
+    }
+  )
+
   // ── Submit ────────────────────────────────────────────────────────────────────
 
   /**
@@ -1063,6 +1105,7 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
       sede_id:            Number(sedeDelCiclo.value?.id ?? cicloSeleccionado.value?.sede_id),
       curso_id:           Number(cursoId.value),
       ciclo_id:           Number(cicloId.value),
+      programacion_id:    num(programacionId.value),
       estudiante_id:      Number(estudianteId),
       matriculado_por_id: Number(detalles.matriculado_por_id),
       comercial_id:       Number(detalles.comercial_id),
@@ -1267,6 +1310,9 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     cicloId.value             = ''
     ciclosDisponibles.value   = []
     cicloSeleccionado.value   = null
+    programacionId.value      = ''
+    limpiarProgramaciones()
+    limpiarDescuentos()
 
     preciosDisponibles.value   = []
     precioSeleccionado.value   = null
@@ -1303,10 +1349,12 @@ export function useMatriculaWizard({ cursos, sedes, comerciales }) {
     cursoId, cicloId, ciclosDisponibles, ciclosLoading, cicloSeleccionado,
     cursosOpciones, cursosMap, ciclosOpciones,
     onCursoChange, onCicloChange,
+    programacionId, programacionesOpciones, programacionesLoading,
 
     // Paso 2 — Precio
     preciosDisponibles, precioSeleccionado, precioLoading, sinPrecioConfigurado,
     seleccionarPrecio,
+    descuentosPreview, descuentosLoading,
 
     // Paso 3 — Estudiante
     documentoBusqueda, estudianteBuscando, estudianteEstado,
