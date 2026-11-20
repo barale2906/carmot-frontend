@@ -33,7 +33,7 @@
         <h2 id="filtros-conceptos-heading" class="sr-only">Filtros y acciones</h2>
         <div class="flex flex-wrap items-end gap-4">
 
-          <div class="min-w-0 flex-1 sm:max-w-xs">
+          <FilterField size="search">
             <FormInputSearch
               v-model="filters.search"
               label="Buscar:"
@@ -41,7 +41,7 @@
               help="Busca por nombre del concepto en el listado actual."
               @input="onSearchInput"
             />
-          </div>
+          </FilterField>
 
           <div class="w-full sm:w-[200px]">
             <FormSelect
@@ -380,6 +380,7 @@
 </template>
 
 <script setup>
+import FilterField from '@/components/forms/FilterField.vue'
 import { ref, reactive, watch, onMounted } from 'vue'
 import StatCard from '@/components/dashboard/StatCard.vue'
 import DataTable from '@/components/activos/DataTable.vue'

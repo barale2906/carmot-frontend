@@ -9,7 +9,7 @@
         <div class="w-full sm:w-[200px]">
           <FormSelect v-model="filters.direccion" label="Dirección:" :options="opcionesDireccion" @change="loadTraslados(1)" />
         </div>
-        <div class="min-w-0 flex-1 sm:max-w-xs">
+        <FilterField size="search">
           <FormInputSearch
             v-model="filters.search"
             label="Buscar:"
@@ -17,7 +17,7 @@
             help="Busca por el ID del activo (número exacto), su nombre o serial."
             @input="onSearchInput"
           />
-        </div>
+        </FilterField>
       </div>
     </section>
 
@@ -123,6 +123,7 @@
 </template>
 
 <script setup>
+import FilterField from '@/components/forms/FilterField.vue'
 import { ref, reactive, computed, onMounted } from 'vue'
 import SectionHeader       from '@/components/activos/SectionHeader.vue'
 import StatusBadge         from '@/components/activos/StatusBadge.vue'

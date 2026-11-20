@@ -19,9 +19,9 @@
         <div class="w-full sm:w-[170px]">
           <FormSelect v-model="filtrosForm.naturaleza" label="Naturaleza:" placeholder="Todas" :options="opcionesDe(catalogos.naturalezas)" @change="buscar" />
         </div>
-        <div class="min-w-0 flex-1 sm:max-w-xs">
+        <FilterField size="search">
           <FormInputSearch v-model="filtrosForm.search" label="Buscar:" placeholder="Tercero, documento o usuario..." @input="onBuscarTexto" />
-        </div>
+        </FilterField>
       </div>
     </section>
 
@@ -139,6 +139,7 @@
 </template>
 
 <script setup>
+import FilterField from '@/components/forms/FilterField.vue'
 import { ref, reactive, computed, onMounted } from 'vue'
 import StatCard from '@/components/dashboard/StatCard.vue'
 import SectionHeader from '@/components/activos/SectionHeader.vue'

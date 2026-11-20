@@ -67,7 +67,7 @@
       </div>
 
       <div class="flex flex-wrap items-end gap-4">
-        <div class="min-w-0 flex-1 sm:max-w-xs">
+        <FilterField size="search">
           <FormInputSearch
             v-model="filters.search"
             label="Buscar:"
@@ -75,7 +75,7 @@
             help="Filtra matrículas por nombre de estudiante, curso o ciclo."
             @input="onSearchInput"
           />
-        </div>
+        </FilterField>
         <div class="w-full sm:w-[160px]">
           <FormSelect
             v-model="filters.status"
@@ -769,6 +769,7 @@
 </template>
 
 <script setup>
+import FilterField from '@/components/forms/FilterField.vue'
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 

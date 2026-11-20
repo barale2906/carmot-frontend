@@ -85,14 +85,14 @@
 
         <!-- Filtros exclusivos de la vista de lista -->
         <template v-if="vista === 'lista'">
-          <div class="min-w-0 flex-1 sm:max-w-xs">
+          <FilterField size="search">
             <FormInputSearch
               v-model="filters.search"
               label="Buscar:"
               placeholder="Nombre u observaciones..."
               @input="onSearchInput"
             />
-          </div>
+          </FilterField>
           <div class="w-full sm:w-[160px]">
             <FormSelect
               v-model="filters.tipo"
@@ -690,6 +690,7 @@
 </template>
 
 <script setup>
+import FilterField from '@/components/forms/FilterField.vue'
 import { ref, reactive, computed, onMounted } from 'vue'
 import diaNoLaborableService       from '@/services/diaNoLaborableService.js'
 import sedeService                 from '@/services/sedeService.js'

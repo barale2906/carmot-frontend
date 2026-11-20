@@ -41,7 +41,7 @@
         <div class="flex flex-wrap items-end gap-4">
 
           <!-- Búsqueda de estudiante por nombre o documento -->
-          <div class="min-w-0 flex-1 sm:min-w-[16rem] sm:max-w-xs">
+          <FilterField size="search">
             <div class="flex flex-col gap-2">
               <span class="flex items-center gap-1 text-sm font-medium text-slate-900">
                 Estudiante:
@@ -100,7 +100,7 @@
                 </div>
               </div>
             </div>
-          </div>
+          </FilterField>
 
           <div class="w-full sm:w-[180px]">
             <FormSelect
@@ -540,6 +540,7 @@
 </template>
 
 <script setup>
+import FilterField from '@/components/forms/FilterField.vue'
 import { formatMoney } from '@/utils/formatters.js'
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import StatCard      from '@/components/dashboard/StatCard.vue'

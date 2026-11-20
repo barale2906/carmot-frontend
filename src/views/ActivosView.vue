@@ -24,7 +24,7 @@
           <div class="w-full sm:w-[170px]">
             <FormSelect v-model="filters.estado" label="Estado:" :options="opcionesEstadoFiltro" @change="loadActivos(1)" />
           </div>
-          <div class="min-w-0 flex-1 sm:max-w-xs">
+          <FilterField size="search">
             <FormInputSearch
               v-model="filters.search"
               label="Buscar:"
@@ -32,7 +32,7 @@
               help="Busca activos por ID (número exacto), nombre o serial."
               @input="onSearchInput"
             />
-          </div>
+          </FilterField>
           <div v-if="can('act_activoCrear')" class="flex w-full gap-2 sm:w-auto">
             <button
               type="button"
@@ -220,6 +220,7 @@
 </template>
 
 <script setup>
+import FilterField from '@/components/forms/FilterField.vue'
 import { ref, reactive, computed, onMounted } from 'vue'
 import SectionHeader         from '@/components/activos/SectionHeader.vue'
 import AreaDistributionCard  from '@/components/activos/AreaDistributionCard.vue'

@@ -26,9 +26,9 @@
       <section aria-labelledby="filtros-listas-heading" class="rounded-[14px] border border-black/10 bg-white p-6">
         <h2 id="filtros-listas-heading" class="sr-only">Filtros de listas de precios</h2>
         <div class="flex flex-wrap items-end gap-4">
-          <div class="min-w-0 flex-1 sm:max-w-xs">
+          <FilterField size="search">
             <FormInputSearch v-model="listasFilters.search" label="Buscar:" placeholder="Nombre de la lista..." @input="onListasSearchInput" />
-          </div>
+          </FilterField>
           <div class="w-full sm:w-[200px]">
             <FormSelect v-model="listasFilters.status" label="Estado:" :options="statusFilterOptions" @change="loadListas(1)" />
           </div>
@@ -215,9 +215,9 @@
       <section aria-labelledby="filtros-precios-heading" class="rounded-[14px] border border-black/10 bg-white p-6">
         <h2 id="filtros-precios-heading" class="sr-only">Filtros de precios</h2>
         <div class="flex flex-wrap items-end gap-4">
-          <div class="min-w-0 flex-1 sm:max-w-xs">
+          <FilterField size="search">
             <FormInputSearch v-model="filters.search" label="Buscar:" placeholder="Nombre de producto..." @input="onSearchInput" />
-          </div>
+          </FilterField>
           <div class="w-full sm:w-[240px]">
             <InvProductoBuscador
               :key="filtroBuscadorKey"
@@ -425,6 +425,7 @@
 </template>
 
 <script setup>
+import FilterField from '@/components/forms/FilterField.vue'
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import invPrecioService       from '@/services/invPrecioService.js'
 import invListaPrecioService  from '@/services/invListaPrecioService.js'

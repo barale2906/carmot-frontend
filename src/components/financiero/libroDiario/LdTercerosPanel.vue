@@ -2,9 +2,9 @@
   <div class="flex flex-col gap-6">
     <section class="rounded-[14px] border border-black/10 bg-white p-6">
       <div class="flex flex-wrap items-end gap-4">
-        <div class="min-w-0 flex-1 sm:max-w-xs">
+        <FilterField size="search">
           <FormInputSearch v-model="filtros.search" label="Buscar:" placeholder="Nombre o identificación..." @input="onBuscar" />
-        </div>
+        </FilterField>
         <div class="w-full sm:w-[200px]">
           <FormSelect v-model="filtros.tipo_identificacion" label="Tipo de identificación:" placeholder="Todos" :options="opcionesTipo" />
         </div>
@@ -75,6 +75,7 @@
 </template>
 
 <script setup>
+import FilterField from '@/components/forms/FilterField.vue'
 import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import SectionHeader from '@/components/activos/SectionHeader.vue'
 import DataTable from '@/components/activos/DataTable.vue'

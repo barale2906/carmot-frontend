@@ -41,9 +41,9 @@
         <div class="w-full sm:w-[180px]">
           <FormSelect v-model="filters.almacen_id" label="Almacén:" placeholder="Todos" :options="almacenOptions" @change="onFilterChange" />
         </div>
-        <div class="min-w-0 flex-1 sm:max-w-[240px]">
+        <FilterField size="search">
           <FormInputSearch v-model="filters.search" label="Producto:" placeholder="Buscar producto..." @input="onSearchInput" />
-        </div>
+        </FilterField>
         <div class="flex w-full items-end gap-2 sm:w-auto">
           <button
             type="button"
@@ -147,6 +147,7 @@
 </template>
 
 <script setup>
+import FilterField from '@/components/forms/FilterField.vue'
 import { ref, reactive, computed, onMounted } from 'vue'
 import invStockService   from '@/services/invStockService.js'
 import invAlmacenService from '@/services/invAlmacenService.js'

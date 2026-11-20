@@ -53,7 +53,7 @@
             </div>
           </div>
 
-          <div class="min-w-0 flex-1 sm:max-w-xs">
+          <FilterField size="search">
             <FormInputSearch
               v-model="filters.search"
               label="Buscar:"
@@ -61,7 +61,7 @@
               help="Filtra por número de recibo o por nombre/documento del estudiante."
               @input="onSearchInput"
             />
-          </div>
+          </FilterField>
 
           <div class="w-full sm:w-[180px]">
             <FormSelect
@@ -730,6 +730,7 @@
 </template>
 
 <script setup>
+import FilterField from '@/components/forms/FilterField.vue'
 import { formatMoney } from '@/utils/formatters.js'
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRouter }           from 'vue-router'

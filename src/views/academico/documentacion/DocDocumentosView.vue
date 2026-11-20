@@ -5,9 +5,9 @@
     <section aria-labelledby="filtros-documentos-heading" class="rounded-[14px] border border-black/10 bg-white p-6">
       <h2 id="filtros-documentos-heading" class="sr-only">Filtros de la bitácora</h2>
       <div class="flex flex-wrap items-end gap-4">
-        <div class="min-w-0 flex-1 sm:max-w-xs">
+        <FilterField size="search">
           <FormInputSearch v-model="filters.search" label="Buscar:" placeholder="Nombre del archivo subido..." @input="onSearchInput" />
-        </div>
+        </FilterField>
         <div class="w-full sm:w-[260px]">
           <FormSelect v-model="filters.tipo_documento_id" label="Tipo de documento:" placeholder="Todos" :options="tiposOptions" @change="loadDocumentos(1)" />
         </div>
@@ -182,6 +182,7 @@
 </template>
 
 <script setup>
+import FilterField from '@/components/forms/FilterField.vue'
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import docDocumentoService      from '@/services/docDocumentoService.js'

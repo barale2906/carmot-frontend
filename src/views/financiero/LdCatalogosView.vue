@@ -3,9 +3,9 @@
     <section class="rounded-[14px] border border-black/10 bg-white p-6">
       <FormTabs v-model="catalogo" :tabs="pestanas" @update:model-value="cambiarCatalogo" />
       <div v-if="!esTerceros" class="mt-4 flex flex-wrap items-end gap-4">
-        <div class="min-w-0 flex-1 sm:max-w-xs">
+        <FilterField size="search">
           <FormInputSearch v-model="search" label="Buscar:" placeholder="Nombre..." @input="onBuscar" />
-        </div>
+        </FilterField>
         <button
           v-if="can('fin_ldCatalogoCrear')"
           type="button"
@@ -100,6 +100,7 @@
 </template>
 
 <script setup>
+import FilterField from '@/components/forms/FilterField.vue'
 import { ref, reactive, computed, onMounted } from 'vue'
 import SectionHeader from '@/components/activos/SectionHeader.vue'
 import DataTable from '@/components/activos/DataTable.vue'

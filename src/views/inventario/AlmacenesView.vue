@@ -5,9 +5,9 @@
     <section aria-labelledby="filtros-almacenes-heading" class="rounded-[14px] border border-black/10 bg-white p-6">
       <h2 id="filtros-almacenes-heading" class="sr-only">Filtros y acciones</h2>
       <div class="flex flex-wrap items-end gap-4">
-        <div class="min-w-0 flex-1 sm:max-w-xs">
+        <FilterField size="search">
           <FormInputSearch v-model="filters.search" label="Buscar:" placeholder="Nombre del almacén..." @input="onSearchInput" />
-        </div>
+        </FilterField>
         <div class="w-full sm:w-[160px]">
           <FormSelect v-model="filters.status" label="Estado:" placeholder="Todos" :options="statusOptions" @change="onFilterChange" />
         </div>
@@ -157,6 +157,7 @@
 </template>
 
 <script setup>
+import FilterField from '@/components/forms/FilterField.vue'
 import { ref, reactive, computed, onMounted } from 'vue'
 import invAlmacenService from '@/services/invAlmacenService.js'
 import sedeService       from '@/services/sedeService.js'

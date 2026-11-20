@@ -5,14 +5,14 @@
     <section aria-labelledby="filtros-agendas-heading" class="rounded-[14px] border border-black/10 bg-white p-6">
       <h2 id="filtros-agendas-heading" class="sr-only">Filtros y acciones</h2>
       <div class="flex flex-wrap items-end gap-4">
-        <div class="min-w-0 flex-1 sm:max-w-xs">
+        <FilterField size="search">
           <FormInputSearch
             v-model="filters.search"
             label="Buscar:"
             placeholder="Nombre o celular del lead..."
             @input="onSearchInput"
           />
-        </div>
+        </FilterField>
         <div class="w-full sm:w-[160px]">
           <FormInput v-model="filters.fecha_desde" type="date" label="Desde:" @change="loadAgendas(1)" />
         </div>
@@ -261,6 +261,7 @@
 </template>
 
 <script setup>
+import FilterField from '@/components/forms/FilterField.vue'
 import { ref, reactive, computed, onMounted } from 'vue'
 import agendaService   from '@/services/agendaService.js'
 import SectionHeader   from '@/components/activos/SectionHeader.vue'
