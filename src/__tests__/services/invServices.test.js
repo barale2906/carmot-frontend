@@ -542,6 +542,13 @@ describe('invListaPrecioService', () => {
     expect(api.get).toHaveBeenCalledWith(BASE, { params: {} })
   })
 
+  it('getPoblaciones llama GET /poblaciones', async () => {
+    api.get.mockResolvedValue(ok({ data: [{ id: 1, nombre: 'Cali' }] }))
+    const res = await invListaPrecioService.getPoblaciones()
+    expect(api.get).toHaveBeenCalledWith(`${BASE}/poblaciones`)
+    expect(res.data).toHaveLength(1)
+  })
+
   it('getById llama GET /{id}', async () => {
     api.get.mockResolvedValue(ok({ id: 5, nombre: 'Lista A' }))
     const res = await invListaPrecioService.getById(5)

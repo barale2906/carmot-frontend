@@ -1022,6 +1022,9 @@ const modulosConPermisos = reactive([
       { key: 'aca_asistenciaEditar', descripcion: 'Editar asistencia' },
       { key: 'aca_asistenciaInactivar', descripcion: 'Inactivar asistencia' },
       { key: 'aca_asistenciaReportes', descripcion: 'Ver reportes de asistencia' },
+      { key: 'aca_reposiciones', descripcion: 'Ver reposiciones de clase' },
+      { key: 'aca_reposicionCrear', descripcion: 'Registrar reposición de clase' },
+      { key: 'aca_reposicionInactivar', descripcion: 'Cancelar reposición de clase' },
       { key: 'aca_claseProgramar', descripcion: 'Programar clases' },
       { key: 'aca_configuracionAsistencia', descripcion: 'Configurar topes de asistencia' }
     ]

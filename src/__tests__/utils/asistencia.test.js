@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   ESTADOS_ASISTENCIA, admiteJustificacion, justificacionesSinMotivo, paramsListado,
-  claseSugerida, esClaseFutura, rangoHoras, buscarEstudiantesEnClases, construirPlanilla, resumenPlanilla, payloadPlanilla, etiquetaClase
+  claseSugerida, esClaseFutura, rangoHoras, buscarEstudiantesEnClases, construirPlanilla, resumenPlanilla, payloadPlanilla, etiquetaClase,
+  invitadosDeReposiciones, estudiantesConInvitados, etiquetaClaseReposicion, claseEstadoEstudiante, esDesertado
 } from '@/utils/asistencia.js'
 
 const clases = [
@@ -140,5 +141,36 @@ describe('buscarEstudiantesEnClases', () => {
   it('sin consulta o sin coincidencias devuelve vacío', () => {
     expect(buscarEstudiantesEnClases(clasesDia, '  ')).toEqual([])
     expect(buscarEstudiantesEnClases(clasesDia, 'zzz')).toEqual([])
+  })
+})
+
+describe('reposiciones en la planilla', () => {
+  it('extrae los invitados de las reposiciones de la clase', () => {
+    const reposiciones = [{ estudiante: { id: 7, name: 'Ana', documento: '1', extra: 'x' } }, { estudiante: null }]
+    expect(invitadosDeReposiciones(reposiciones)).toEqual([{ id: 7, name: 'Ana', documento: '1' }])
+    expect(invitadosDeReposiciones(undefined)).toEqual([])
+  })
+
+  it('une estudiantes e invitados sin repetir y marca a los invitados', () => {
+    const r = estudiantesConInvitados([{ id: 1, name: 'A' }], [{ id: 1, name: 'A' }, { id: 7, name: 'Ana' }])
+    expect(r).toEqual([{ id: 1, name: 'A' }, { id: 7, name: 'Ana', invitado: true }])
+  })
+
+  it('etiqueta la clase con día, horas, grupo y sede', () => {
+    const etiqueta = etiquetaClaseReposicion({ fecha_clase: '2026-11-19', hora_inicio: '08:00:00', hora_fin: '10:00:00', grupo: { nombre: 'Grupo B', sede: 'Tunja' } })
+    expect(etiqueta).toContain('19/11')
+    expect(etiqueta).toContain('08:00–10:00')
+    expect(etiqueta).toContain('Grupo B (Tunja)')
+  })
+})
+
+describe('estado del estudiante', () => {
+  it('destaca al desertado', () => {
+    expect(esDesertado({ estado_estudiante: 'Desertado' })).toBe(true)
+    expect(esDesertado({ estado_estudiante: 'Activo' })).toBe(false)
+    expect(esDesertado(null)).toBe(false)
+    expect(claseEstadoEstudiante('Desertado')).toContain('red')
+    expect(claseEstadoEstudiante('En mora')).toContain('amber')
+    expect(claseEstadoEstudiante('Activo')).toContain('slate')
   })
 })

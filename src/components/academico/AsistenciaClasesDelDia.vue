@@ -78,6 +78,7 @@
           <div>
             <p class="font-semibold text-slate-900">{{ seleccion.estudiante.name }}</p>
             <p class="text-xs text-slate-500">{{ seleccion.estudiante.documento ?? '' }} · {{ etiquetaCorta(seleccion.clase) }}</p>
+            <p v-if="esInvitado" class="mt-1 text-xs font-semibold text-blue-800">Es de otro grupo y toma esta clase por una reposición.</p>
           </div>
           <CarteraEstado :estudiante="datosCartera" />
         </div>
@@ -218,7 +219,7 @@ import CarteraEstado     from '@/components/academico/CarteraEstado.vue'
 import { useNotification } from '@/composables/useNotification'
 import { fechaISO } from '@/utils/crm.js'
 import {
-  ESTADOS_ASISTENCIA, admiteJustificacion, rangoHoras, buscarEstudiantesEnClases
+  ESTADOS_ASISTENCIA, admiteJustificacion, rangoHoras, buscarEstudiantesEnClases, estudiantesConInvitados
 } from '@/utils/asistencia.js'
 
 defineProps({
@@ -254,7 +255,8 @@ async function cargar() {
   error.value    = ''
   try {
     const res = await asistenciaService.clasesDelDia({ fecha: fechaISO(), ...(sedeId.value ? { sede_id: sedeId.value } : {}) })
-    clases.value = res.data?.clases ?? []
+    // Los invitados por reposición se buscan y se registran como cualquier estudiante de la clase
+    clases.value = (res.data?.clases ?? []).map(c => ({ ...c, estudiantes: estudiantesConInvitados(c.estudiantes, c.invitados) }))
     sedes.value  = res.data?.sedes ?? []
   } catch (e) {
     error.value = e?.response?.data?.message ?? 'No se pudieron cargar las clases de hoy.'
@@ -339,6 +341,9 @@ function cancelarSeleccion() {
   registroPrevio.value = null
   datosCartera.value = null
 }
+
+// Una persona puede ser de un grupo y estar invitada a la clase de otro: se mira la clase elegida
+const esInvitado = computed(() => !!seleccion.value?.clase.invitados?.some(i => i.id === seleccion.value.estudiante.id))
 
 const historial = ref([])
 

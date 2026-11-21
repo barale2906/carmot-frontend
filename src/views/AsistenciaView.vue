@@ -158,6 +158,13 @@
                         </td>
                         <td class="px-4 py-2">
                           <span class="font-medium text-slate-900">{{ estudiantesMap[fila.estudiante_id]?.name }}</span>
+                          <span
+                            v-if="esDesertado(estudiantesMap[fila.estudiante_id])"
+                            class="ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                            :class="claseEstadoEstudiante('Desertado')"
+                            :title="`${estudiantesMap[fila.estudiante_id].fallas_consecutivas} fallas seguidas: se marca Desertado y vuelve a Activo al registrarle asistencia`"
+                          >Desertado</span>
+                          <span v-if="estudiantesMap[fila.estudiante_id]?.invitado" class="ml-2 rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold text-blue-800" title="Es de otro grupo y toma esta clase por una reposición">Reposición</span>
                           <span v-if="!fila.guardada" class="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">sin registrar</span>
                         </td>
                         <td class="px-4 py-2 text-slate-600">{{ estudiantesMap[fila.estudiante_id]?.documento ?? '—' }}</td>
@@ -251,6 +258,11 @@
     <template #listado>
       <AsistenciaListado v-if="vistaListadoAbierta" />
     </template>
+
+    <!-- Reposiciones: clases tomadas en otro grupo -->
+    <template #reposiciones>
+      <AsistenciaReposiciones v-if="vistaReposicionesAbierta" />
+    </template>
   </FormTabs>
 </template>
 
@@ -266,13 +278,15 @@ import SectionHeader     from '@/components/activos/SectionHeader.vue'
 import DataTable         from '@/components/activos/DataTable.vue'
 import AsistenciaClasesDelDia from '@/components/academico/AsistenciaClasesDelDia.vue'
 import AsistenciaListado from '@/components/academico/AsistenciaListado.vue'
+import AsistenciaReposiciones from '@/components/academico/AsistenciaReposiciones.vue'
 import CarteraEstado     from '@/components/academico/CarteraEstado.vue'
 import { usePermisos }     from '@/composables/usePermisos.js'
 import { useNotification } from '@/composables/useNotification'
 import { fechaISO } from '@/utils/crm.js'
 import {
   ESTADOS_ASISTENCIA, PORCENTAJE_MINIMO_DEFECTO, admiteJustificacion, justificacionesSinMotivo,
-  claseSugerida, esClaseFutura, construirPlanilla, resumenPlanilla, payloadPlanilla, etiquetaClase
+  claseSugerida, esClaseFutura, construirPlanilla, resumenPlanilla, payloadPlanilla, etiquetaClase,
+  estudiantesConInvitados, invitadosDeReposiciones, claseEstadoEstudiante, esDesertado
 } from '@/utils/asistencia.js'
 
 const { can, loadPermisos } = usePermisos()
@@ -280,14 +294,19 @@ const { success: notifySuccess, error: notifyError } = useNotification()
 
 const puedeRegistrar = computed(() => can('aca_asistenciaCrear'))
 
-const vistas = [
+const vistas = computed(() => [
   { value: 'tomar',   label: 'Asistencia por grupo' },
-  { value: 'listado', label: 'Listado y Excel' }
-]
+  { value: 'listado', label: 'Listado y Excel' },
+  ...(can('aca_reposiciones') ? [{ value: 'reposiciones', label: 'Reposiciones' }] : [])
+])
 const vista = ref('tomar')
 // El listado se carga la primera vez que se abre su pestaña y luego conserva sus filtros
 const vistaListadoAbierta = ref(false)
-watch(vista, v => { if (v === 'listado') vistaListadoAbierta.value = true })
+const vistaReposicionesAbierta = ref(false)
+watch(vista, v => {
+  if (v === 'listado') vistaListadoAbierta.value = true
+  if (v === 'reposiciones') vistaReposicionesAbierta.value = true
+})
 
 const tabs = [
   { value: 'toma',    label: 'Tomar asistencia' },
@@ -333,7 +352,9 @@ const claseId       = ref('')
 const planilla      = ref([])
 const generando     = ref(false)
 
-const estudiantesMap = computed(() => Object.fromEntries((lista.value?.estudiantes ?? []).map(e => [e.id, e])))
+// Estudiantes de otros grupos que tomarán esta clase por una reposición
+const estudiantesPlanilla = computed(() => estudiantesConInvitados(lista.value?.estudiantes, invitadosDeReposiciones(claseActual.value?.reposiciones)))
+const estudiantesMap = computed(() => Object.fromEntries(estudiantesPlanilla.value.map(e => [e.id, e])))
 const opcionesClase  = computed(() => (lista.value?.clases_programadas ?? []).map(c => ({ value: c.id, label: etiquetaClase(c) })))
 const claseActual    = computed(() => lista.value?.clases_programadas?.find(c => String(c.id) === String(claseId.value)) ?? null)
 const claseFutura    = computed(() => esClaseFutura(claseActual.value, fechaISO()))
@@ -367,7 +388,7 @@ async function onClaseChange() {
   if (!claseId.value) return
   try {
     const res = await asistenciaService.getByClase(claseId.value)
-    planilla.value = construirPlanilla(lista.value?.estudiantes, res.data)
+    planilla.value = construirPlanilla(estudiantesPlanilla.value, res.data)
   } catch (e) {
     notifyError(e?.response?.data?.message ?? 'No se pudo cargar la asistencia de la clase.')
   }

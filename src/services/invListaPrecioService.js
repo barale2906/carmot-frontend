@@ -7,11 +7,17 @@ const BASE = '/inventarios/listas-precios'
  * Flujo de estados: En Proceso (1) → Aprobada (2) → Activa (3) / Inactiva (0).
  * Permisos: inv_listas, inv_listasCrear, inv_listasEditar, inv_listasInactivar, inv_listasAprobar, inv_listasClonar.
  *
- * @param {Object} params - Filtros: search, status, poblacion_id, vigentes, per_page, sort_by, sort_direction
+ * @param {Object} params - Filtros: search (lista o producto), status, poblacion_id, vigencia ('vigentes'|'vencidas'), vigentes, per_page, sort_by, sort_direction
  */
 const invListaPrecioService = {
   async getAll(params = {}) {
     const { data } = await api.get(BASE, { params })
+    return data
+  },
+
+  /** Poblaciones que tienen al menos una lista de inventario (opciones del filtro del listado). */
+  async getPoblaciones() {
+    const { data } = await api.get(`${BASE}/poblaciones`)
     return data
   },
 

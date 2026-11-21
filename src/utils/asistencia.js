@@ -151,3 +151,42 @@ export function paramsListado(filtros) {
   }
   return params
 }
+
+/**
+ * Estudiantes invitados a una clase por una reposición, de las `reposiciones` de la clase programada
+ * (`{ estudiante: { id, name, documento } }`) a `{ id, name, documento }`.
+ */
+export function invitadosDeReposiciones(reposiciones) {
+  return (reposiciones ?? []).filter(r => r.estudiante).map(r => ({
+    id: r.estudiante.id, name: r.estudiante.name, documento: r.estudiante.documento
+  }))
+}
+
+/** Une los estudiantes del grupo con los invitados por reposición (sin repetir), marcando a estos con `invitado: true`. */
+export function estudiantesConInvitados(estudiantes, invitados) {
+  const propios = estudiantes ?? []
+  const ids = new Set(propios.map(e => e.id))
+  const extra = (invitados ?? []).filter(i => !ids.has(i.id)).map(i => ({ ...i, invitado: true }))
+  return [...propios, ...extra]
+}
+
+/** Etiqueta de una clase para elegirla en una reposición: "mar 13/10 · 08:00–10:00 · Grupo A (Sede)". */
+export function etiquetaClaseReposicion(clase) {
+  if (!clase) return ''
+  const [y, m, d] = String(clase.fecha_clase).split('-').map(Number)
+  const dia = new Date(y, m - 1, d).toLocaleDateString('es-CO', { weekday: 'short' }).replace('.', '')
+  const sede = clase.grupo?.sede ? ` (${clase.grupo.sede})` : ''
+  return `${dia} ${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')} · ${rangoHoras(clase)} · ${clase.grupo?.nombre ?? ''}${sede}`
+}
+
+/** Clases del distintivo del estado del estudiante en el curso (`estado_estudiante`): Desertado en rojo, En mora en ámbar. */
+export function claseEstadoEstudiante(estado) {
+  if (estado === 'Desertado') return 'bg-red-100 text-red-800 ring-1 ring-red-300'
+  if (estado === 'En mora') return 'bg-amber-100 text-amber-800 ring-1 ring-amber-300'
+  return 'bg-slate-100 text-slate-600'
+}
+
+/** Solo se destaca al estudiante Desertado: es el aviso que el instituto debe ver al tomar la asistencia. */
+export function esDesertado(estudiante) {
+  return estudiante?.estado_estudiante === 'Desertado'
+}

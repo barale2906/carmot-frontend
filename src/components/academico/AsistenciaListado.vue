@@ -65,6 +65,7 @@
           <template v-else-if="column.key === 'estudiante'">
             <span class="font-medium text-slate-900">{{ row.estudiante?.name }}</span>
             <span class="block text-xs text-slate-500">{{ row.estudiante?.documento ?? '—' }}</span>
+            <span v-if="esDesertado(row)" class="mt-0.5 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="claseEstadoEstudiante('Desertado')">Desertado</span>
           </template>
           <template v-else-if="column.key === 'grupo'">
             {{ row.grupo?.nombre ?? '—' }}
@@ -133,7 +134,7 @@ import { useNotification } from '@/composables/useNotification'
 import { descargarBlob, mensajeErrorBlob } from '@/utils/descargas.js'
 import { formatFechaCorta } from '@/utils/calendario.js'
 import { fechaISO } from '@/utils/crm.js'
-import { ESTADOS_ASISTENCIA, paramsListado } from '@/utils/asistencia.js'
+import { ESTADOS_ASISTENCIA, paramsListado, claseEstadoEstudiante, esDesertado } from '@/utils/asistencia.js'
 
 const { error: notifyError } = useNotification()
 

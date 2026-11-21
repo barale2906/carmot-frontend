@@ -1,449 +1,207 @@
 <template>
   <div class="flex flex-col gap-6">
 
-    <!-- Tabs de sección -->
-    <div class="flex gap-1 rounded-xl border border-black/10 bg-white p-1.5">
-      <button
-        v-for="tab in tabs"
-        :key="tab.id"
-        type="button"
-        class="flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-        :class="activeTab === tab.id
-          ? 'bg-[#213360] text-white shadow-sm'
-          : 'text-slate-600 hover:bg-slate-100'"
-        @click="activeTab = tab.id"
-      >
-        {{ tab.label }}
-      </button>
-    </div>
-
-    <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <!-- TAB: Listas de precios                                                 -->
-    <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <template v-if="activeTab === 'listas'">
-
-      <!-- Filtros y acciones -->
-      <section aria-labelledby="filtros-listas-heading" class="rounded-[14px] border border-black/10 bg-white p-6">
-        <h2 id="filtros-listas-heading" class="sr-only">Filtros de listas de precios</h2>
-        <div class="flex flex-wrap items-end gap-4">
-          <FilterField size="search">
-            <FormInputSearch v-model="listasFilters.search" label="Buscar:" placeholder="Nombre de la lista..." @input="onListasSearchInput" />
-          </FilterField>
-          <div class="w-full sm:w-[200px]">
-            <FormSelect v-model="listasFilters.status" label="Estado:" :options="statusFilterOptions" @change="loadListas(1)" />
-          </div>
-          <div class="flex w-full items-end gap-2 sm:w-auto">
-            <button v-if="canListasCrear" type="button" class="flex h-9 items-center gap-2 rounded-lg bg-[#213360] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" @click="openCreateLista">
-              <NavIcon name="plus" class="size-4" /> Nueva lista
-            </button>
-            <button type="button" class="flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" @click="clearListasFilters">Limpiar</button>
-          </div>
+    <!-- Filtros y acciones -->
+    <section aria-labelledby="filtros-listas-heading" class="rounded-[14px] border border-black/10 bg-white p-6">
+      <h2 id="filtros-listas-heading" class="sr-only">Filtros de listas de precios</h2>
+      <div class="flex flex-wrap items-end gap-4">
+        <FilterField size="search">
+          <FormInputSearch v-model="filters.search" label="Buscar:" placeholder="Lista o producto (mín. 2 letras)..." @input="onSearchInput" />
+        </FilterField>
+        <div class="w-full sm:w-[170px]">
+          <FormSelect v-model="filters.vigencia" label="Vigencia:" :options="vigenciaOptions" @change="loadListas(1)" />
         </div>
-      </section>
-
-      <!-- Tabla de listas -->
-      <section aria-labelledby="listado-listas-heading">
-        <SectionHeader id="listado-listas-heading" title="Listas de precios de inventario" description="Agrupa precios de productos por período y población. Flujo: En Proceso → Aprobada → Activa." class="mb-4" />
-
-        <div v-if="listasLoading" class="flex items-center justify-center rounded-[14px] border border-black/10 bg-white py-16">
-          <span class="text-sm text-slate-500">Cargando listas...</span>
+        <div class="w-full sm:w-[170px]">
+          <FormSelect v-model="filters.status" label="Estado:" :options="statusFilterOptions" @change="loadListas(1)" />
         </div>
-        <div v-else-if="listasError" class="rounded-[14px] border border-red-200 bg-red-50 p-6">
-          <p class="text-sm text-red-700">{{ listasError }}</p>
-          <button type="button" class="mt-3 text-sm font-medium text-red-700 underline" @click="loadListas(1)">Reintentar</button>
-        </div>
-
-        <div v-else class="overflow-x-auto rounded-[14px] border border-black/10 bg-white">
-          <table class="w-full text-sm" aria-label="Listas de precios de inventario">
-            <thead>
-              <tr class="border-b border-slate-100 bg-slate-50 text-left">
-                <th class="px-4 py-3"></th>
-                <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Nombre</th>
-                <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Vigencia</th>
-                <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Poblaciones</th>
-                <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Precios</th>
-                <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Estado</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-50">
-              <tr v-if="!listas.length">
-                <td colspan="6" class="px-4 py-12 text-center text-sm text-slate-400">No hay listas de precios para los filtros seleccionados.</td>
-              </tr>
-              <tr v-for="lista in listas" :key="lista.id" class="transition-colors hover:bg-slate-50">
-                <td class="px-4 py-3">
-                  <div class="flex items-center gap-1">
-                    <!-- Editar (solo En Proceso) -->
-                    <button v-if="canListasEditar && lista.status === 1" type="button" title="Editar lista" class="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="openEditLista(lista)">
-                      <NavIcon name="edit" class="size-4" />
-                    </button>
-                    <!-- Aprobar (En Proceso → Aprobada) -->
-                    <button v-if="canListasAprobar && lista.status === 1" type="button" title="Aprobar lista" class="rounded p-1.5 text-slate-500 transition-colors hover:bg-blue-100 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="handleAprobar(lista)">
-                      <NavIcon name="check" class="size-4" />
-                    </button>
-                    <!-- Activar (Aprobada → Activa) -->
-                    <button v-if="canListasAprobar && lista.status === 2" type="button" title="Activar lista" class="rounded p-1.5 text-slate-500 transition-colors hover:bg-green-100 hover:text-green-700 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="handleActivar(lista)">
-                      <NavIcon name="check" class="size-4" />
-                    </button>
-                    <!-- Inactivar -->
-                    <button v-if="canListasInactivar && lista.status !== 0" type="button" title="Inactivar lista" class="rounded p-1.5 text-slate-500 transition-colors hover:bg-amber-100 hover:text-amber-700 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="handleInactivar(lista)">
-                      <NavIcon name="trash" class="size-4" />
-                    </button>
-                    <!-- Clonar -->
-                    <button v-if="canListasClonar" type="button" title="Clonar lista" class="rounded p-1.5 text-slate-500 transition-colors hover:bg-purple-100 hover:text-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="openClonar(lista)">
-                      <NavIcon name="copy" class="size-4" />
-                    </button>
-                  </div>
-                </td>
-                <td class="px-4 py-3">
-                  <p class="font-medium text-slate-900">{{ lista.nombre }}</p>
-                  <p v-if="lista.descripcion" class="mt-0.5 text-xs text-slate-400">{{ lista.descripcion }}</p>
-                </td>
-                <td class="px-4 py-3 text-slate-600">
-                  <span v-if="lista.fecha_inicio">{{ lista.fecha_inicio }} → {{ lista.fecha_fin ?? '∞' }}</span>
-                  <span v-else class="text-slate-400">—</span>
-                </td>
-                <td class="px-4 py-3">
-                  <div v-if="lista.poblaciones?.length" class="flex flex-wrap gap-1">
-                    <span v-for="p in lista.poblaciones" :key="p.id" class="inline-flex rounded bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">{{ p.nombre }}</span>
-                  </div>
-                  <span v-else class="text-xs text-slate-400">—</span>
-                </td>
-                <td class="px-4 py-3 text-center font-mono text-slate-700">{{ lista.precios_count ?? '—' }}</td>
-                <td class="px-4 py-3">
-                  <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium" :class="statusClass(lista.status)">
-                    {{ lista.status_text ?? statusText(lista.status) }}
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div v-if="listasPagination.lastPage > 1" class="mt-4 flex items-center justify-between rounded-[14px] border border-black/10 bg-white px-6 py-3">
-          <p class="text-sm text-slate-500">Mostrando {{ listasPagination.from }}–{{ listasPagination.to }} de {{ listasPagination.total }}</p>
-          <div class="flex gap-2">
-            <button type="button" :disabled="listasPagination.currentPage === 1" class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="loadListas(listasPagination.currentPage - 1)">Anterior</button>
-            <button type="button" :disabled="listasPagination.currentPage === listasPagination.lastPage" class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="loadListas(listasPagination.currentPage + 1)">Siguiente</button>
-          </div>
-        </div>
-
-      </section>
-
-      <!-- Modal: Crear / Editar lista -->
-      <ModalBase v-model="showListaForm" :title="editingLista ? 'Editar lista de precios' : 'Nueva lista de precios'" description="Lista de precios de inventario. Estado inicial: En Proceso.">
-        <form class="flex flex-col gap-4 pb-2" @submit.prevent="handleListaSubmit">
-          <FormInput v-model="listaForm.nombre" label="Nombre" placeholder="Ej: Lista Uniformes 2026-I" required :error="listaFormErrors.nombre?.[0]" />
-          <div class="grid grid-cols-2 gap-4">
-            <FormInput v-model="listaForm.fecha_inicio" label="Inicio de vigencia" type="date" :error="listaFormErrors.fecha_inicio?.[0]" />
-            <FormInput v-model="listaForm.fecha_fin" label="Fin de vigencia" type="date" :error="listaFormErrors.fecha_fin?.[0]" />
-          </div>
-          <FormTextarea v-model="listaForm.descripcion" label="Descripción" placeholder="Descripción opcional..." :rows="2" :error="listaFormErrors.descripcion?.[0]" />
-          <!-- Poblaciones -->
-          <FormCheckboxGroup
-            v-model="listaForm.poblaciones"
-            label="Poblaciones"
-            search-placeholder="Buscar población..."
-            :options="poblacionOptions"
-            :error="listaFormErrors.poblaciones?.[0]"
-          >
-            <template #before-search>
-              <div v-if="poblacionesElegidasDisplay.length" class="mb-2">
-                <p class="mb-1.5 text-xs font-medium text-slate-600">Poblaciones elegidas ({{ poblacionesElegidasDisplay.length }})</p>
-                <div class="flex flex-wrap gap-1.5">
-                  <span
-                    v-for="item in poblacionesElegidasDisplay"
-                    :key="item.id"
-                    class="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700"
-                  >
-                    {{ item.nombre }}
-                    <button
-                      type="button"
-                      class="ml-0.5 rounded-full text-blue-500 transition-colors hover:text-blue-700 focus:outline-none"
-                      :aria-label="`Quitar ${item.nombre}`"
-                      @click="quitarPoblacionSeleccionada(item.id)"
-                    >×</button>
-                  </span>
-                </div>
-              </div>
-            </template>
-          </FormCheckboxGroup>
-          <p v-if="poblacionesLoading" class="mt-1 text-xs text-slate-400">Cargando poblaciones...</p>
-          <div v-if="listaFormError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            <p class="text-sm text-red-700">{{ listaFormError }}</p>
-          </div>
-        </form>
-        <template #footer>
-          <button type="button" class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showListaForm = false">Cancelar</button>
-          <button type="button" :disabled="listaSaving" class="rounded-lg bg-[#213360] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50" @click="handleListaSubmit">
-            {{ listaSaving ? 'Guardando...' : (editingLista ? 'Guardar cambios' : 'Crear lista') }}
-          </button>
-        </template>
-      </ModalBase>
-
-      <!-- Modal: Clonar lista -->
-      <ModalBase v-model="showClonarForm" title="Clonar lista de precios" description="Crea una copia de la lista con sus precios en estado En Proceso.">
-        <form class="flex flex-col gap-4 pb-2" @submit.prevent="handleClonar">
-          <FormInput v-model="clonarForm.nombre" label="Nombre de la nueva lista" placeholder="Ej: Lista Uniformes 2026-II" required :error="clonarFormErrors.nombre?.[0]" />
-          <div class="grid grid-cols-2 gap-4">
-            <FormInput v-model="clonarForm.fecha_inicio" label="Inicio de vigencia" type="date" :error="clonarFormErrors.fecha_inicio?.[0]" />
-            <FormInput v-model="clonarForm.fecha_fin" label="Fin de vigencia" type="date" :error="clonarFormErrors.fecha_fin?.[0]" />
-          </div>
-          <label class="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700">
-            <input v-model="clonarForm.copiar_precios" type="checkbox" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
-            Copiar precios de la lista origen
-          </label>
-          <div v-if="clonarFormError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            <p class="text-sm text-red-700">{{ clonarFormError }}</p>
-          </div>
-        </form>
-        <template #footer>
-          <button type="button" class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showClonarForm = false">Cancelar</button>
-          <button type="button" :disabled="clonarSaving" class="rounded-lg bg-[#213360] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50" @click="handleClonar">
-            {{ clonarSaving ? 'Clonando...' : 'Clonar lista' }}
-          </button>
-        </template>
-      </ModalBase>
-
-    </template>
-
-    <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <!-- TAB: Precios por producto                                              -->
-    <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <template v-if="activeTab === 'precios'">
-
-      <!-- Filtros y acciones -->
-      <section aria-labelledby="filtros-precios-heading" class="rounded-[14px] border border-black/10 bg-white p-6">
-        <h2 id="filtros-precios-heading" class="sr-only">Filtros de precios</h2>
-        <div class="flex flex-wrap items-end gap-4">
-          <FilterField size="search">
-            <FormInputSearch v-model="filters.search" label="Buscar:" placeholder="Nombre de producto..." @input="onSearchInput" />
-          </FilterField>
-          <div class="w-full sm:w-[240px]">
-            <InvProductoBuscador
-              :key="filtroBuscadorKey"
-              label="Producto:"
-              placeholder="Buscar producto..."
-              @select="p => { filters.producto_id = p.id; onFilterChange() }"
-              @clear="() => { filters.producto_id = ''; onFilterChange() }"
-            />
-          </div>
-          <div class="w-full sm:w-[260px]">
-            <FormSelect
-              v-model="filters.lista_precio_id"
-              label="Lista de precios:"
-              placeholder="Solo listas vigentes"
-              :options="listaPrecioFiltroOptions"
-              @change="onFilterChange"
-            />
-          </div>
-          <div class="flex w-full items-end gap-2 sm:w-auto">
-            <button v-if="canCreate" type="button" class="flex h-9 items-center gap-2 rounded-lg bg-[#213360] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" @click="openCreate">
-              <NavIcon name="plus" class="size-4" /> Nuevo precio
-            </button>
-            <button type="button" class="flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" @click="clearFilters">Limpiar filtros</button>
-          </div>
-        </div>
-      </section>
-
-      <!-- Tabla de precios -->
-      <section aria-labelledby="listado-precios-heading">
-        <SectionHeader
-          id="listado-precios-heading"
-          title="Precios de productos de inventario"
-          :description="filters.lista_precio_id
-            ? 'Mostrando únicamente la lista de precios seleccionada, esté activa o no.'
-            : 'Por defecto solo se muestran las listas vigentes. El precio se resuelve automáticamente al crear una venta según la sede y lista vigente.'"
-          class="mb-4"
-        />
-
-        <div v-if="loading" class="flex items-center justify-center rounded-[14px] border border-black/10 bg-white py-16">
-          <span class="text-sm text-slate-500">Cargando precios...</span>
-        </div>
-        <div v-else-if="error" class="rounded-[14px] border border-red-200 bg-red-50 p-6">
-          <p class="text-sm text-red-700">{{ error }}</p>
-          <button type="button" class="mt-3 text-sm font-medium text-red-700 underline" @click="loadPrecios(1)">Reintentar</button>
-        </div>
-
-        <DataTable v-else :columns="tableColumns" :data="precios" row-key="id" aria-label="Listado de precios de inventario" actions-first>
-          <template #cell="{ column, value, row }">
-            <template v-if="column.key === 'producto'">
-              <span class="font-medium text-slate-900">{{ row.producto?.nombre ?? '—' }}</span>
-            </template>
-            <template v-else-if="column.key === 'lista_precio'">
-              <span>{{ row.lista_precio?.nombre ?? row.listaPrecio?.nombre ?? '—' }}</span>
-              <span
-                v-if="row.lista_precio?.status_text"
-                class="ml-1.5 inline-flex items-center rounded-full px-1.5 py-0.5 text-[11px] font-medium"
-                :class="row.lista_precio.esta_vigente ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-500'"
-              >{{ row.lista_precio.status_text }}</span>
-            </template>
-            <template v-else-if="column.key === 'precio'">
-              <span class="font-mono font-medium text-slate-900">{{ formatCurrency(value) }}</span>
-            </template>
-            <template v-else>{{ value ?? '—' }}</template>
-          </template>
-          <template #actions="{ row }">
-            <button v-if="canEditar" type="button" class="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500" title="Editar" @click="openEdit(row)">
-              <NavIcon name="edit" class="size-4" />
-            </button>
-            <button v-if="canEliminar" type="button" class="rounded p-1.5 text-slate-500 transition-colors hover:bg-red-100 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:cursor-not-allowed disabled:opacity-40" title="Eliminar" :disabled="!!deleting[row.id]" @click="handleDelete(row)">
-              <NavIcon name="trash" class="size-4" />
-            </button>
-          </template>
-        </DataTable>
-
-        <div v-if="pagination.lastPage > 1" class="mt-4 flex items-center justify-between rounded-[14px] border border-black/10 bg-white px-6 py-3">
-          <p class="text-sm text-slate-500">Mostrando {{ pagination.from }}–{{ pagination.to }} de {{ pagination.total }}</p>
-          <div class="flex gap-2">
-            <button type="button" :disabled="pagination.currentPage === 1" class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="goToPage(pagination.currentPage - 1)">Anterior</button>
-            <button type="button" :disabled="pagination.currentPage === pagination.lastPage" class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="goToPage(pagination.currentPage + 1)">Siguiente</button>
-          </div>
-        </div>
-
-      </section>
-
-      <!-- Modal: Crear / Editar precio -->
-      <ModalBase v-model="showForm" :size="selectedProducto?.tipo === 'kit' ? 'lg' : 'md'" :title="editingItem ? 'Editar precio' : 'Nuevo precio'" description="Precio de inventario vinculado a una lista de precios activa de inventario.">
-        <form class="flex flex-col gap-4 pb-2" @submit.prevent="handleSubmit">
-          <InvProductoBuscador
-            label="Producto"
-            placeholder="Buscar producto (simple, kit o grupo)..."
-            :selected-product="selectedProducto"
-            @select="onProductoSelect"
-            @clear="onProductoClear"
+        <div class="w-full sm:w-[220px]">
+          <FormSelect
+            v-model="filters.poblacion_id"
+            label="Población:"
+            :options="poblacionFilterOptions"
+            @change="loadListas(1)"
           />
-          <p v-if="formErrors.producto_id?.[0]" class="mt-1 text-xs text-red-600">{{ formErrors.producto_id[0] }}</p>
-
-          <!-- Aviso + listado de variantes cuando se elige un grupo -->
-          <template v-if="selectedProducto?.tipo === 'grupo'">
-            <div class="rounded-lg border border-blue-200 bg-blue-50 p-3">
-              <p class="text-xs font-medium text-blue-800">
-                Producto grupo — el precio se asignará a todas sus variantes activas.
-              </p>
-              <div v-if="loadingVariantes" class="mt-1.5 text-xs text-blue-600">Cargando variantes...</div>
-              <div v-else-if="grupoVariantes.length" class="mt-2 flex flex-wrap gap-1">
-                <span
-                  v-for="v in grupoVariantes"
-                  :key="v.id"
-                  class="inline-flex rounded bg-blue-100 px-2 py-0.5 text-xs text-blue-700"
-                >{{ v.nombre }}</span>
-              </div>
-              <p v-else class="mt-1.5 text-xs text-blue-500">Este grupo no tiene variantes activas; agrégalas antes de asignarle precio.</p>
-            </div>
-          </template>
-
-          <FormSelect v-model="form.lista_precio_id" label="Lista de precios" placeholder="Selecciona..." :options="listaPrecioOptions" required :error="formErrors.lista_precio_id?.[0]" />
-
-          <!-- Desglose del kit: referencia para calcular su precio en la lista elegida -->
-          <template v-if="selectedProducto?.tipo === 'kit'">
-            <div class="rounded-lg border border-purple-200 bg-purple-50 p-3">
-              <p class="text-xs font-medium text-purple-800">Componentes del kit — precio unitario × cantidad en la lista seleccionada</p>
-
-              <p v-if="!form.lista_precio_id" class="mt-1.5 text-xs text-purple-600">Selecciona una lista de precios para ver el desglose.</p>
-              <p v-else-if="loadingDesglose" class="mt-1.5 text-xs text-purple-600">Calculando desglose...</p>
-              <p v-else-if="!desgloseKit?.componentes?.length" class="mt-1.5 text-xs text-purple-600">Este kit no tiene componentes definidos.</p>
-
-              <template v-else>
-                <table class="mt-2 w-full text-xs">
-                  <thead>
-                    <tr class="text-left text-purple-700">
-                      <th class="py-1 font-medium">Componente</th>
-                      <th class="py-1 text-center font-medium">Cant.</th>
-                      <th class="py-1 text-right font-medium">P. unitario</th>
-                      <th class="py-1 text-right font-medium">Subtotal</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-purple-100">
-                    <tr v-for="c in desgloseKit.componentes" :key="c.kit_componente_id" class="align-top text-slate-700">
-                      <td class="py-1.5">
-                        <span class="font-medium">{{ c.nombre }}</span>
-                        <span v-if="c.tipo === 'grupo'" class="ml-1 text-[10px] uppercase text-purple-500">grupo</span>
-                        <!-- Detalle de variantes solo cuando aporta: precios distintos o faltantes -->
-                        <div v-if="c.variantes.length && (!c.completo || c.precio_unitario_min !== c.precio_unitario_max)" class="mt-0.5 flex flex-wrap gap-1">
-                          <span
-                            v-for="v in c.variantes"
-                            :key="v.id"
-                            :class="v.precio == null ? 'bg-red-100 text-red-700' : 'bg-white text-slate-600'"
-                            class="rounded px-1.5 py-0.5 text-[10px]"
-                          >{{ v.nombre }}: {{ v.precio == null ? 'sin precio' : formatCurrency(v.precio) }}</span>
-                        </div>
-                      </td>
-                      <td class="py-1.5 text-center">{{ c.cantidad }}</td>
-                      <td class="py-1.5 text-right font-mono">{{ formatRango(c.precio_unitario_min, c.precio_unitario_max) }}</td>
-                      <td class="py-1.5 text-right font-mono" :class="c.completo ? '' : 'text-red-600'">{{ formatRango(c.subtotal_min, c.subtotal_max) }}</td>
-                    </tr>
-                  </tbody>
-                  <tfoot>
-                    <tr class="border-t border-purple-200 text-purple-900">
-                      <td colspan="3" class="pt-1.5 font-semibold">Suma de componentes</td>
-                      <td class="pt-1.5 text-right font-mono font-semibold">{{ formatRango(desgloseKit.total_min, desgloseKit.total_max) }}</td>
-                    </tr>
-                  </tfoot>
-                </table>
-
-                <p v-if="!desgloseKit.completo" class="mt-2 text-xs text-red-600">
-                  Hay componentes o variantes sin precio en esta lista; la suma no los incluye.
-                </p>
-                <p v-if="desgloseKit.total_min !== desgloseKit.total_max" class="mt-1 text-xs text-purple-600">
-                  El total es un rango porque las variantes de algún grupo tienen precios distintos.
-                </p>
-
-                <div class="mt-2 flex flex-wrap items-center gap-2">
-                  <span v-if="desgloseKit.precio_actual != null" class="text-xs text-slate-600">
-                    Precio actual del kit: <strong class="font-mono">{{ formatCurrency(desgloseKit.precio_actual) }}</strong>
-                  </span>
-                  <span v-if="diferenciaKit" class="text-xs" :class="diferenciaKit.clase">{{ diferenciaKit.texto }}</span>
-                  <span class="flex-1" />
-                  <button
-                    v-for="total in totalesSugeridos"
-                    :key="total"
-                    type="button"
-                    class="rounded bg-purple-600 px-2 py-1 text-xs font-medium text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                    @click="form.precio = total"
-                  >Usar {{ formatCurrency(total) }}</button>
-                </div>
-              </template>
-            </div>
-          </template>
-          <FormInput v-model="form.precio" label="Precio" type="number" min="0" step="0.01" placeholder="0.00" required :error="formErrors.precio?.[0]" />
-          <FormTextarea v-model="form.observaciones" label="Observaciones" placeholder="Observaciones opcionales..." :rows="2" :error="formErrors.observaciones?.[0]" />
-          <div v-if="formError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            <p class="text-sm text-red-700">{{ formError }}</p>
-          </div>
-        </form>
-        <template #footer>
-          <button type="button" class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showForm = false">Cancelar</button>
-          <button type="button" :disabled="saving" class="rounded-lg bg-[#213360] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50" @click="handleSubmit">
-            {{ saving ? 'Guardando...' : (editingItem ? 'Guardar cambios' : 'Crear precio') }}
+        </div>
+        <div class="flex w-full items-end gap-2 sm:w-auto">
+          <button v-if="canListasCrear" type="button" class="flex h-9 items-center gap-2 rounded-lg bg-[#213360] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" @click="openCreate">
+            <NavIcon name="plus" class="size-4" /> Nueva lista
           </button>
-        </template>
-      </ModalBase>
+          <button type="button" class="flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" @click="clearFilters">Limpiar</button>
+        </div>
+      </div>
+    </section>
 
-    </template>
+    <!-- Listado -->
+    <section aria-labelledby="listado-listas-heading">
+      <SectionHeader
+        id="listado-listas-heading"
+        title="Listas de precios de inventario"
+        :description="descripcionListado"
+        class="mb-4"
+      />
+
+      <div v-if="loading" class="flex items-center justify-center rounded-[14px] border border-black/10 bg-white py-16">
+        <span class="text-sm text-slate-500">Cargando listas...</span>
+      </div>
+      <div v-else-if="error" class="rounded-[14px] border border-red-200 bg-red-50 p-6">
+        <p class="text-sm text-red-700">{{ error }}</p>
+        <button type="button" class="mt-3 text-sm font-medium text-red-700 underline" @click="loadListas(1)">Reintentar</button>
+      </div>
+      <p v-else-if="!listas.length" class="rounded-[14px] border border-black/10 bg-white py-12 text-center text-sm text-slate-400">
+        No hay listas de precios para los filtros seleccionados.
+      </p>
+
+      <div v-else class="flex flex-col gap-3">
+        <article
+          v-for="lista in listas"
+          :key="lista.id"
+          class="overflow-hidden rounded-[14px] border border-black/10 bg-white"
+        >
+          <div class="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 sm:flex-nowrap sm:px-5">
+            <!-- Acciones (primera columna) -->
+            <div class="flex shrink-0 items-center gap-1">
+              <button v-if="canListasEditar && lista.status === 1" type="button" title="Editar lista y sus precios" class="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="openEdit(lista)">
+                <NavIcon name="edit" class="size-4" />
+              </button>
+              <button v-if="canListasAprobar && lista.status === 1" type="button" title="Aprobar lista" class="rounded p-1.5 text-slate-500 transition-colors hover:bg-blue-100 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="handleAprobar(lista)">
+                <NavIcon name="check" class="size-4" />
+              </button>
+              <button v-if="canListasAprobar && lista.status === 2" type="button" title="Activar lista" class="rounded p-1.5 text-slate-500 transition-colors hover:bg-green-100 hover:text-green-700 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="handleActivar(lista)">
+                <NavIcon name="check" class="size-4" />
+              </button>
+              <button v-if="canListasInactivar && lista.status !== 0" type="button" title="Inactivar lista" class="rounded p-1.5 text-slate-500 transition-colors hover:bg-amber-100 hover:text-amber-700 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="handleInactivar(lista)">
+                <NavIcon name="trash" class="size-4" />
+              </button>
+              <button v-if="canListasClonar" type="button" title="Clonar lista" class="rounded p-1.5 text-slate-500 transition-colors hover:bg-purple-100 hover:text-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="openClonar(lista)">
+                <NavIcon name="copy" class="size-4" />
+              </button>
+            </div>
+
+            <!-- Cabecera desplegable -->
+            <button
+              type="button"
+              class="flex min-w-0 flex-1 items-center gap-3 rounded text-left focus:outline-none focus:ring-2 focus:ring-blue-500"
+              :aria-expanded="expandidas.has(lista.id)"
+              :aria-controls="`productos-${lista.id}`"
+              @click="toggleLista(lista)"
+            >
+              <NavIcon :name="expandidas.has(lista.id) ? 'expand_less' : 'expand_more'" class="size-5 shrink-0 text-slate-400" />
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-semibold text-slate-900">{{ lista.nombre }}</p>
+                <p class="mt-0.5 truncate text-xs text-slate-500">
+                  <span v-if="lista.fecha_inicio">{{ lista.fecha_inicio }} → {{ lista.fecha_fin ?? '∞' }}</span>
+                  <span v-else>Sin vigencia definida</span>
+                  <span v-if="lista.descripcion"> · {{ lista.descripcion }}</span>
+                </p>
+              </div>
+              <div v-if="lista.poblaciones?.length" class="hidden max-w-[260px] flex-wrap justify-end gap-1 lg:flex">
+                <span v-for="p in lista.poblaciones.slice(0, 3)" :key="p.id" class="inline-flex rounded bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">{{ p.nombre }}</span>
+                <span v-if="lista.poblaciones.length > 3" class="inline-flex rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600" :title="lista.poblaciones.slice(3).map(p => p.nombre).join(', ')">+{{ lista.poblaciones.length - 3 }}</span>
+              </div>
+              <div class="shrink-0 text-right">
+                <p class="text-xs text-slate-500">Productos</p>
+                <p class="font-mono text-sm font-medium text-slate-700">{{ lista.precios_count ?? 0 }}</p>
+              </div>
+              <span class="inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-xs font-medium" :class="statusClass(lista.status)">
+                {{ lista.status_text ?? statusText(lista.status) }}
+              </span>
+            </button>
+          </div>
+
+          <!-- Productos de la lista (colapsable) -->
+          <div v-show="expandidas.has(lista.id)" :id="`productos-${lista.id}`" class="border-t border-slate-100">
+            <p v-if="detalles[lista.id]?.loading" class="px-5 py-4 text-sm text-slate-500">Cargando productos...</p>
+            <p v-else-if="detalles[lista.id]?.error" class="px-5 py-4 text-sm text-red-600">{{ detalles[lista.id].error }}</p>
+            <p v-else-if="!detalles[lista.id]?.precios?.length" class="px-5 py-4 text-sm text-slate-400">Esta lista aún no tiene productos con precio.</p>
+            <table v-else class="w-full text-sm" :aria-label="`Productos de ${lista.nombre}`">
+              <thead>
+                <tr class="bg-slate-50 text-left">
+                  <th class="px-5 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Producto</th>
+                  <th class="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Código</th>
+                  <th class="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Tipo</th>
+                  <th class="px-5 py-2 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Precio</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-50">
+                <tr v-for="precio in detalles[lista.id].precios" :key="precio.id" :class="coincideBusqueda(precio) ? 'bg-yellow-50' : ''">
+                  <td class="px-5 py-2 font-medium text-slate-900">{{ precio.producto?.nombre ?? '—' }}</td>
+                  <td class="px-4 py-2 text-slate-600">{{ precio.producto?.codigo ?? '—' }}</td>
+                  <td class="px-4 py-2 text-slate-600">{{ tipoLabel(precio.producto?.tipo) }}</td>
+                  <td class="px-5 py-2 text-right font-mono font-medium text-slate-900">{{ formatCurrency(precio.precio) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </div>
+
+      <div v-if="pagination.lastPage > 1" class="mt-4 flex items-center justify-between rounded-[14px] border border-black/10 bg-white px-6 py-3">
+        <p class="text-sm text-slate-500">Mostrando {{ pagination.from }}–{{ pagination.to }} de {{ pagination.total }}</p>
+        <div class="flex gap-2">
+          <button type="button" :disabled="pagination.currentPage === 1" class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="loadListas(pagination.currentPage - 1)">Anterior</button>
+          <button type="button" :disabled="pagination.currentPage === pagination.lastPage" class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="loadListas(pagination.currentPage + 1)">Siguiente</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Wizard: crear / editar lista con sus precios -->
+    <InvListaPrecioWizardModal
+      :visible="showWizard"
+      :lista="listaEnEdicion"
+      :poblacion-options="poblacionOptions"
+      :puede-editar-precios="canPreciosEditar"
+      @close="showWizard = false"
+      @saved="onWizardSaved"
+    />
+
+    <!-- Modal: Clonar lista -->
+    <ModalBase v-model="showClonarForm" title="Clonar lista de precios" description="Crea una copia de la lista con sus precios en estado En Proceso.">
+      <form class="flex flex-col gap-4 pb-2" @submit.prevent="handleClonar">
+        <FormInput v-model="clonarForm.nombre" label="Nombre de la nueva lista" placeholder="Ej: Lista Uniformes 2026-II" required :error="clonarFormErrors.nombre?.[0]" />
+        <div class="grid grid-cols-2 gap-4">
+          <FormInput v-model="clonarForm.fecha_inicio" label="Inicio de vigencia" type="date" :error="clonarFormErrors.fecha_inicio?.[0]" />
+          <FormInput v-model="clonarForm.fecha_fin" label="Fin de vigencia" type="date" :error="clonarFormErrors.fecha_fin?.[0]" />
+        </div>
+        <label class="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700">
+          <input v-model="clonarForm.copiar_precios" type="checkbox" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+          Copiar precios de la lista origen
+        </label>
+        <div v-if="clonarFormError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <p class="text-sm text-red-700">{{ clonarFormError }}</p>
+        </div>
+      </form>
+      <template #footer>
+        <button type="button" class="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500" @click="showClonarForm = false">Cancelar</button>
+        <button type="button" :disabled="clonarSaving" class="rounded-lg bg-[#213360] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1a294d] focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50" @click="handleClonar">
+          {{ clonarSaving ? 'Clonando...' : 'Clonar lista' }}
+        </button>
+      </template>
+    </ModalBase>
 
   </div>
 </template>
 
 <script setup>
-import FilterField from '@/components/forms/FilterField.vue'
-import { ref, reactive, computed, onMounted, watch } from 'vue'
-import invPrecioService       from '@/services/invPrecioService.js'
-import invListaPrecioService  from '@/services/invListaPrecioService.js'
-import { authService }        from '@/services/authService.js'
-import { useNotification }    from '@/composables/useNotification'
+/**
+ * Listas de precios de inventario: listado desplegable (cada lista muestra sus productos),
+ * filtros por lista/producto, vigencia, estado y población, y wizard de creación/edición
+ * (paso 1: lista y poblaciones; paso 2: productos y precios).
+ */
+import { ref, reactive, computed, onMounted } from 'vue'
+import invListaPrecioService from '@/services/invListaPrecioService.js'
+import { authService }       from '@/services/authService.js'
+import { useNotification }   from '@/composables/useNotification'
 import { usePoblacionSelector } from '@/composables/usePoblacion.js'
-import { useConfirm }          from '@/composables/useConfirm.js'
-import SectionHeader          from '@/components/activos/SectionHeader.vue'
-import DataTable              from '@/components/activos/DataTable.vue'
-import NavIcon                from '@/components/icons/NavIcon.vue'
-import FormInputSearch        from '@/components/forms/FormInputSearch.vue'
-import FormInput              from '@/components/forms/FormInput.vue'
-import FormTextarea           from '@/components/forms/FormTextarea.vue'
-import FormSelect             from '@/components/forms/FormSelect.vue'
-import FormCheckboxGroup      from '@/components/forms/FormCheckboxGroup.vue'
-import InvProductoBuscador    from '@/components/inventario/InvProductoBuscador.vue'
-import invProductoService     from '@/services/invProductoService.js'
-import ModalBase              from '@/components/ModalBase.vue'
+import { useConfirm }        from '@/composables/useConfirm.js'
+import { normalizarTexto }   from '@/utils/busqueda.js'
+import FilterField           from '@/components/forms/FilterField.vue'
+import SectionHeader         from '@/components/activos/SectionHeader.vue'
+import NavIcon               from '@/components/icons/NavIcon.vue'
+import FormInputSearch       from '@/components/forms/FormInputSearch.vue'
+import FormInput             from '@/components/forms/FormInput.vue'
+import FormSelect            from '@/components/forms/FormSelect.vue'
+import ModalBase             from '@/components/ModalBase.vue'
+import InvListaPrecioWizardModal from '@/components/inventario/InvListaPrecioWizardModal.vue'
 
 const { success: notifySuccess, error: notifyError } = useNotification()
 const { confirm } = useConfirm()
@@ -452,14 +210,12 @@ const { confirm } = useConfirm()
 const userPermissions = ref([])
 const hasPermission = (p) => userPermissions.value.includes(p)
 
-const canCreate        = computed(() => hasPermission('inv_preciosCrear'))
-const canEditar        = computed(() => hasPermission('inv_preciosEditar'))
-const canEliminar      = computed(() => hasPermission('inv_preciosEliminar'))
-const canListasCrear   = computed(() => hasPermission('inv_listasCrear'))
-const canListasEditar  = computed(() => hasPermission('inv_listasEditar'))
-const canListasAprobar = computed(() => hasPermission('inv_listasAprobar'))
+const canListasCrear     = computed(() => hasPermission('inv_listasCrear'))
+const canListasEditar    = computed(() => hasPermission('inv_listasEditar'))
+const canListasAprobar   = computed(() => hasPermission('inv_listasAprobar'))
 const canListasInactivar = computed(() => hasPermission('inv_listasInactivar'))
-const canListasClonar  = computed(() => hasPermission('inv_listasClonar'))
+const canListasClonar    = computed(() => hasPermission('inv_listasClonar'))
+const canPreciosEditar   = computed(() => hasPermission('inv_preciosEditar'))
 
 async function loadPermissions() {
   try {
@@ -473,20 +229,25 @@ const formatCurrency = (v) => v != null
   ? new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(v)
   : '—'
 
-// ─── Tabs ─────────────────────────────────────────────────────────────────────
-const tabs = [
-  { id: 'listas', label: 'Listas de precios' },
-  { id: 'precios', label: 'Precios por producto' },
-]
-const activeTab = ref('listas')
+const tipoLabel = (tipo) => ({ simple: 'Simple', kit: 'Kit', grupo: 'Grupo' }[tipo] ?? '—')
+const statusText = (status) => ({ 0: 'Inactiva', 1: 'En Proceso', 2: 'Aprobada', 3: 'Activa' }[status] ?? '—')
+const statusClass = (status) => ({
+  0: 'bg-slate-100 text-slate-600',
+  1: 'bg-blue-50 text-blue-700',
+  2: 'bg-amber-50 text-amber-700',
+  3: 'bg-green-50 text-green-700',
+}[status] ?? 'bg-slate-100 text-slate-600')
 
-// ─── Estado de listas de precios ──────────────────────────────────────────────
-const listas              = ref([])
-const listasLoading       = ref(false)
-const listasError         = ref('')
-const listasPagination    = reactive({ currentPage: 1, lastPage: 1, total: 0, from: 0, to: 0 })
-const listasFilters       = reactive({ search: '', status: '' })
-const { poblacionesOptions: poblacionOptions, poblacionesLoading: poblacionesLoading, loadPoblaciones } = usePoblacionSelector()
+// ─── Filtros ──────────────────────────────────────────────────────────────────
+const MIN_BUSQUEDA = 2
+
+const filters = reactive({ search: '', vigencia: 'vigentes', status: '', poblacion_id: '' })
+
+const vigenciaOptions = [
+  { value: 'vigentes', label: 'Vigentes' },
+  { value: 'vencidas', label: 'Vencidas' },
+  { value: 'todas',    label: 'Todas' },
+]
 
 const statusFilterOptions = [
   { value: '',  label: 'Todos' },
@@ -496,165 +257,154 @@ const statusFilterOptions = [
   { value: '0', label: 'Inactiva' },
 ]
 
-function statusText(status) {
-  return { 0: 'Inactiva', 1: 'En Proceso', 2: 'Aprobada', 3: 'Activa' }[status] ?? '—'
+// Solo las poblaciones que tienen alguna lista (las demás nunca darían resultados)
+const poblacionesConLista = ref([])
+const poblacionFilterOptions = computed(() => [
+  { value: '', label: 'Todas las poblaciones' },
+  ...poblacionesConLista.value.map((p) => ({ value: String(p.id), label: p.nombre })),
+])
+
+async function loadPoblacionesConLista() {
+  try {
+    const res = await invListaPrecioService.getPoblaciones()
+    poblacionesConLista.value = res.data ?? []
+  } catch { /* el filtro queda solo con "Todas" */ }
 }
 
-function statusClass(status) {
-  return {
-    0: 'bg-slate-100 text-slate-600',
-    1: 'bg-blue-50 text-blue-700',
-    2: 'bg-amber-50 text-amber-700',
-    3: 'bg-green-50 text-green-700',
-  }[status] ?? 'bg-slate-100 text-slate-600'
+const descripcionListado = computed(() => ({
+  vigentes: 'Listas vigentes (no vencidas ni inactivas). Despliega una lista para ver sus productos. Flujo: En Proceso → Aprobada → Activa.',
+  vencidas: 'Listas vencidas o inactivas. Despliega una lista para ver sus productos.',
+  todas:    'Todas las listas, vigentes y vencidas. Despliega una lista para ver sus productos.',
+}[filters.vigencia]))
+
+let searchTimer = null
+function onSearchInput() {
+  clearTimeout(searchTimer)
+  const texto = filters.search.trim()
+  // Con menos de 2 letras no se consulta, salvo que se acabe de vaciar el campo
+  if (texto.length > 0 && texto.length < MIN_BUSQUEDA) return
+  searchTimer = setTimeout(() => loadListas(1), 400)
 }
 
-let listasSearchTimer = null
-function onListasSearchInput() {
-  clearTimeout(listasSearchTimer)
-  listasSearchTimer = setTimeout(() => loadListas(1), 400)
-}
-function clearListasFilters() {
-  listasFilters.search = ''
-  listasFilters.status = ''
+function clearFilters() {
+  Object.assign(filters, { search: '', vigencia: 'vigentes', status: '', poblacion_id: '' })
   loadListas(1)
 }
 
+/** Resalta en el desplegable los productos que coinciden con la búsqueda. */
+function coincideBusqueda(precio) {
+  const texto = normalizarTexto(filters.search.trim())
+  if (texto.length < MIN_BUSQUEDA) return false
+  return [precio.producto?.nombre, precio.producto?.codigo].some((v) => normalizarTexto(v ?? '').includes(texto))
+}
+
+// ─── Listado ──────────────────────────────────────────────────────────────────
+const listas     = ref([])
+const loading    = ref(false)
+const error      = ref('')
+const pagination = reactive({ currentPage: 1, lastPage: 1, total: 0, from: 0, to: 0 })
+
 async function loadListas(page = 1) {
-  listasLoading.value = true
-  listasError.value   = ''
+  loading.value = true
+  error.value   = ''
   try {
-    const params = { page, per_page: 15 }
-    if (listasFilters.search) params.search = listasFilters.search
-    if (listasFilters.status !== '') params.status = listasFilters.status
+    const params = { page, per_page: 15, vigencia: filters.vigencia }
+    if (filters.search.trim().length >= MIN_BUSQUEDA) params.search = filters.search.trim()
+    if (filters.status !== '')       params.status       = filters.status
+    if (filters.poblacion_id !== '') params.poblacion_id = filters.poblacion_id
     const res = await invListaPrecioService.getAll(params)
     listas.value = res.data ?? []
+    Object.keys(detalles).forEach((id) => delete detalles[id])
     if (res.meta) {
-      listasPagination.currentPage = res.meta.current_page
-      listasPagination.lastPage    = res.meta.last_page
-      listasPagination.total       = res.meta.total
-      listasPagination.from        = res.meta.from ?? 0
-      listasPagination.to          = res.meta.to   ?? 0
+      pagination.currentPage = res.meta.current_page
+      pagination.lastPage    = res.meta.last_page
+      pagination.total       = res.meta.total
+      pagination.from        = res.meta.from ?? 0
+      pagination.to          = res.meta.to   ?? 0
+    }
+    // Al buscar por producto, las listas se abren solas para mostrar la coincidencia
+    expandidas.value = new Set()
+    if (params.search) {
+      listas.value.forEach(cargarDetalle)
+      expandidas.value = new Set(listas.value.map((l) => l.id))
     }
   } catch (e) {
-    listasError.value = e?.response?.data?.message ?? 'Error al cargar las listas de precios.'
+    error.value = e?.response?.data?.message ?? 'Error al cargar las listas de precios.'
   } finally {
-    listasLoading.value = false
+    loading.value = false
   }
 }
 
-/** Objetos completos de las poblaciones seleccionadas en el formulario (para chips). */
-const poblacionesElegidasDisplay = computed(() =>
-  (listaForm.poblaciones ?? []).map((id) => {
-    const opt = poblacionOptions.value.find((o) => Number(o.value) === Number(id))
-    return { id, nombre: opt?.label ?? `#${id}` }
-  }),
-)
+// ─── Desplegable de productos ─────────────────────────────────────────────────
+const expandidas = ref(new Set())
+const detalles   = reactive({})
 
-function quitarPoblacionSeleccionada(id) {
-  listaForm.poblaciones = (listaForm.poblaciones ?? []).filter((x) => Number(x) !== Number(id))
+async function cargarDetalle(lista) {
+  if (detalles[lista.id]?.precios || detalles[lista.id]?.loading) return
+  detalles[lista.id] = { loading: true, error: '', precios: null }
+  try {
+    const res = await invListaPrecioService.getById(lista.id)
+    detalles[lista.id] = { loading: false, error: '', precios: res.data?.precios ?? [] }
+  } catch (e) {
+    detalles[lista.id] = { loading: false, error: e?.response?.data?.message ?? 'No se pudieron cargar los productos.', precios: null }
+  }
+}
+
+function toggleLista(lista) {
+  const siguiente = new Set(expandidas.value)
+  if (siguiente.has(lista.id)) {
+    siguiente.delete(lista.id)
+  } else {
+    siguiente.add(lista.id)
+    cargarDetalle(lista)
+  }
+  expandidas.value = siguiente
 }
 
 // ─── Acciones de lista ────────────────────────────────────────────────────────
-async function handleAprobar(lista) {
-  if (!await confirm(`¿Aprobar la lista "${lista.nombre}"?`, { title: 'Aprobar lista', confirmLabel: 'Aprobar', danger: false })) return
+async function cambiarEstado(lista, { pregunta, titulo, etiqueta, peligro = true, accion, exito, fallo }) {
+  if (!await confirm(pregunta, { title: titulo, confirmLabel: etiqueta, danger: peligro })) return
   try {
-    await invListaPrecioService.aprobar(lista.id)
-    notifySuccess('Lista aprobada.')
-    loadListas(listasPagination.currentPage)
-    loadSelectores()
+    await invListaPrecioService[accion](lista.id)
+    notifySuccess(exito)
+    loadListas(pagination.currentPage)
+    loadPoblacionesConLista()
   } catch (e) {
-    notifyError(e?.response?.data?.message ?? 'No se pudo aprobar la lista.')
+    notifyError(e?.response?.data?.message ?? fallo)
   }
 }
 
-async function handleActivar(lista) {
-  if (!await confirm(`¿Activar la lista "${lista.nombre}"?`, { title: 'Activar lista', confirmLabel: 'Activar', danger: false })) return
-  try {
-    await invListaPrecioService.activar(lista.id)
-    notifySuccess('Lista activada.')
-    loadListas(listasPagination.currentPage)
-    loadSelectores()
-  } catch (e) {
-    notifyError(e?.response?.data?.message ?? 'No se pudo activar la lista.')
-  }
+const handleAprobar = (lista) => cambiarEstado(lista, {
+  pregunta: `¿Aprobar la lista "${lista.nombre}"?`, titulo: 'Aprobar lista', etiqueta: 'Aprobar', peligro: false,
+  accion: 'aprobar', exito: 'Lista aprobada.', fallo: 'No se pudo aprobar la lista.',
+})
+const handleActivar = (lista) => cambiarEstado(lista, {
+  pregunta: `¿Activar la lista "${lista.nombre}"?`, titulo: 'Activar lista', etiqueta: 'Activar', peligro: false,
+  accion: 'activar', exito: 'Lista activada.', fallo: 'No se pudo activar la lista.',
+})
+const handleInactivar = (lista) => cambiarEstado(lista, {
+  pregunta: `¿Inactivar la lista "${lista.nombre}"?`, titulo: 'Inactivar lista', etiqueta: 'Inactivar',
+  accion: 'inactivar', exito: 'Lista inactivada.', fallo: 'No se pudo inactivar la lista.',
+})
+
+// ─── Wizard crear / editar ────────────────────────────────────────────────────
+const { poblacionesOptions: poblacionOptions, loadPoblaciones } = usePoblacionSelector()
+const showWizard     = ref(false)
+const listaEnEdicion = ref(null)
+
+function openCreate() {
+  listaEnEdicion.value = null
+  showWizard.value = true
 }
 
-async function handleInactivar(lista) {
-  if (!await confirm(`¿Inactivar la lista "${lista.nombre}"?`, { title: 'Inactivar lista', confirmLabel: 'Inactivar' })) return
-  try {
-    await invListaPrecioService.inactivar(lista.id)
-    notifySuccess('Lista inactivada.')
-    loadListas(listasPagination.currentPage)
-    loadSelectores()
-  } catch (e) {
-    notifyError(e?.response?.data?.message ?? 'No se pudo inactivar la lista.')
-  }
+function openEdit(lista) {
+  listaEnEdicion.value = lista
+  showWizard.value = true
 }
 
-// ─── Modal: Crear / Editar lista ──────────────────────────────────────────────
-const showListaForm    = ref(false)
-const editingLista     = ref(null)
-const listaSaving      = ref(false)
-const listaFormError   = ref('')
-const listaFormErrors  = ref({})
-const emptyListaForm   = { nombre: '', fecha_inicio: '', fecha_fin: '', descripcion: '', poblaciones: [] }
-const listaForm        = reactive({ ...emptyListaForm })
-
-function openCreateLista() {
-  editingLista.value = null
-  Object.assign(listaForm, { ...emptyListaForm, poblaciones: [] })
-  listaFormError.value  = ''
-  listaFormErrors.value = {}
-  showListaForm.value   = true
-}
-
-function openEditLista(lista) {
-  editingLista.value = lista
-  Object.assign(listaForm, {
-    nombre:       lista.nombre       ?? '',
-    fecha_inicio: lista.fecha_inicio ?? '',
-    fecha_fin:    lista.fecha_fin    ?? '',
-    descripcion:  lista.descripcion  ?? '',
-    poblaciones:  lista.poblaciones?.map(p => p.id) ?? [],
-  })
-  listaFormError.value  = ''
-  listaFormErrors.value = {}
-  showListaForm.value   = true
-}
-
-async function handleListaSubmit() {
-  listaFormError.value  = ''
-  listaFormErrors.value = {}
-  listaSaving.value     = true
-  const payload = {
-    nombre:       listaForm.nombre.trim(),
-    fecha_inicio: listaForm.fecha_inicio || null,
-    fecha_fin:    listaForm.fecha_fin    || null,
-    descripcion:  listaForm.descripcion.trim() || null,
-    poblaciones:  listaForm.poblaciones,
-  }
-  try {
-    if (editingLista.value) {
-      await invListaPrecioService.update(editingLista.value.id, payload)
-      notifySuccess('Lista actualizada.')
-    } else {
-      await invListaPrecioService.create(payload)
-      notifySuccess('Lista creada.')
-    }
-    showListaForm.value = false
-    loadListas(listasPagination.currentPage)
-    loadSelectores()
-  } catch (e) {
-    if (e?.response?.status === 422) {
-      listaFormErrors.value = e.response.data?.errors ?? {}
-      listaFormError.value  = e.response.data?.message ?? 'Verifica los datos.'
-    } else {
-      listaFormError.value = e?.response?.data?.message ?? 'Ocurrió un error.'
-    }
-  } finally {
-    listaSaving.value = false
-  }
+function onWizardSaved() {
+  loadListas(pagination.currentPage)
+  loadPoblacionesConLista()
 }
 
 // ─── Modal: Clonar lista ──────────────────────────────────────────────────────
@@ -666,7 +416,7 @@ const clonarFormErrors = ref({})
 const clonarForm       = reactive({ nombre: '', fecha_inicio: '', fecha_fin: '', copiar_precios: true })
 
 function openClonar(lista) {
-  clonarOrigen.value    = lista
+  clonarOrigen.value = lista
   Object.assign(clonarForm, { nombre: `${lista.nombre} (copia)`, fecha_inicio: '', fecha_fin: '', copiar_precios: true })
   clonarFormError.value  = ''
   clonarFormErrors.value = {}
@@ -679,15 +429,15 @@ async function handleClonar() {
   clonarSaving.value     = true
   try {
     const res = await invListaPrecioService.clonar(clonarOrigen.value.id, {
-      nombre:        clonarForm.nombre.trim(),
-      fecha_inicio:  clonarForm.fecha_inicio || null,
-      fecha_fin:     clonarForm.fecha_fin    || null,
+      nombre:         clonarForm.nombre.trim(),
+      fecha_inicio:   clonarForm.fecha_inicio || null,
+      fecha_fin:      clonarForm.fecha_fin    || null,
       copiar_precios: clonarForm.copiar_precios,
     })
     notifySuccess(`Lista clonada con ${res.precios_copiados ?? 0} precio(s) copiado(s).`)
     showClonarForm.value = false
     loadListas(1)
-    loadSelectores()
+    loadPoblacionesConLista()
   } catch (e) {
     if (e?.response?.status === 422) {
       clonarFormErrors.value = e.response.data?.errors ?? {}
@@ -700,231 +450,10 @@ async function handleClonar() {
   }
 }
 
-// ─── Estado de precios por producto ───────────────────────────────────────────
-const precios     = ref([])
-const loading     = ref(false)
-const error       = ref('')
-const deleting    = ref({})
-const pagination  = reactive({ currentPage: 1, lastPage: 1, total: 0, from: 0, to: 0 })
-const filters           = reactive({ search: '', producto_id: '', lista_precio_id: '' })
-const listaPrecioOptions = ref([])
-const listaPrecioRaw     = ref([])
-const todasLasListas     = ref([]) // incluye inactivas: alimenta el filtro "ver esta lista puntual"
-const filtroBuscadorKey  = ref(0)
-
-const STATUS_LABEL = { 0: 'Inactiva', 1: 'En Proceso', 2: 'Aprobada', 3: 'Activa' }
-
-// Filtro de vista: puede elegirse cualquier lista, activa o no, sin afectar search/producto_id
-const listaPrecioFiltroOptions = computed(() =>
-  todasLasListas.value.map(l => ({ value: String(l.id), label: `${l.nombre} (${STATUS_LABEL[l.status] ?? l.status})` }))
-)
-
-const tableColumns = [
-  { key: 'producto',     label: 'Producto' },
-  { key: 'lista_precio', label: 'Lista de precios' },
-  { key: 'precio',       label: 'Precio' },
-]
-
-async function loadSelectores() {
-  try {
-    const res = await invListaPrecioService.getAll({ per_page: 200 })
-    const lista = Array.isArray(res.data ?? res) ? (res.data ?? res) : []
-    todasLasListas.value = lista
-    // El formulario de crear/editar precio excluye las Inactivas: no tiene sentido asignar precios ahí
-    listaPrecioRaw.value    = lista.filter(l => l.status !== 0)
-    listaPrecioOptions.value = listaPrecioRaw.value
-      .map(l => ({ value: l.id, label: `${l.nombre} (${STATUS_LABEL[l.status] ?? l.status})` }))
-  } catch { /* no bloquea */ }
-}
-
-async function loadPrecios(page = 1) {
-  loading.value = true
-  error.value   = ''
-  try {
-    const params = { page, per_page: 20 }
-    if (filters.search)          params.search          = filters.search
-    if (filters.producto_id)     params.producto_id     = filters.producto_id
-    if (filters.lista_precio_id) params.lista_precio_id = filters.lista_precio_id
-    const res = await invPrecioService.getAll(params)
-    precios.value = res.data ?? []
-    if (res.meta) {
-      pagination.currentPage = res.meta.current_page
-      pagination.lastPage    = res.meta.last_page
-      pagination.total       = res.meta.total
-      pagination.from        = res.meta.from ?? 0
-      pagination.to          = res.meta.to   ?? 0
-    }
-  } catch (e) {
-    error.value = e?.response?.data?.message ?? 'Error al cargar los precios.'
-  } finally {
-    loading.value = false
-  }
-}
-
-let searchTimer = null
-function onSearchInput() { clearTimeout(searchTimer); searchTimer = setTimeout(() => loadPrecios(1), 400) }
-function onFilterChange() { loadPrecios(1) }
-function clearFilters() { filters.search = ''; filters.producto_id = ''; filters.lista_precio_id = ''; filtroBuscadorKey.value++; loadPrecios(1) }
-function goToPage(p) { if (p >= 1 && p <= pagination.lastPage) loadPrecios(p) }
-
-async function handleDelete(row) {
-  if (!await confirm('¿Eliminar este precio? Esta acción no se puede deshacer.', { title: 'Eliminar precio', confirmLabel: 'Eliminar' })) return
-  deleting.value = { ...deleting.value, [row.id]: true }
-  try {
-    await invPrecioService.delete(row.id)
-    notifySuccess('Precio eliminado.')
-    loadPrecios(pagination.currentPage)
-  } catch (e) {
-    notifyError(e?.response?.data?.message ?? 'No se pudo eliminar el precio.')
-  } finally {
-    const n = { ...deleting.value }
-    delete n[row.id]
-    deleting.value = n
-  }
-}
-
-// ─── Modal: Crear / Editar precio ─────────────────────────────────────────────
-const showForm         = ref(false)
-const editingItem      = ref(null)
-const saving           = ref(false)
-const formError        = ref('')
-const formErrors       = ref({})
-const emptyForm        = { producto_id: '', lista_precio_id: '', precio: '', observaciones: '' }
-const form             = reactive({ ...emptyForm })
-const selectedProducto = ref(null)   // objeto completo del producto elegido
-const grupoVariantes   = ref([])     // variantes del grupo seleccionado
-const loadingVariantes = ref(false)
-const desgloseKit      = ref(null)   // desglose de componentes del kit en la lista elegida
-const loadingDesglose  = ref(false)
-
-const formatRango = (min, max) => {
-  if (min == null) return '—'
-  return min === max ? formatCurrency(min) : `${formatCurrency(min)} – ${formatCurrency(max)}`
-}
-
-// Totales que se pueden aplicar como precio del kit (uno solo si no hay rango)
-const totalesSugeridos = computed(() => {
-  const d = desgloseKit.value
-  if (!d?.componentes?.length || !d.total_max) return []
-  return d.total_min === d.total_max ? [d.total_min] : [d.total_min, d.total_max]
-})
-
-// Compara el precio digitado contra la suma de componentes
-const diferenciaKit = computed(() => {
-  const d = desgloseKit.value
-  const precio = Number(form.precio)
-  if (!d?.total_max || !form.precio || Number.isNaN(precio)) return null
-  if (precio >= d.total_min && precio <= d.total_max) return { texto: 'Igual a la suma de componentes', clase: 'text-slate-500' }
-  const base = precio < d.total_min ? d.total_min : d.total_max
-  const pct  = Math.round(((precio - base) / base) * 100)
-  return precio < base
-    ? { texto: `Descuento de ${formatCurrency(base - precio)} (${Math.abs(pct)}%) vs. componentes`, clase: 'text-green-700' }
-    : { texto: `${formatCurrency(precio - base)} (${pct}%) por encima de los componentes`, clase: 'text-amber-700' }
-})
-
-async function loadDesgloseKit() {
-  desgloseKit.value = null
-  if (selectedProducto.value?.tipo !== 'kit' || !form.lista_precio_id) return
-  loadingDesglose.value = true
-  try {
-    const res = await invPrecioService.getDesgloseKit(form.lista_precio_id, selectedProducto.value.id)
-    desgloseKit.value = res.data ?? null
-  } catch { desgloseKit.value = null }
-  finally { loadingDesglose.value = false }
-}
-
-// Recalcula al cambiar el kit o la lista
-watch(() => [selectedProducto.value?.id, form.lista_precio_id], loadDesgloseKit)
-
-async function onProductoSelect(p) {
-  form.producto_id    = p.id
-  selectedProducto.value = p
-  grupoVariantes.value   = []
-  if (p.tipo === 'grupo') {
-    loadingVariantes.value = true
-    try {
-      const res = await invProductoService.getVariantes(p.id)
-      // Solo las variantes activas reciben el precio (igual que en el backend)
-      grupoVariantes.value = (res.data ?? res ?? []).filter(v => Number(v.status) === 1)
-    } catch { grupoVariantes.value = [] }
-    finally { loadingVariantes.value = false }
-  }
-}
-
-function onProductoClear() {
-  form.producto_id     = ''
-  selectedProducto.value = null
-  grupoVariantes.value   = []
-}
-
-function openCreate() {
-  editingItem.value      = null
-  selectedProducto.value = null
-  grupoVariantes.value   = []
-  Object.assign(form, emptyForm)
-  formError.value  = ''
-  formErrors.value = {}
-  showForm.value   = true
-}
-
-function openEdit(row) {
-  editingItem.value      = row
-  selectedProducto.value = row.producto ?? null
-  grupoVariantes.value   = []
-  Object.assign(form, {
-    producto_id:     row.producto_id     ?? '',
-    lista_precio_id: row.lista_precio_id ?? '',
-    precio:          row.precio          ?? '',
-    observaciones:   row.observaciones   ?? '',
-  })
-  formError.value  = ''
-  formErrors.value = {}
-  showForm.value   = true
-}
-
-async function handleSubmit() {
-  formError.value  = ''
-  formErrors.value = {}
-  saving.value     = true
-  const precio       = Number(form.precio)
-  const lista_id    = form.lista_precio_id
-  const observaciones = form.observaciones.trim() || null
-
-  try {
-    if (editingItem.value) {
-      // Editar: siempre actualización directa del registro
-      await invPrecioService.update(editingItem.value.id, { precio, observaciones })
-      notifySuccess('Precio actualizado.')
-    } else {
-      // POST /precios hace updateOrCreate en el backend. Si el producto es un grupo,
-      // el backend asigna el precio a cada variante activa sin tocar el resto de la lista.
-      const res = await invPrecioService.create({ producto_id: form.producto_id, lista_precio_id: lista_id, precio, observaciones })
-      notifySuccess(res?.message ?? 'Precio guardado.')
-    }
-    showForm.value = false
-    loadPrecios(pagination.currentPage)
-  } catch (e) {
-    if (e?.response?.status === 422) {
-      formErrors.value = e.response.data?.errors ?? {}
-      formError.value  = e.response.data?.message ?? 'Verifica los datos.'
-    } else {
-      formError.value = e?.response?.data?.message ?? 'Ocurrió un error.'
-    }
-  } finally {
-    saving.value = false
-  }
-}
-
-// ─── Cargar datos al montar y al cambiar de tab ───────────────────────────────
-watch(activeTab, (tab) => {
-  if (tab === 'listas' && !listas.value.length) loadListas(1)
-  if (tab === 'precios' && !precios.value.length) { loadPrecios(1); loadSelectores() }
-})
-
 onMounted(() => {
   loadPermissions()
   loadListas(1)
   loadPoblaciones()
-  loadSelectores()
+  loadPoblacionesConLista()
 })
 </script>
