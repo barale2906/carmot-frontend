@@ -68,11 +68,12 @@ const groups = [
     ],
   },
   {
-    routes: ['/financiero/cartera'],
+    routes: ['/financiero/cartera', '/financiero/prorrogas-pago'],
     title: 'Cartera',
-    description: 'Consulta y gestiona la cartera de estudiantes.',
+    description: 'Consulta y gestiona la cartera de estudiantes y los plazos nuevos de pago acordados.',
     items: [
       { label: 'Listado de cartera', to: '/financiero/cartera' },
+      { label: 'Plazos de pago acordados', to: '/financiero/prorrogas-pago' },
     ],
   },
 ]

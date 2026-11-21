@@ -80,7 +80,7 @@
             <p class="text-xs text-slate-500">{{ seleccion.estudiante.documento ?? '' }} · {{ etiquetaCorta(seleccion.clase) }}</p>
             <p v-if="esInvitado" class="mt-1 text-xs font-semibold text-blue-800">Es de otro grupo y toma esta clase por una reposición.</p>
           </div>
-          <CarteraEstado :estudiante="datosCartera" />
+          <CarteraEstado :estudiante="datosCartera" :permitir-acordar="puedeAcordar" @acordar="acordarPlazo" />
         </div>
 
         <p v-if="registroPrevio" class="mt-2 text-xs text-amber-700">
@@ -201,6 +201,8 @@
         </li>
       </ul>
     </template>
+
+    <ProrrogaPagoFormModal v-model="modalProrroga" :estudiante="estudianteProrroga" @guardada="recargarDatosCartera" />
   </section>
 </template>
 
@@ -216,6 +218,8 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import asistenciaService from '@/services/asistenciaService.js'
 import CarteraEstado     from '@/components/academico/CarteraEstado.vue'
+import { usePermisos } from '@/composables/usePermisos.js'
+import ProrrogaPagoFormModal from '@/components/financiero/ProrrogaPagoFormModal.vue'
 import { useNotification } from '@/composables/useNotification'
 import { fechaISO } from '@/utils/crm.js'
 import {
@@ -307,6 +311,24 @@ async function datosDeGrupo(grupoId) {
   return listasPorGrupo.get(grupoId)
 }
 
+// Plazo nuevo de pago: se acuerda aquí mismo y se vuelve a pedir la lista del grupo para mostrarlo
+const { can, loadPermisos } = usePermisos()
+const puedeAcordar       = computed(() => can('fin_prorrogaPagoCrear'))
+const modalProrroga      = ref(false)
+const estudianteProrroga = ref(null)
+
+function acordarPlazo(estudiante) {
+  estudianteProrroga.value = estudiante
+  modalProrroga.value = true
+}
+
+async function recargarDatosCartera() {
+  const { estudiante, clase } = seleccion.value
+  listasPorGrupo.delete(clase.grupo.id)
+  const lista = await datosDeGrupo(clase.grupo.id)
+  datosCartera.value = lista?.estudiantes?.find(e => e.id === estudiante.id) ?? null
+}
+
 function reiniciarFormulario() {
   Object.assign(form, { estado: 'presente', justificada: false, justificacion: '', observaciones: '' })
 }
@@ -384,5 +406,8 @@ async function guardar() {
   }
 }
 
-onMounted(cargar)
+onMounted(() => {
+  loadPermisos().catch(() => {})
+  cargar()
+})
 </script>

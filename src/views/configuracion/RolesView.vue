@@ -1064,7 +1064,10 @@ const modulosConPermisos = reactive([
       { key: 'fin_reciboPagoAnular', descripcion: 'Anular recibo de pago' },
       { key: 'fin_reciboPagoCerrar', descripcion: 'Cerrar recibo de pago' },
       { key: 'fin_reciboPagoReportes', descripcion: 'Ver reportes de recibos' },
-      { key: 'fin_reciboPagoPDF', descripcion: 'Generar PDF de recibo' }
+      { key: 'fin_reciboPagoPDF', descripcion: 'Generar PDF de recibo' },
+      { key: 'fin_prorrogasPago', descripcion: 'Ver plazos nuevos de pago' },
+      { key: 'fin_prorrogaPagoCrear', descripcion: 'Registrar plazo nuevo de pago' },
+      { key: 'fin_prorrogaPagoCancelar', descripcion: 'Cancelar plazo nuevo de pago y recibir avisos de incumplimiento' }
     ]
   }
 ])

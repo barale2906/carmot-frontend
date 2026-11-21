@@ -43,6 +43,7 @@ import RecibosPagoView from './views/financiero/RecibosPagoView.vue'
 import CarteraView from './views/financiero/CarteraView.vue'
 import DescuentosView from './views/financiero/DescuentosView.vue'
 import TransferenciasPendientesView from './views/financiero/TransferenciasPendientesView.vue'
+import ProrrogasPagoView from './views/financiero/ProrrogasPagoView.vue'
 import CajaView from './views/financiero/CajaView.vue'
 import LibroDiarioView from './views/financiero/LibroDiarioView.vue'
 import TurnosCajaView from './views/financiero/TurnosCajaView.vue'
@@ -326,6 +327,12 @@ const routes = [
             name: 'Cartera',
             meta: { permission: 'fin_carteras' },
             component: CarteraView
+          },
+          {
+            path: 'prorrogas-pago',
+            name: 'ProrrogasPago',
+            meta: { permission: 'fin_prorrogasPago' },
+            component: ProrrogasPagoView
           },
           {
             path: 'descuentos',

@@ -190,3 +190,19 @@ export function claseEstadoEstudiante(estado) {
 export function esDesertado(estudiante) {
   return estudiante?.estado_estudiante === 'Desertado'
 }
+
+/** Plazo máximo, en días, de un plazo nuevo de pago (ProrrogaPago::PLAZO_MAXIMO_DIAS en el backend). */
+export const PLAZO_MAXIMO_PRORROGA = 15
+
+/** Suma `dias` a una fecha "YYYY-MM-DD" y devuelve "YYYY-MM-DD". */
+export function sumarDias(fecha, dias) {
+  const d = new Date(`${fecha}T00:00:00`)
+  d.setDate(d.getDate() + dias)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/** Texto de los días que le quedan a un plazo nuevo de pago vigente. */
+export function textoDiasRestantes(dias) {
+  if (dias === 0) return 'vence hoy'
+  return `${dias} ${dias === 1 ? 'día restante' : 'días restantes'}`
+}

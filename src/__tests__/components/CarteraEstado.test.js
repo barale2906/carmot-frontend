@@ -43,4 +43,27 @@ describe('CarteraEstado', () => {
     const wrapper = mount(CarteraEstado, { props: { estudiante: { ...enMora, transferencias_pendientes: 1, valor_transferencias_pendientes: 500000 } } })
     expect(wrapper.text()).toContain('Transferencia por aprobar')
   })
+
+  it('muestra el plazo acordado vigente y no ofrece acordar otro', () => {
+    const prorroga_pago = { fecha_compromiso: '2026-11-27', dias_restantes: 7, registrada_por: 'Ana', observacion: 'Paga el viernes' }
+    const wrapper = mount(CarteraEstado, { props: { estudiante: { ...enMora, prorroga_pago }, permitirAcordar: true } })
+    expect(wrapper.get('[data-test="prorroga"]').text()).toContain('Plazo acordado hasta')
+    expect(wrapper.text()).toContain('7 días restantes')
+    expect(wrapper.text()).toContain('Paga el viernes')
+    expect(wrapper.find('[data-test="acordar"]').exists()).toBe(false)
+  })
+
+  it('en mora y sin plazo ofrece acordarlo solo si la vista lo permite', async () => {
+    const sinPermiso = mount(CarteraEstado, { props: { estudiante: enMora } })
+    expect(sinPermiso.find('[data-test="acordar"]').exists()).toBe(false)
+
+    const wrapper = mount(CarteraEstado, { props: { estudiante: enMora, permitirAcordar: true } })
+    await wrapper.get('[data-test="acordar"]').trigger('click')
+    expect(wrapper.emitted('acordar')[0][0]).toEqual(enMora)
+  })
+
+  it('al día no ofrece acordar plazo', () => {
+    const wrapper = mount(CarteraEstado, { props: { estudiante: { en_mora: false, mora_detalle: [] }, permitirAcordar: true } })
+    expect(wrapper.find('[data-test="acordar"]').exists()).toBe(false)
+  })
 })

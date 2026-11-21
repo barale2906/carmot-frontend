@@ -169,7 +169,7 @@
                         </td>
                         <td class="px-4 py-2 text-slate-600">{{ estudiantesMap[fila.estudiante_id]?.documento ?? '—' }}</td>
                         <td class="px-4 py-2">
-                          <CarteraEstado :estudiante="estudiantesMap[fila.estudiante_id]" />
+                          <CarteraEstado :estudiante="estudiantesMap[fila.estudiante_id]" :permitir-acordar="puedeAcordar" @acordar="acordarPlazo" />
                         </td>
                         <td class="px-4 py-2">
                           <div class="flex min-w-[220px] items-center gap-2">
@@ -251,6 +251,9 @@
             </template>
           </FormTabs>
         </template>
+
+        <!-- Plazo nuevo de pago acordado desde la planilla -->
+        <ProrrogaPagoFormModal v-model="modalProrroga" :estudiante="estudianteProrroga" @guardada="recargarLista" />
       </div>
     </template>
 
@@ -280,6 +283,7 @@ import AsistenciaClasesDelDia from '@/components/academico/AsistenciaClasesDelDi
 import AsistenciaListado from '@/components/academico/AsistenciaListado.vue'
 import AsistenciaReposiciones from '@/components/academico/AsistenciaReposiciones.vue'
 import CarteraEstado     from '@/components/academico/CarteraEstado.vue'
+import ProrrogaPagoFormModal from '@/components/financiero/ProrrogaPagoFormModal.vue'
 import { usePermisos }     from '@/composables/usePermisos.js'
 import { useNotification } from '@/composables/useNotification'
 import { fechaISO } from '@/utils/crm.js'
@@ -293,6 +297,7 @@ const { can, loadPermisos } = usePermisos()
 const { success: notifySuccess, error: notifyError } = useNotification()
 
 const puedeRegistrar = computed(() => can('aca_asistenciaCrear'))
+const puedeAcordar   = computed(() => can('fin_prorrogaPagoCrear'))
 
 const vistas = computed(() => [
   { value: 'tomar',   label: 'Asistencia por grupo' },
@@ -362,6 +367,20 @@ const resumen        = computed(() => resumenPlanilla(planilla.value))
 const yaRegistrada   = computed(() => planilla.value.some(f => f.guardada))
 const enMora         = computed(() => (lista.value?.estudiantes ?? []).filter(e => e.en_mora).length)
 const conTransferencia = computed(() => (lista.value?.estudiantes ?? []).filter(e => e.transferencias_pendientes > 0).length)
+
+// Plazo nuevo de pago: se acuerda desde la planilla y se recarga la lista para mostrarlo
+const modalProrroga      = ref(false)
+const estudianteProrroga = ref(null)
+
+function acordarPlazo(estudiante) {
+  estudianteProrroga.value = estudiante
+  modalProrroga.value = true
+}
+
+async function recargarLista() {
+  const res = await asistenciaService.listaAsistencia(grupoId.value)
+  lista.value = res.data ?? lista.value
+}
 
 async function onGrupoChange() {
   lista.value    = null

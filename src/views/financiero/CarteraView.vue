@@ -20,6 +20,9 @@
         <li role="listitem">
           <StatCard title="Por cobrar"    :value="`$ ${formatMoney(stats.totalSaldo)}`" description="Saldo total pendiente" icon="cartera" icon-variant="amber" />
         </li>
+        <li role="listitem">
+          <StatCard title="Plazos acordados" :value="stats.prorrogas" :description="`${stats.prorrogasIncumplidas} incumplidos`" icon="pendientes" icon-variant="amber" />
+        </li>
       </ul>
     </section>
 
@@ -280,6 +283,16 @@
                     :title="`${grupo.transferencias_pendientes} transferencia(s) pendiente(s) de aprobación por $ ${formatMoney(grupo.valor_transferencias_pendientes)}`"
                   >
                     Transferencia por aprobar · $ {{ formatMoney(grupo.valor_transferencias_pendientes) }}
+                  </span>
+                  <!-- Acuerdos verbales de plazo nuevo: veces que se concedió y cómo terminaron -->
+                  <span
+                    v-if="grupo.prorrogas_pago?.total > 0"
+                    class="inline-flex whitespace-nowrap rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-300"
+                    :title="`Plazos nuevos acordados: ${grupo.prorrogas_pago.vigentes} vigente(s), ${grupo.prorrogas_pago.cumplidas} cumplido(s), ${grupo.prorrogas_pago.incumplidas} incumplido(s)`"
+                    data-test="prorrogas-estudiante"
+                  >
+                    {{ grupo.prorrogas_pago.total }} {{ grupo.prorrogas_pago.total === 1 ? 'plazo acordado' : 'plazos acordados' }}
+                    <template v-if="grupo.prorrogas_pago.incumplidas > 0"> · {{ grupo.prorrogas_pago.incumplidas }} incumplido(s)</template>
                   </span>
                 </p>
                 <p class="mt-0.5 break-words text-xs text-slate-500 sm:truncate">
@@ -568,7 +581,7 @@ const totalCarteraNeta = ref(0)
 const expandedGroups = ref(new Set())
 
 const pagination = reactive({ currentPage: 1, lastPage: 1, total: 0, from: 0, to: 0, perPage: 15 })
-const stats      = reactive({ total: 0, activas: 0, abonadas: 0, cerradas: 0, totalSaldo: 0 })
+const stats      = reactive({ total: 0, activas: 0, abonadas: 0, cerradas: 0, totalSaldo: 0, prorrogas: 0, prorrogasIncumplidas: 0 })
 
 const filters = reactive({
   estudiante_id:   '',
@@ -712,6 +725,8 @@ async function loadStatistics() {
     stats.cerradas  = porStatus.find(s => s.status === 2)?.total  ?? 0
     stats.total     = stats.activas + stats.abonadas + stats.cerradas
     stats.totalSaldo = res.data?.total_saldo ?? 0
+    stats.prorrogas  = res.data?.prorrogas_pago?.total ?? 0
+    stats.prorrogasIncumplidas = res.data?.prorrogas_pago?.incumplidas ?? 0
   } catch {
     // Informativo, no bloquea la vista
   }

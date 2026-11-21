@@ -28,6 +28,27 @@
     </template>
     <span v-else class="text-xs text-slate-500">Al día</span>
 
+    <!-- Plazo nuevo de pago acordado: permite el ingreso a clase hasta su fecha compromiso -->
+    <div
+      v-if="estudiante?.prorroga_pago"
+      class="mt-1 rounded border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-900"
+      data-test="prorroga"
+    >
+      <span class="font-semibold">Plazo acordado hasta {{ formatFechaCorta(estudiante.prorroga_pago.fecha_compromiso) }}</span>
+      · {{ textoDiasRestantes(estudiante.prorroga_pago.dias_restantes) }}
+      <span class="block text-emerald-800">Puede entrar a clase. Acordó: {{ estudiante.prorroga_pago.registrada_por ?? '—' }}</span>
+      <span v-if="estudiante.prorroga_pago.observacion" class="block text-emerald-800">{{ estudiante.prorroga_pago.observacion }}</span>
+    </div>
+    <button
+      v-else-if="estudiante?.en_mora && permitirAcordar"
+      type="button"
+      class="mt-1 rounded-lg border border-emerald-300 px-2 py-0.5 text-xs font-medium text-emerald-800 hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+      data-test="acordar"
+      @click="emit('acordar', estudiante)"
+    >
+      Acordar plazo de pago
+    </button>
+
     <span
       v-if="estudiante?.transferencias_pendientes > 0"
       class="mt-1 flex w-fit whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-amber-300"
@@ -46,16 +67,25 @@
  *
  * Espera los campos que devuelve la API de asistencia: en_mora, saldo_vencido, dias_mora,
  * mora_detalle[] (cartera_id, concepto, numero_cuota, curso, fecha_vencimiento, dias_mora,
- * saldo), transferencias_pendientes y valor_transferencias_pendientes.
+ * saldo), transferencias_pendientes, valor_transferencias_pendientes y prorroga_pago (plazo
+ * nuevo vigente: fecha_compromiso, dias_restantes, registrada_por, observacion).
+ *
+ * Si está en mora, sin plazo vigente y `permitirAcordar` es true, ofrece
+ * "Acordar plazo de pago": emite `acordar` con el estudiante para que la vista abra el modal.
  */
 import { ref, computed } from 'vue'
 import { formatMoney } from '@/utils/formatters.js'
 import { formatFechaCorta } from '@/utils/calendario.js'
+import { textoDiasRestantes } from '@/utils/asistencia.js'
 
 const props = defineProps({
+  /** Ofrece "Acordar plazo de pago" (la vista lo activa si el usuario tiene `fin_prorrogaPagoCrear`); no aplica al listado histórico. */
+  permitirAcordar: { type: Boolean, default: false },
   /** Estudiante (lista de asistencia) o registro de asistencia con los campos de mora. */
   estudiante: { type: Object, default: null },
 })
+
+const emit = defineEmits(['acordar'])
 
 const abierto = ref(false)
 
